@@ -12,23 +12,16 @@ Kalman::Kalman(double Qangle, double Qbias, double Rmeasure)
   m_P[0][0] = 0.0; 
   m_P[0][1] = 0.0;
   m_P[1][0] = 0.0; 
-  m_P[0][1] = 0.0;
+  m_P[1][1] = 0.0;
 
   m_Qangle = Qangle;
   m_Qbias = Qbias;
   m_Rmeasure = Rmeasure;
-
-  m_previousTime = micros();
 }
 
 
-double Kalman::compute(double accelAngle, double gyroRate)
+double Kalman::compute(double accelAngle, double gyroRate, double dt)
 {
-  // Measure the delta time since last update
-  unsigned long currentTime = micros();
-  double dt = (double)(currentTime - m_previousTime) / 1000000.0; // Divide by 1000000 to get seconds
-  m_previousTime = currentTime;
-
   // Integrate the angular velocity (from gyro) to get angle
   m_estimatedAngle += dt * (gyroRate - m_estimatedBias);
 

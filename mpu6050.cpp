@@ -3,7 +3,9 @@
 
 #include "mpu6050.h"
 
-const double COMPLEMENTARY_FILTER_GAIN = 0.96;
+#define MPU_I2C_ADDR 0x69                 // MPU6050 I2C address
+#define G_FORCE 9.81
+#define RAD_TO_DEGREE 57.295779513082321
 
 
 MPU6050::MPU6050()
@@ -13,25 +15,26 @@ MPU6050::MPU6050()
 
 void MPU6050::init()
 {
-  Wire.begin();                      // Initialize comunication
-  Wire.beginTransmission(MPU_I2C_ADDR);       // Start communication with MPU6050 // MPU=0x69
-  Wire.write(0x6B);                  // Talk to the register 6B
-  Wire.write(0x00);                  // Make reset - place a 0 into the 6B register
-  Wire.endTransmission(true);        // end the transmission
+  Wire.begin();                             // Initialize comunication
+  Wire.beginTransmission(MPU_I2C_ADDR);     // Start communication with MPU6050 // MPU=0x69
+  Wire.write(0x6B);                         // Talk to the register 6B
+  Wire.write(0x00);                         // Make reset - place a 0 into the 6B register
+  Wire.endTransmission(true);               // end the transmission
   
   // Configure Accelerometer Sensitivity - Full Scale Range (default +/- 2g)
   Wire.beginTransmission(MPU_I2C_ADDR);
-  Wire.write(0x1C);                  // Talk to the ACCEL_CONFIG register (1C hex)
-  Wire.write(0x10);                  // Set the register bits as 00010000 (+/- 8g full scale range)
+  Wire.write(0x1C);                         // Talk to the ACCEL_CONFIG register (1C hex)
+  Wire.write(0x10);                         // Set the register bits as 00010000 (+/- 8g full scale range)
   Wire.endTransmission(true);
 
   // Configure Gyro Sensitivity - Full Scale Range (default +/- 250deg/s)
-  /*Wire.beginTransmission(MPU_I2C_ADDR);
-  Wire.write(0x1B);                   // Talk to the GYRO_CONFIG register (1B hex)
-  Wire.write(0x10);                   // Set the register bits as 00010000 (1000deg/s full scale)
+  Wire.beginTransmission(MPU_I2C_ADDR);
+  Wire.write(0x1B);                         // Talk to the GYRO_CONFIG register (1B hex)
+  Wire.write(0x01 << 3);                    // Set the register bits (500deg/s full scale)
   Wire.endTransmission(true);
+  
   delay(20);
-  */
+  
 }
 
 
@@ -116,12 +119,8 @@ void MPU6050::calibrate()
 }
 
 
-void MPU6050::get_mpu6050_data(double dt)
+void MPU6050::get_mpu6050_data()
 {
-  static double gyroAngleX = 0.0;
-
-  static int print = 0;
-
   // Read acceleromter
   Wire.beginTransmission(MPU_I2C_ADDR);
   Wire.write(0x3B);
@@ -153,32 +152,31 @@ void MPU6050::get_mpu6050_data(double dt)
   Serial.print("     ");
   Serial.println(accZ);*/
 
-  // Calculating Roll and Pitch from the accelerometer data
-  m_angleAccX = (atan(m_filteredAcceloremeterY / sqrt(pow(m_filteredAcceloremeterX, 2) + pow(m_filteredAcceloremeterZ, 2))) * 180 / PI);
-  m_angleAccY = (atan(-1 * m_filteredAcceloremeterX / sqrt(pow(m_filteredAcceloremeterY, 2) + pow(m_filteredAcceloremeterZ, 2))) * 180 / PI);
+  /*
+  Calculating Roll and Pitch from the accelerometer data
+  Using atan2() function so:
+    -> It return a 360 degrees range of values instead of the [-90, +90] range from atan()
+    -> It handle the division by zero that can occur using atan(Y / sqrt(X*X + Z*Z))
+  */
+  m_angleAccX = RAD_TO_DEGREE * (atan2(-m_filteredAcceloremeterY, -m_filteredAcceloremeterZ) + PI);
+  m_angleAccY = RAD_TO_DEGREE * (atan2(-m_filteredAcceloremeterX, -m_filteredAcceloremeterZ) + PI);
 
-  //float accAngleX = atan(accY / accZ) * 180 / PI;
-  //float accAngleY = asin(accX / G_FORCE) * 180 / PI; // asin(accX / g) => asin(accX / 1.0) => asin(accX)
-
-  //float accAngleX = (180.0 / PI) * (atan2(-accY, -accZ) + PI);
-  //float accAngleY = (180.0 / PI) * (atan2(-accX, -accZ) + PI);
-  //float accAngleZ = (180.0 / PI) * (atan2(-accY, -accX) + PI);
-
-
-  /*if (isnan(accAngleX))
+  // Map the [0, 360] range to [-180, 180]
+  if (m_angleAccX > 180.0)
   {
-    accAngleX = 0.0;
+    m_angleAccX -= 360.0;
   }
-  if (isnan(accAngleY))
+  if (m_angleAccY > 180.0)
   {
-    accAngleY = 0.0;
-  }*/
+    m_angleAccY -= 360.0;
+  }
+  m_angleAccY = -m_angleAccY;
 
-  /*Serial.print(accX);
+  /*Serial.print(m_angleAccX);
   Serial.print("     ");
-  Serial.println(m_filteredAcceloremeterX);*/
+  Serial.println(m_angleAccY);*/
   //Serial.print("     ");
-  //Serial.println(accAngleZ);
+  //Serial.println(z);
 
   // Read gyroscope
   Wire.beginTransmission(MPU_I2C_ADDR);
@@ -186,9 +184,15 @@ void MPU6050::get_mpu6050_data(double dt)
   Wire.endTransmission(false);
   Wire.requestFrom(MPU_I2C_ADDR, 6, true);
 
-  double gyroVelocityX = (Wire.read() << 8 | Wire.read()) / 131.0; // For a 250deg/s range we have to divide first the raw value by 131.0, according to the datasheet
-  double gyroVelocityY = (Wire.read() << 8 | Wire.read()) / 131.0;
-  double gyroVelocityZ = (Wire.read() << 8 | Wire.read()) / 131.0;
+  /*
+  0 ± 250 °/s 131 LSB/°/s
+  1 ± 500 °/s 65.5 LSB/°/s
+  2 ± 1000 °/s 32.8 LSB/°/s
+  3 ± 2000 °/s 16.4 LSB/°/s
+  */
+  double gyroVelocityX = (Wire.read() << 8 | Wire.read()) / 65.5;
+  double gyroVelocityY = (Wire.read() << 8 | Wire.read()) / 65.5;
+  double gyroVelocityZ = (Wire.read() << 8 | Wire.read()) / 65.5;
 
   // Filtering gyroscope data. Maybe pointless... ?
   m_filteredGyroX = m_lpf_gyro_gain * m_previousGyroX + (1.0 - m_lpf_gyro_gain) * gyroVelocityX;
@@ -203,41 +207,10 @@ void MPU6050::get_mpu6050_data(double dt)
   m_filteredGyroY -= m_gyroOffsetY;
   m_filteredGyroZ -= m_gyroOffsetZ;
 
-  /*Serial.print(m_gyroVelocityX);
+  /*Serial.print(m_filteredGyroX);
   Serial.print("     ");
-  Serial.print(m_gyroVelocityY);
+  Serial.print(m_filteredGyroY);
   Serial.print("     ");
-  Serial.println(m_gyroVelocityZ);*/
-
-  //gyroAngleX += (m_gyroVelocityX * dt);
-
-  // Complementary filter
-  //complementaryFilter(m_angleAccX, m_angleAccY, dt);
-
-  //if (print == 25)
-  /*{
-    print = 0;
-
-    Serial.print(m_roll);
-    Serial.print("     ");
-    Serial.print(m_pitch);
-    Serial.print("     ");
-    Serial.println(m_yaw);
-  }
-  print++;*/
-
-  /*Serial.print(accAngleX);
-  Serial.print("     ");
-  Serial.print(gyroAngleX);
-  Serial.print("     ");
-  Serial.println(m_roll);*/
-
+  Serial.println(m_filteredGyroZ);*/
 }
 
-
-void MPU6050::complementaryFilter(double accAngleX, double accAngleY, double dt)
-{
-  m_roll = COMPLEMENTARY_FILTER_GAIN * (m_roll + (m_filteredGyroX * dt)) + (1.0 - COMPLEMENTARY_FILTER_GAIN) * accAngleX;
-  m_pitch = COMPLEMENTARY_FILTER_GAIN * (m_pitch + (m_filteredGyroY * dt)) + (1.0 - COMPLEMENTARY_FILTER_GAIN) * accAngleY;
-  m_yaw += m_filteredGyroZ * dt;
-}

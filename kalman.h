@@ -16,16 +16,14 @@ private:
   double m_estimatedBias;
 
   // Filter control variables
-  double m_Qangle = 0.001; // Angle noise
-  double m_Qbias = 0.003;  // Gyroscope bias noise
-  double m_Rmeasure = 0.03; // Measure noise
-
-  unsigned long m_previousTime;
+  double m_Qangle = 0.001;    // Angle noise
+  double m_Qbias = 0.003;     // Gyroscope bias noise
+  double m_Rmeasure = 0.03;   // Measure noise
 
 public:
   Kalman(double Qangle, double Qbias, double Rmeasure);
 
-  double compute(double accelAngle, double gyroRate);
+  double compute(double accelAngle, double gyroRate, double dt);
 
 };
 

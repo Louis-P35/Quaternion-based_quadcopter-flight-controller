@@ -6,17 +6,12 @@
 // Constructor to initialize PID gains
 PID::PID(double kp, double ki, double kd, double sat) : m_kp(kp), m_ki(ki), m_kd(kd), m_saturation(sat)
 {
-  m_previousTime = micros();
+  
 }
 
 
-double PID::computePID(double error, bool integrate)
+double PID::computePID(double error, double dt, bool integrate)
 {
-  // Measure the delta time since last update
-  unsigned long currentTime = micros();
-  double dt = (double)(currentTime - m_previousTime) / 1000000.0; // Divide by 1000000 to get seconds
-  m_previousTime = currentTime;
-
   // Proportionnal gain
   double p = error * m_kp;
 
@@ -43,3 +38,5 @@ double PID::computePID(double error, bool integrate)
 
   return p + i + d;
 }
+
+

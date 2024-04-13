@@ -68,7 +68,8 @@ void readPWM3()
 /* Interrupt safe getter */
 unsigned long getRadioChannel(int channel)
 {
-  /* Temporarily disable interrupts to ensure consistent readings */ // TODO: Only disable PWM's interrupts 
+  /* Temporarily disable interrupts to ensure consistent readings */
+  // TODO: Only disable PWM's interrupts ?
   noInterrupts();
   unsigned long durationTmp = g_pulseDuration[channel];
   interrupts(); // Re-enable interrupts

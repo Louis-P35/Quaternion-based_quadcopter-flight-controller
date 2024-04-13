@@ -10,12 +10,10 @@ struct PID
   double m_previousError = 0.0;
   double m_sommeError = 0.0;
 
-  unsigned long m_previousTime;
-
   // Constructor to initialize PID gains
   PID(double kp, double ki, double kd, double sat);
 
-  double computePID(double error, bool integrate);
+  double computePID(double error, double dt, bool integrate);
 };
 
 

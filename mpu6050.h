@@ -1,5 +1,3 @@
-#define MPU_I2C_ADDR 0x69                 // MPU6050 I2C address
-#define G_FORCE 9.81
 
 
 class MPU6050
@@ -40,17 +38,11 @@ public:
 
   const double m_lpf_gyro_gain = 0.01;
 
-  double m_roll = 0.0;
-  double m_pitch = 0.0;
-  double m_yaw = 0.0;
-
 public:
   MPU6050();
   void init();
   void calibrate();
-  void get_mpu6050_data(double dt);
-  void complementaryFilter(double accAngleX, double accAngleY, double dt);
-
+  void get_mpu6050_data();
 };
 
 
