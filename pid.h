@@ -1,3 +1,6 @@
+#pragma once
+
+
 /* PID class */
 struct PID
 {

@@ -1,3 +1,5 @@
+#pragma once
+
 
 
 void setup_PWM_reader(uint8_t channel0, uint8_t channel1, uint8_t channel2, uint8_t channel3);

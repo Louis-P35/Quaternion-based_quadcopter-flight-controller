@@ -8,10 +8,13 @@
 #include "utils.h"
 #include "mpu6050.h"
 #include "hmc5883l.h"
+#include "ms5611.h"
 #include "pwm.h"
+#include "dataFusion.h"
 
 
-const int MS5611_I2C_ADDR = 0x77;               // MS5611 I2C address (barometer)
+#define DEGREE_TO_RAD 0.0174532925
+
 
 #define USE_KALMAN_FILTER
 
@@ -75,6 +78,9 @@ enum class DroneState
 // mpu6050 IMU (accelerometer + gyroscope)
 MPU6050 g_imu = MPU6050();
 
+// ms5611 barometer
+MS5611 g_barometer = MS5611();
+
 // Kalman filters, to perform the data fusion between the gyroscope and accelerometer
 Kalman g_kalman_roll = Kalman(0.001, 0.003, 0.03);
 Kalman g_kalman_pitch = Kalman(0.001, 0.003, 0.03);
@@ -104,6 +110,10 @@ DroneState g_state = DroneState::SAFE_MODE;
 
 void calibrateIMU();
 void readRadioReceiver();
+void imuDataFusion(double dt);
+void complementaryFilter(double accAngleX, double accAngleY, double gyroX, double gyroY, double gyroZ, double dt);
+void handleFlyingState();
+void motorsControl(double dt);
 
 
 
@@ -120,6 +130,16 @@ void setup()
 
   // Setup of the 3 axis magnetometer
   //magnetometerSetup();
+
+  // Setup the ms5611 barometer
+  if (g_barometer.begin() == true)
+  {
+    Serial.println("MS5611 found.");
+  }
+  else
+  {
+    Serial.println("MS5611 not found.");
+  }
 
   // Configure interrupt for radio receiver reading
   setup_PWM_reader(READ_PWM_CHANNEL_0_PIN, READ_PWM_CHANNEL_1_PIN, READ_PWM_CHANNEL_2_PIN, READ_PWM_CHANNEL_3_PIN);
@@ -150,6 +170,19 @@ void loop()
     elapsedTime = 1.0; // Avoid dividing by zero
   }
 
+  double altitude = readAltitude(&g_barometer);
+  altitude = computeAltitude(
+    g_imu.m_filteredAcceloremeterX, 
+    g_imu.m_filteredAcceloremeterY, 
+    g_imu.m_filteredAcceloremeterZ, 
+    g_roll * DEGREE_TO_RAD, 
+    g_pitch * DEGREE_TO_RAD, 
+    altitude, 
+    elapsedTime
+    );
+  //Serial.print("Alt: ");
+  Serial.println(altitude);
+
   // Read the radio receiver at a 50 hz maximum frequency
   readRadioReceiver();
 
@@ -171,14 +204,14 @@ void loop()
   imuDataFusion(elapsedTime);
 
 
-  Serial.print("Roll:");
+  /*Serial.print("Roll:");
   Serial.print(g_roll);
   Serial.print(",");
   Serial.print("Pitch:");
   Serial.print(g_pitch);
   Serial.print(",");
   Serial.print("Yaw:");
-  Serial.println(g_yaw);
+  Serial.println(g_yaw);*/
 
   // Run the PID's and update PWM signal to the ESCss
   motorsControl(elapsedTime);

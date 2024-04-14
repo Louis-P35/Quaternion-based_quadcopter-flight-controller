@@ -4,7 +4,6 @@
 #include "mpu6050.h"
 
 #define MPU_I2C_ADDR 0x69                 // MPU6050 I2C address
-#define G_FORCE 9.81
 #define RAD_TO_DEGREE 57.295779513082321
 
 

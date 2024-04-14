@@ -4,6 +4,8 @@ with a resolution of 32000 distinct levels.
 Using the timer 1 and timer 5
 */
 
+#pragma once
+
 
 void setupPWM();
 void setupPwmTimer1();
