@@ -3,7 +3,8 @@
 
 /*
 This function read the altutude measured
-by the barometric sensor
+by the barometric sensor.
+Using exponential moving average as a filter.
 */
 double readAltitude(MS5611* pBarometer);
 

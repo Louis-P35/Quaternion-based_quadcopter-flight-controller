@@ -2,17 +2,22 @@
 
 #include "kalman.h"
 
+using namespace BLA;
 
-Kalman::Kalman(double Qangle, double Qbias, double Rmeasure)
+
+Kalman::Kalman()
 {
-  m_estimatedAngle = 0.0;
-  m_estimatedBias = 0.0;
-
   // Init covarance matrix
   m_P[0][0] = 0.0; 
   m_P[0][1] = 0.0;
   m_P[1][0] = 0.0; 
   m_P[1][1] = 0.0;
+}
+
+Kalman1D::Kalman1D(double Qangle, double Qbias, double Rmeasure) : Kalman()
+{
+  m_estimatedAngle = 0.0;
+  m_estimatedBias = 0.0;
 
   m_Qangle = Qangle;
   m_Qbias = Qbias;
@@ -20,7 +25,7 @@ Kalman::Kalman(double Qangle, double Qbias, double Rmeasure)
 }
 
 
-double Kalman::compute(double accelAngle, double gyroRate, double dt)
+double Kalman1D::compute(double accelAngle, double gyroRate, double dt)
 {
   // Integrate the angular velocity (from gyro) to get angle
   m_estimatedAngle += dt * (gyroRate - m_estimatedBias);
@@ -53,6 +58,49 @@ double Kalman::compute(double accelAngle, double gyroRate, double dt)
   m_P[1][1] -= m_K[1] * P01_temp;
 
   return m_estimatedAngle;
+}
+
+
+Kalman2D::Kalman2D() : Kalman()
+{
+  F = {1, 0.004, 0, 1};  
+  G = {0.5*0.004*0.004,0.004};
+  H = {1, 0};
+  I = {1, 0, 0, 1};
+  Q = G*~G*100.0f;
+  R = {30*30};
+  P = {0, 0, 0, 0};
+  S = {0, 0};
+}
+
+double Kalman2D::compute(double zAltBarometer, double zAccel, double dt)
+{
+  // code from:
+  // https://github.com/CarbonAeronautics/Part-XIX-2D-Kalman-filter/blob/main/ArduinoCode
+
+  Acc = {zAccel};
+
+  S = F*S+G*Acc;
+
+  P = F*P*~F+Q;
+
+  L=H*P*~H+R;
+
+  Invert(L);
+
+  K=P*~H*L;
+
+  M={zAltBarometer};
+
+  S=S+K*(M-H*S);
+
+  AltitudeKalman=S(0,0);
+
+  VelocityVerticalKalman=S(1,0);
+
+  P=(I-K*H)*P;
+
+  return AltitudeKalman;  // Return the updated altitude estimate
 }
 
 

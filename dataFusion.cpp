@@ -9,11 +9,12 @@
 
 /*
 This function read the altutude measured
-by the barometric sensor
+by the barometric sensor.
+Using exponential moving average as a filter.
 */
 double readAltitude(MS5611* pBarometer)
 {
-  const double alpha = 0.2;
+  const double alpha = 0.1;
 
   int result = pBarometer->read();
   if (result != MS5611_READ_OK)
@@ -61,7 +62,8 @@ double _complementaryFilter(double fusedValue, double value, double valueDerivat
 double computeAltitude(double accX, double accY, double accZ, double roll_rad, double pitch_rad, double barometerAlt, double dt)
 {
   /*
-  
+  Compute the Z velocity by integrating the accelerometer
+  This function do not work for now
   */
 
   static double zVelocity = 0.0;
@@ -69,14 +71,15 @@ double computeAltitude(double accX, double accY, double accZ, double roll_rad, d
   static double prevAltitude = 0.0;
 
   // Compute the Z acceleration in the world coordinate system
-  double worldAccZ = -sin(pitch_rad) * accX + cos(pitch_rad)*sin(roll_rad) * accY + cos(pitch_rad) * cos(roll_rad) * accZ;
+  double worldAccZ = -sin(pitch_rad) * accX + cos(pitch_rad) * sin(roll_rad) * accY + cos(pitch_rad) * cos(roll_rad) * accZ;
   // Remove the gravity vector (g) from the acceleration vector
   worldAccZ -= 1.0;
   // Convert in m/s
   worldAccZ *= G_FORCE;
 
   // Integrate it to get Z velocity
-  zVelocity += worldAccZ * dt;
+  //zVelocity += worldAccZ * dt;
+  zVelocity = _complementaryFilter(zVelocity, 0.0, worldAccZ, dt, 0.999);
 
   // Remove the gravity vector from the acceleration vector
   //double accZWithoutGravity = accZ - 0.99;
@@ -90,9 +93,9 @@ double computeAltitude(double accX, double accY, double accZ, double roll_rad, d
 
   // Integrate the Z velocity to get the altitude
   //altitude += zVelocity * dt;
-  //altitude = _complementaryFilter(altitude, barometerAlt, zVelocity, dt, 1.0);
+  altitude = _complementaryFilter(altitude, barometerAlt, zVelocity, dt, 0.98);
 
-  return zVelocity;
+  return altitude;
 }
 
 

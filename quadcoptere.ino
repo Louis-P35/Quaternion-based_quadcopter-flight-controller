@@ -18,12 +18,6 @@
 
 #define USE_KALMAN_FILTER
 
-/* Pins mapping for PWM output (to control ESCs) */
-#define PWM_PIN_1 8
-#define PWM_PIN_2 9
-#define PWM_PIN_3 10
-#define PWM_PIN_4 11
-
 /* Pins mapping for PWM input (from the radio receiver) */
 #define READ_PWM_CHANNEL_0_PIN 2
 #define READ_PWM_CHANNEL_1_PIN 3
@@ -63,9 +57,9 @@ enum class DroneState
 // TODO: DMP
 // TODO: Interrupt when MPU6050 has new data available
 // TODO: Battery level check
-// TODO: Scale accAngle values to match -90 +90
+// TODO: Scale accAngle values to match -90 +90 (calibration)
 // TODO: MPU9250 SPI (+ rapide)
-// TODO: Read barometer & magnetometer sensor
+// TODO: Read magnetometer sensor
 
 // Done:
 // DONE: Kalman filters
@@ -73,6 +67,7 @@ enum class DroneState
 // DONE: -180, +180 range from acc and IMU
 // DONE: 500Hz high res PWM signals
 // DONE: Disable PID I term until take off
+// DONE: Read barometer sensor
 
 
 // mpu6050 IMU (accelerometer + gyroscope)
@@ -82,8 +77,11 @@ MPU6050 g_imu = MPU6050();
 MS5611 g_barometer = MS5611();
 
 // Kalman filters, to perform the data fusion between the gyroscope and accelerometer
-Kalman g_kalman_roll = Kalman(0.001, 0.003, 0.03);
-Kalman g_kalman_pitch = Kalman(0.001, 0.003, 0.03);
+Kalman1D g_kalman_roll = Kalman1D(0.001, 0.003, 0.03);
+Kalman1D g_kalman_pitch = Kalman1D(0.001, 0.003, 0.03);
+
+// Two dimentional Kalman filter to perform data fusion between the barometer and accelerometer
+Kalman2D g_kalman2d_altitude = Kalman2D();
 
 // PIDs to perform the motors control feedback loop
 PID attitudeControl_roll = PID(ANGLE_KP, ANGLE_KI, ANGLE_KD, SATURATION);
@@ -170,26 +168,60 @@ void loop()
     elapsedTime = 1.0; // Avoid dividing by zero
   }
 
-  double altitude = readAltitude(&g_barometer);
-  altitude = computeAltitude(
+  // Compute altitude using barometer and accelerometer
+  double barometerAltitude = readAltitude(&g_barometer);
+  /*double worldAccZ = computeAltitude(
     g_imu.m_filteredAcceloremeterX, 
     g_imu.m_filteredAcceloremeterY, 
     g_imu.m_filteredAcceloremeterZ, 
     g_roll * DEGREE_TO_RAD, 
     g_pitch * DEGREE_TO_RAD, 
-    altitude, 
+    barometerAltitude, 
     elapsedTime
     );
+  double altitude = g_kalman2d_altitude.compute(barometerAltitude, worldAccZ, elapsedTime);*/
   //Serial.print("Alt: ");
-  Serial.println(altitude);
+  //Serial.println(barometerAltitude);
+  //Serial.print(" AltAcc: ");
+  /*Serial.print(-8.0);
+  Serial.print(",");
+  Serial.print(-12.0);
+  Serial.print(",");
+  Serial.print(barometerAltitude);
+  Serial.print(",");
+  Serial.println(worldAccZ);*/
 
   // Read the radio receiver at a 50 hz maximum frequency
   readRadioReceiver();
+  auto printRadio = []() -> void
+  {
+    Serial.print("Roll: ");
+    Serial.print(g_targetRoll);
+    Serial.print("\t Pitch: ");
+    Serial.print(g_targetPitch);
+    Serial.print("\t Yaw: ");
+    Serial.print(g_targetYaw);
+    Serial.print("\t Thrust: ");
+    Serial.println(g_targetThrust);
+  };
+  //printRadio();
 
 
   // Handle the state of the drone
   // Needed for safety
   handleFlyingState();
+  auto printState = []() -> void
+  {
+    Serial.print("Drone state: ");
+    if (g_state == DroneState::SAFE_MODE)
+      Serial.println("SAFE_MODE");
+    else if (g_state == DroneState::READY_TO_TAKE_OFF)
+      Serial.println("READY_TO_TAKE_OFF");
+    else if (g_state == DroneState::FLYING)
+      Serial.println("FLYING");
+  };
+  //printState();
+
 
 
   // Fetch the data from IMU (accel and gyro) and filter it
@@ -203,15 +235,16 @@ void loop()
   // Fuse the data (accelerometer and gyroscope) to compute attitude
   imuDataFusion(elapsedTime);
 
-
-  /*Serial.print("Roll:");
-  Serial.print(g_roll);
-  Serial.print(",");
-  Serial.print("Pitch:");
-  Serial.print(g_pitch);
-  Serial.print(",");
-  Serial.print("Yaw:");
-  Serial.println(g_yaw);*/
+  auto printAttitude = []() -> void
+  {
+    Serial.print("Roll: ");
+    Serial.print(g_roll);
+    Serial.print("\t Pitch:");
+    Serial.print(g_pitch);
+    Serial.print("\t Yaw:");
+    Serial.println(g_yaw);
+  };
+  //printAttitude();
 
   // Run the PID's and update PWM signal to the ESCss
   motorsControl(elapsedTime);
@@ -233,10 +266,6 @@ void motorsControl(double dt)
   double pidPitch = attitudeControl_pitch.computePID(error_pitch, dt, g_state == DroneState::FLYING);
   double pidYaw = attitudeControl_yaw.computePID(error_yaw, dt, g_state == DroneState::FLYING);
 
-
-  // Scale PIDs values to their desired range
-  // TODO
-
   // Calculate motors power
   //            FRONT
   // Moror 1              Motror 2
@@ -257,6 +286,13 @@ void motorsControl(double dt)
   double motor2Power = g_targetThrust - pidPitch + pidRoll - pidYaw;
   double motor3Power = g_targetThrust + pidPitch - pidRoll - pidYaw;
   double motor4Power = g_targetThrust + pidPitch + pidRoll + pidYaw;
+
+  // Scale values to match PWM's resolution
+  const double scale = (PWM_MOTOR_MAX_POWER - PWM_MOTOR_MIN_POWER) / 100.0;
+  motor1Power *= scale;
+  motor2Power *= scale;
+  motor3Power *= scale;
+  motor4Power *= scale;
 
   // Set PWMs to control ESCs
   // The ESCs are fed with a 500hz PWM signal
@@ -284,8 +320,11 @@ void handleFlyingState()
   {
     case DroneState::SAFE_MODE:
     {
-      // Wait for thrust and pitch stick to be down
-      if (g_targetThrust < 5.0 && g_targetPitch < (-TARGET_ANGLE_MAX + 3.0)) // TODO change value
+      // Wait for sticks to be down and toward inside
+      if (g_targetThrust < 10.0 && 
+          g_targetPitch > (TARGET_ANGLE_MAX * 0.6) &&
+          g_targetRoll < (-TARGET_ANGLE_MAX * 0.6) &&
+          g_targetYaw > (TARGET_ANGLE_MAX * 0.6))
       {
         g_state = DroneState::READY_TO_TAKE_OFF;
       }
@@ -293,9 +332,9 @@ void handleFlyingState()
     }
     case DroneState::READY_TO_TAKE_OFF:
     {
-      if (g_targetThrust > 6) // TODO change value
+      if (g_targetThrust > 10.0)
       {
-        g_state = DroneState::READY_TO_TAKE_OFF;
+        g_state = DroneState::FLYING;
       }
       break;
     }
@@ -356,7 +395,23 @@ void readRadioReceiver()
   /* Lambda to convert microseconds to angle */
   auto convertToAngle = [](unsigned long duration, double amplitudeMax) -> double
   {
+    const double deadZone = 1.0;
+
     double tmp = (((((double)duration) - 1000.0) / 1000.0) * (amplitudeMax * 2.0)) - amplitudeMax;
+
+    // Hysteresis to have a stable zero
+    if (tmp > -deadZone && tmp < deadZone)
+    {
+      tmp = 0.0;
+    }
+    else if (tmp > 0.0)
+    {
+      tmp -= deadZone;
+    }
+    else
+    {
+      tmp += deadZone;
+    }
 
     return (tmp < -amplitudeMax) ? (-amplitudeMax) : (tmp > amplitudeMax) ? amplitudeMax : tmp;
   };
@@ -364,8 +419,8 @@ void readRadioReceiver()
   /* Read the radio receiver */
   g_targetRoll = convertToAngle(getRadioChannel(0), TARGET_ANGLE_MAX);
   g_targetPitch = convertToAngle(getRadioChannel(1), TARGET_ANGLE_MAX);
-  g_targetYaw = 0.0;
-  g_targetThrust = 0.0;
+  g_targetYaw = convertToAngle(getRadioChannel(3), TARGET_ANGLE_MAX);
+  g_targetThrust = ((double)getRadioChannel(2) - 1000.0) / 10.0;
 }
 
 
