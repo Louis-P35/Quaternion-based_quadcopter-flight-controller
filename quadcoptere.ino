@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <Servo.h>
 
 #include "readPWM.h"
 #include "pid.h"
@@ -11,10 +10,10 @@
 #include "ms5611.h"
 #include "pwm.h"
 #include "dataFusion.h"
+#include "madgwick.h"
 
 
-#define DEGREE_TO_RAD 0.0174532925
-
+#define DEGREE_TO_RAD (PI / 180.0)
 
 #define USE_KALMAN_FILTER
 
@@ -61,6 +60,11 @@ enum class DroneState
 // TODO: MPU9250 SPI (+ rapide)
 // TODO: Read magnetometer sensor
 
+// 360
+// print time
+// madgwick
+// accelerometer odometry
+
 // Done:
 // DONE: Kalman filters
 // DONE: Calibration at startup
@@ -77,11 +81,14 @@ MPU6050 g_imu = MPU6050();
 MS5611 g_barometer = MS5611();
 
 // Kalman filters, to perform the data fusion between the gyroscope and accelerometer
-Kalman1D g_kalman_roll = Kalman1D(0.001, 0.003, 0.03);
-Kalman1D g_kalman_pitch = Kalman1D(0.001, 0.003, 0.03);
+//Kalman1D g_kalman_roll = Kalman1D(0.001, 0.003, 0.03);
+//Kalman1D g_kalman_pitch = Kalman1D(0.001, 0.003, 0.03);
 
 // Two dimentional Kalman filter to perform data fusion between the barometer and accelerometer
-Kalman2D g_kalman2d_altitude = Kalman2D();
+//Kalman2D g_kalman2d_altitude = Kalman2D();
+
+// Madgwick filter
+MadgwickFilter g_madgwickFilter = MadgwickFilter();
 
 // PIDs to perform the motors control feedback loop
 PID attitudeControl_roll = PID(ANGLE_KP, ANGLE_KI, ANGLE_KD, SATURATION);
@@ -152,11 +159,14 @@ void setup()
   setPwmPin44(PWM_MOTOR_FULL_STOP);
   setPwmPin45(PWM_MOTOR_FULL_STOP);
   delay(2000);
+
+  //madgwickUnitTest();
 }
 
 
 void loop()
 {
+  //return;
   static unsigned long previousTime = micros();
   
   // Get the ellapsed time since the last loop cycle
@@ -244,7 +254,7 @@ void loop()
     Serial.print("\t Yaw:");
     Serial.println(g_yaw);
   };
-  //printAttitude();
+  printAttitude();
 
   // Run the PID's and update PWM signal to the ESCss
   motorsControl(elapsedTime);
@@ -365,7 +375,7 @@ void complementaryFilter(double accAngleX, double accAngleY, double gyroX, doubl
 
 void imuDataFusion(double dt)
 {
-#ifdef USE_KALMAN_FILTER
+/*#ifdef USE_KALMAN_FILTER
   // Fuse the data (accelerometer and gyroscope) with Kalman filter to compute attitude
   g_roll = g_kalman_roll.compute(g_imu.m_angleAccX, g_imu.m_filteredGyroX, dt);
   g_pitch = g_kalman_pitch.compute(g_imu.m_angleAccY, g_imu.m_filteredGyroY, dt);
@@ -375,7 +385,18 @@ void imuDataFusion(double dt)
 #else
   // Complementary filter
   complementaryFilter(g_imu.m_angleAccX, g_imu.m_angleAccY, g_imu.m_filteredGyroX, g_imu.m_filteredGyroY, g_imu.m_filteredGyroZ, dt);
-#endif
+#endif*/
+  g_madgwickFilter.compute(
+    g_imu.m_filteredAcceloremeterX, // Acceleration vector will be normalized
+    g_imu.m_filteredAcceloremeterY, 
+    g_imu.m_filteredAcceloremeterZ, 
+    g_imu.m_filteredGyroX * DEGREE_TO_RAD, 
+    g_imu.m_filteredGyroY * DEGREE_TO_RAD, 
+    g_imu.m_filteredGyroZ * DEGREE_TO_RAD, 
+    dt
+  );
+  g_madgwickFilter.getEulerAngle(g_roll, g_pitch, g_yaw);
+  //g_madgwickFilter.m_qEst.print();
 }
 
 
