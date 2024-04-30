@@ -14,6 +14,7 @@
 
 
 #define DEGREE_TO_RAD (PI / 180.0)
+#define RAD_TO_DEGREE (180.0 / PI)
 
 #define USE_KALMAN_FILTER
 
@@ -115,8 +116,15 @@ DroneState g_state = DroneState::SAFE_MODE;
 
 void calibrateIMU();
 void readRadioReceiver();
-void imuDataFusion(double dt);
-void complementaryFilter(double accAngleX, double accAngleY, double gyroX, double gyroY, double gyroZ, double dt);
+void imuDataFusion(const double& dt);
+void complementaryFilter(
+  const double& accAngleX, 
+  const double& accAngleY, 
+  const double& gyroX, 
+  const double& gyroY, 
+  const double& gyroZ, 
+  const double& dt
+  );
 void handleFlyingState();
 void motorsControl(double dt);
 
@@ -166,7 +174,6 @@ void setup()
 
 void loop()
 {
-  //return;
   static unsigned long previousTime = micros();
   
   // Get the ellapsed time since the last loop cycle
@@ -178,8 +185,19 @@ void loop()
     elapsedTime = 1.0; // Avoid dividing by zero
   }
 
+  // Print dt in milliseconds
+  /*static bool bb = true;
+  if (bb)
+  {
+    Serial.println(elapsedTime * 1000.0);
+  }
+  bb = !bb;*/
+
+
+
   // Compute altitude using barometer and accelerometer
-  double barometerAltitude = readAltitude(&g_barometer);
+  // double barometerAltitude = readAltitude(&g_barometer);
+
   /*double worldAccZ = computeAltitude(
     g_imu.m_filteredAcceloremeterX, 
     g_imu.m_filteredAcceloremeterY, 
@@ -254,7 +272,7 @@ void loop()
     Serial.print("\t Yaw:");
     Serial.println(g_yaw);
   };
-  printAttitude();
+  //printAttitude();
 
   // Run the PID's and update PWM signal to the ESCss
   motorsControl(elapsedTime);
@@ -265,11 +283,31 @@ void loop()
 
 void motorsControl(double dt)
 {
- 
-  // Compute angular errors
-  double error_roll = g_targetRoll - g_roll;
-  double error_pitch = g_targetPitch - g_pitch;
-  double error_yaw = g_targetYaw - g_yaw;
+  // Get a target quaternion from the target Euler angles
+  g_targetRoll = 45.0;
+  g_targetPitch = 45.0;
+  g_targetYaw = 45.0;
+  Quaternion qTarget = Quaternion::fromEuler(g_targetRoll * DEGREE_TO_RAD, g_targetPitch * DEGREE_TO_RAD, g_targetYaw * DEGREE_TO_RAD);
+
+  // Compute angular errors in the Quaternion space
+  Quaternion qError = PID::getError(g_madgwickFilter.m_qEst, qTarget);
+  double error_roll = qError.m_x * 100.0;
+  double error_pitch = qError.m_y * 100.0;
+  double error_yaw = qError.m_z * 100.0;
+  auto printError = [error_roll, error_pitch, error_yaw]() -> void
+  {
+    Serial.print("Error roll: ");
+    Serial.print(error_roll);
+    Serial.print("\t Error pitch:");
+    Serial.print(error_pitch);
+    Serial.print("\t Error yaw:");
+    Serial.println(error_yaw);
+  };
+  //printError();
+
+  //double error_roll = g_targetRoll - g_roll;
+  //double error_pitch = g_targetPitch - g_pitch;
+  //double error_yaw = g_targetYaw - g_yaw;
 
   // Compute PIDs
   double pidRoll = attitudeControl_roll.computePID(error_roll, dt, g_state == DroneState::FLYING);
@@ -361,7 +399,14 @@ void handleFlyingState()
 
 
 
-void complementaryFilter(double accAngleX, double accAngleY, double gyroX, double gyroY, double gyroZ, double dt)
+void complementaryFilter(
+  const double& accAngleX, 
+  const double& accAngleY, 
+  const double& gyroX, 
+  const double& gyroY, 
+  const double& gyroZ, 
+  const double& dt
+  )
 {
   static const double COMPLEMENTARY_FILTER_GAIN = 0.98;
 
@@ -373,7 +418,7 @@ void complementaryFilter(double accAngleX, double accAngleY, double gyroX, doubl
 }
 
 
-void imuDataFusion(double dt)
+void imuDataFusion(const double& dt)
 {
 /*#ifdef USE_KALMAN_FILTER
   // Fuse the data (accelerometer and gyroscope) with Kalman filter to compute attitude
@@ -386,6 +431,7 @@ void imuDataFusion(double dt)
   // Complementary filter
   complementaryFilter(g_imu.m_angleAccX, g_imu.m_angleAccY, g_imu.m_filteredGyroX, g_imu.m_filteredGyroY, g_imu.m_filteredGyroZ, dt);
 #endif*/
+  // Madgwick filter
   g_madgwickFilter.compute(
     g_imu.m_filteredAcceloremeterX, // Acceleration vector will be normalized
     g_imu.m_filteredAcceloremeterY, 
@@ -395,7 +441,7 @@ void imuDataFusion(double dt)
     g_imu.m_filteredGyroZ * DEGREE_TO_RAD, 
     dt
   );
-  g_madgwickFilter.getEulerAngle(g_roll, g_pitch, g_yaw);
+  //g_madgwickFilter.getEulerAngle(g_roll, g_pitch, g_yaw);
   //g_madgwickFilter.m_qEst.print();
 }
 

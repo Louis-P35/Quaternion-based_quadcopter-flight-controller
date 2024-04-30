@@ -1,9 +1,12 @@
 #pragma once
 
+#include "quaternion.h"
+
 
 /* PID class */
-struct PID
+class PID
 {
+private:
   double m_kp = 0.0;
   double m_ki = 0.0;
   double m_kd = 0.0;
@@ -13,11 +16,24 @@ struct PID
   double m_previousError = 0.0;
   double m_sommeError = 0.0;
 
+public:
   // Constructor to initialize PID gains
-  PID(double kp, double ki, double kd, double sat);
+  PID(double kp, double ki, double kd, double sat) : 
+  m_kp(kp), m_ki(ki), m_kd(kd), m_saturation(sat)
+  {
+    m_previousError = 0.0;
+    m_sommeError = 0.0;
+  }
 
-  double computePID(double error, double dt, bool integrate);
+  // For Euler-based PID
+  static double getError(const double& current, const double& target);
+
+  // For Quaternion-based PID
+  static Quaternion getError(const Quaternion& current, const Quaternion& target);
+
+  double computePID(const double& error, const double& dt, const bool& integrate);
 };
+
 
 
 /*struct DualLoopControl

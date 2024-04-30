@@ -11,7 +11,15 @@
 
 // Gyroscope Angular Velocity components are in Radians per Second
 // Accelerometer componets will be normalized
-void MadgwickFilter::compute(double ax, double ay, double az, double gx, double gy, double gz, double dt)
+void MadgwickFilter::compute(
+  const double& ax, 
+  const double& ay, 
+  const double& az, 
+  const double& gx, 
+  const double& gy, 
+  const double& gz, 
+  const double& dt
+  )
 {
   //Variables and constants
   Quaternion q_est_prev = m_qEst;
@@ -101,6 +109,11 @@ void MadgwickFilter::compute(double ax, double ay, double az, double gx, double 
                                                 //(shown in diagram, plus always use unit quaternions for orientation)
 }
 
+
+/*
+Retreive the Euler angle
+This is subject to gimbal lock
+*/
 void MadgwickFilter::getEulerAngle(double& roll, double& pitch, double& yaw)
 {
   m_qEst.toEuler(roll, pitch, yaw);

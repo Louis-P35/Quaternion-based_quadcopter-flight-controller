@@ -3,14 +3,35 @@
 #include "pid.h"
 
 
-// Constructor to initialize PID gains
-PID::PID(double kp, double ki, double kd, double sat) : m_kp(kp), m_ki(ki), m_kd(kd), m_saturation(sat)
+// For Euler-based PID
+double PID::getError(const double& current, const double& target)
 {
-  
+  return target - current;
+}
+
+// For Quaternion-based PID
+Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
+{
+  // Compute error
+  Quaternion q_error = target * current.inverse();
+  // Ensure it is normalized
+  q_error = q_error.normalize();
+
+  /* A quaternion q and its negative -q represent the same orientation. This can result in a sudden 
+  flip in the error direction when the quaternion passes through these equivalent representations.
+  If the dot product is negative, it implies that the quaternion error might cross the antipodal 
+  point, leading to a sign reversal. If so, we adjust the error quaternion by negating it to ensure 
+  it represents the shortest path. */
+  if (current.dotProduct(target) < 0.0)
+  {
+    return Quaternion(-q_error.m_w, -q_error.m_x, -q_error.m_y, -q_error.m_z);
+  }
+
+  return q_error;
 }
 
 
-double PID::computePID(double error, double dt, bool integrate)
+double PID::computePID(const double& error, const double& dt, const bool& integrate)
 {
   // Proportionnal gain
   double p = error * m_kp;

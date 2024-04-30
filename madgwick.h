@@ -14,7 +14,7 @@ ensures stable and continuous calculations even during full 360-degree rotations
 
 class MadgwickFilter
 {
-private:
+public:
   Quaternion m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
 
 public:
@@ -23,9 +23,17 @@ public:
     m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
   }
 
-  void compute(double ax, double ay, double az, double gx, double gy, double gz, double dt);
-  void getEulerAngle(double& roll, double& pitch, double& yaw);
+  void compute(
+  const double& ax, 
+  const double& ay, 
+  const double& az, 
+  const double& gx, 
+  const double& gy, 
+  const double& gz, 
+  const double& dt
+  );
 
+  void getEulerAngle(double& roll, double& pitch, double& yaw);
 };
 
 

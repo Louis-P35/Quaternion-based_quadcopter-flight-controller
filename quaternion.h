@@ -35,6 +35,12 @@ public:
     return sqrt(m_w * m_w + m_x * m_x + m_y * m_y + m_z * m_z);
   }
 
+  // Return the norm squared of the quaternion
+  double normSquared() const
+  {
+    return m_w * m_w + m_x * m_x + m_y * m_y + m_z * m_z;
+  }
+
   // Normalize the quaternion
   Quaternion& normalize()
   {
@@ -49,6 +55,26 @@ public:
     }
 
     return *this;
+  }
+
+  // Inverse of the quaternion
+  Quaternion inverse() const
+  {
+    double norm_sq = normSquared();
+
+    // Handle zero norm case, though it should ideally never occur
+    if (norm_sq == 0.0)
+      return Quaternion(0.0, 0.0, 0.0, 0.0);
+
+    Quaternion conj = conjugate();
+
+    return Quaternion(conj.m_w / norm_sq, conj.m_x / norm_sq, conj.m_y / norm_sq, conj.m_z / norm_sq);
+  }
+
+  // Return the dot product of two quaternion
+  double dotProduct(const Quaternion& b) const
+  {
+    return m_w * b.m_w + m_x * b.m_x + m_y * b.m_y + m_z * b.m_z;
   }
 
 
@@ -89,6 +115,24 @@ public:
     double cosy_cosp = 1.0 - 2.0 * (m_y * m_y + m_z * m_z);
     yaw = atan2(siny_cosp, cosy_cosp);
     yaw *= RAD_TO_DEGREE;
+  }
+
+  // Static function to convert Euler angles to Quaternion (in ZXY order)
+  static Quaternion fromEuler(const double& roll, const double& pitch, const double& yaw)
+  {
+      const double cy = cos(yaw * 0.5);
+      const double sy = sin(yaw * 0.5);
+      const double cp = cos(pitch * 0.5);
+      const double sp = sin(pitch * 0.5);
+      const double cr = cos(roll * 0.5);
+      const double sr = sin(roll * 0.5);
+
+      const double w = cr * cp * cy + sr * sp * sy;
+      const double x = sr * cp * cy - cr * sp * sy;
+      const double y = cr * sp * cy + sr * cp * sy;
+      const double z = cr * cp * sy - sr * sp * cy;
+
+      return Quaternion(w, x, y, z);
   }
 
   /* Operators override */
