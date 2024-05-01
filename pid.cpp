@@ -13,7 +13,11 @@ double PID::getError(const double& current, const double& target)
 Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
 {
   // Compute error
-  Quaternion q_error = target * current.inverse();
+  /* Computes the rotation necessary to go from the current orientation to the target orientation. 
+  This operation is from the perspective of the current orientation being the reference frame, and 
+  it calculates the relative rotation needed to align exactly with the target. */
+  Quaternion q_error = current.inverse() * target;
+
   // Ensure it is normalized
   q_error = q_error.normalize();
 
@@ -45,6 +49,7 @@ double PID::computePID(const double& error, const double& dt, const bool& integr
   if (integrate) // Do not integrate error if the drone is not flying
   {
     m_sommeError += error * dt;
+
     // Prevent windup
     if (m_sommeError > m_saturation)
     {
@@ -55,6 +60,7 @@ double PID::computePID(const double& error, const double& dt, const bool& integr
       m_sommeError = -m_saturation;
     }
   }
+
   double i = m_sommeError * m_ki;
 
   return p + i + d;

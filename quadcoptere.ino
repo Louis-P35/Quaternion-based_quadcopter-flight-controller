@@ -25,7 +25,7 @@
 #define READ_PWM_CHANNEL_3_PIN 19
 
 /* PID coefficients */
-#define ANGLE_KP 1.0
+#define ANGLE_KP 10.0
 #define ANGLE_KI 0.0
 #define ANGLE_KD 0.0
 
@@ -38,7 +38,7 @@
 
 #define SATURATION 100.0
 
-#define TARGET_ANGLE_MAX 20.0
+#define TARGET_ANGLE_MAX 45.0
 
 // Motors power
 #define PWM_MOTOR_FULL_STOP 16000
@@ -60,11 +60,7 @@ enum class DroneState
 // TODO: Scale accAngle values to match -90 +90 (calibration)
 // TODO: MPU9250 SPI (+ rapide)
 // TODO: Read magnetometer sensor
-
-// 360
-// print time
-// madgwick
-// accelerometer odometry
+// TODO: Accelerometer odometry
 
 // Done:
 // DONE: Kalman filters
@@ -73,6 +69,8 @@ enum class DroneState
 // DONE: 500Hz high res PWM signals
 // DONE: Disable PID I term until take off
 // DONE: Read barometer sensor
+// DONE: Madgwick filters
+// DONE: Full quaternion
 
 
 // mpu6050 IMU (accelerometer + gyroscope)
@@ -97,6 +95,10 @@ PID attitudeControl_pitch = PID(ANGLE_KP, ANGLE_KI, ANGLE_KD, SATURATION);
 PID attitudeControl_yaw = PID(ANGLE_KP, 0.0, ANGLE_KD, SATURATION);
 
 
+unsigned long g_radioChannel1 = 0;
+unsigned long g_radioChannel2 = 0;
+unsigned long g_radioChannel3 = 0;
+unsigned long g_radioChannel4 = 0;
 
 double g_magnetometerAngle = 0.0;
 
@@ -126,7 +128,7 @@ void complementaryFilter(
   const double& dt
   );
 void handleFlyingState();
-void motorsControl(double dt);
+void motorsControl(const double& dt);
 
 
 
@@ -265,12 +267,14 @@ void loop()
 
   auto printAttitude = []() -> void
   {
+    double roll, pitch, yaw = 0.0;
+    g_madgwickFilter.m_qEst.toEuler(roll, pitch, yaw);
     Serial.print("Roll: ");
-    Serial.print(g_roll);
+    Serial.print(roll);
     Serial.print("\t Pitch:");
-    Serial.print(g_pitch);
+    Serial.print(pitch);
     Serial.print("\t Yaw:");
-    Serial.println(g_yaw);
+    Serial.println(yaw);
   };
   //printAttitude();
 
@@ -281,54 +285,60 @@ void loop()
 
 
 
-void motorsControl(double dt)
+void motorsControl(const double& dt)
 {
-  // Get a target quaternion from the target Euler angles
-  g_targetRoll = 45.0;
-  g_targetPitch = 45.0;
-  g_targetYaw = 45.0;
-  Quaternion qTarget = Quaternion::fromEuler(g_targetRoll * DEGREE_TO_RAD, g_targetPitch * DEGREE_TO_RAD, g_targetYaw * DEGREE_TO_RAD);
+  // Get the target quaternion from the target Euler angles
+  Quaternion qTarget = Quaternion::fromEuler(
+    g_targetRoll * DEGREE_TO_RAD, 
+    g_targetPitch * DEGREE_TO_RAD, 
+    g_targetYaw * DEGREE_TO_RAD
+    );
 
   // Compute angular errors in the Quaternion space
+  // This give the rotation error in the bodyframe
   Quaternion qError = PID::getError(g_madgwickFilter.m_qEst, qTarget);
-  double error_roll = qError.m_x * 100.0;
-  double error_pitch = qError.m_y * 100.0;
-  double error_yaw = qError.m_z * 100.0;
-  auto printError = [error_roll, error_pitch, error_yaw]() -> void
-  {
-    Serial.print("Error roll: ");
-    Serial.print(error_roll);
-    Serial.print("\t Error pitch:");
-    Serial.print(error_pitch);
-    Serial.print("\t Error yaw:");
-    Serial.println(error_yaw);
-  };
-  //printError();
 
-  //double error_roll = g_targetRoll - g_roll;
-  //double error_pitch = g_targetPitch - g_pitch;
-  //double error_yaw = g_targetYaw - g_yaw;
+  // Use directly the vector part of the error quaternion as inputs of the PIDs
+  double error_roll = qError.m_x;
+  double error_pitch = qError.m_y;
+  double error_yaw = qError.m_z;
+
+  // Print for debug
+  auto printError = [](const Quaternion& qErr) -> void
+  {
+    double errRoll = 0.0;
+    double errPitch = 0.0;
+    double errYaw = 0.0;
+
+    // Switching to Euler representation can lead to gimbal lock
+    qErr.toEuler(errRoll, errPitch, errYaw);
+
+    Serial.print("Error roll: ");
+    Serial.print(errRoll);
+    Serial.print("\t Error pitch:");
+    Serial.print(errPitch);
+    Serial.print("\t Error yaw:");
+    Serial.println(errYaw);
+  };
+  //printError(qError);
 
   // Compute PIDs
   double pidRoll = attitudeControl_roll.computePID(error_roll, dt, g_state == DroneState::FLYING);
   double pidPitch = attitudeControl_pitch.computePID(error_pitch, dt, g_state == DroneState::FLYING);
   double pidYaw = attitudeControl_yaw.computePID(error_yaw, dt, g_state == DroneState::FLYING);
 
-  // Calculate motors power
+  // Motors map:
+  //
   //            FRONT
-  // Moror 1              Motror 2
-  //  
-  //
-  //
-  //
-  //
   // Moror 3              Motror 4
+  //              Roll
+  //               ^
+  //               |
+  //                --> Pitch
+  //
+  // Moror 1              Motror 2
   //            BACK
 
-  // Motor 1: Front left
-  // Motor 2: Front right
-  // Motor 3: Back left
-  // Motor 4: Back right
   // Apply PID adjustments to each motor
   double motor1Power = g_targetThrust - pidPitch - pidRoll + pidYaw;
   double motor2Power = g_targetThrust - pidPitch + pidRoll - pidYaw;
@@ -347,10 +357,31 @@ void motorsControl(double dt)
   // They will update their duty cycle only once they have completed their current cycle
   if (g_state == DroneState::FLYING || g_state == DroneState::READY_TO_TAKE_OFF)
   {
-    setPwmPin11(constrain(PWM_MOTOR_FULL_STOP + (int)motor1Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER));
-    setPwmPin12(constrain(PWM_MOTOR_FULL_STOP + (int)motor2Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER));
-    setPwmPin44(constrain(PWM_MOTOR_FULL_STOP + (int)motor3Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER));
-    setPwmPin45(constrain(PWM_MOTOR_FULL_STOP + (int)motor4Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER));
+    int pwm1 = constrain(PWM_MOTOR_FULL_STOP + (int)motor1Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER);
+    int pwm2 = constrain(PWM_MOTOR_FULL_STOP + (int)motor2Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER);
+    int pwm3 = constrain(PWM_MOTOR_FULL_STOP + (int)motor3Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER);
+    int pwm4 = constrain(PWM_MOTOR_FULL_STOP + (int)motor4Power, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER);
+
+    setPwmPin11(pwm1);
+    setPwmPin12(pwm2);
+    setPwmPin44(pwm3);
+    setPwmPin45(pwm4);
+
+    auto printMotorsPower = [pwm1, pwm2, pwm3, pwm4]() -> void
+    {
+      Serial.print(pwm1);
+      Serial.print("\t");
+      Serial.print(pwm2);
+      Serial.print("\t");
+      Serial.print(pwm3);
+      Serial.print("\t");
+      Serial.print(pwm4);
+      Serial.print("\t");
+      Serial.print(PWM_MOTOR_MIN_POWER);
+      Serial.print("\t");
+      Serial.println(PWM_MOTOR_MAX_POWER);
+    };
+    printMotorsPower();
   }
   else // DroneState::SAFE_MODE
   {
@@ -369,10 +400,10 @@ void handleFlyingState()
     case DroneState::SAFE_MODE:
     {
       // Wait for sticks to be down and toward inside
-      if (g_targetThrust < 10.0 && 
-          g_targetPitch > (TARGET_ANGLE_MAX * 0.6) &&
-          g_targetRoll < (-TARGET_ANGLE_MAX * 0.6) &&
-          g_targetYaw > (TARGET_ANGLE_MAX * 0.6))
+      if (g_radioChannel3 < 1150 && 
+          g_radioChannel2 > 1800 &&
+          g_radioChannel1 < 1150 &&
+          g_radioChannel4 > 1800)
       {
         g_state = DroneState::READY_TO_TAKE_OFF;
       }
@@ -380,9 +411,13 @@ void handleFlyingState()
     }
     case DroneState::READY_TO_TAKE_OFF:
     {
-      if (g_targetThrust > 10.0)
+      if (g_radioChannel3 > 1150)
       {
         g_state = DroneState::FLYING;
+
+        // Resetting target yaw because it has been affected
+        // by the stick when exiting safe mode.
+        g_targetYaw = 0.0;
       }
       break;
     }
@@ -453,6 +488,7 @@ void readRadioReceiver()
   // Get the ellapsed time since the last time the receiver has been read
   // and read the data only every 20 ms
   unsigned long currentTime = millis();
+  double dt = (currentTime - previousTime) / 1000.0;
   if ((currentTime - previousTime) < 20)
   {
     return;
@@ -460,7 +496,7 @@ void readRadioReceiver()
   previousTime = currentTime;
 
   /* Lambda to convert microseconds to angle */
-  auto convertToAngle = [](unsigned long duration, double amplitudeMax) -> double
+  auto convertToAngle = [](const unsigned long& duration, const double& amplitudeMax, const bool& invertAxe) -> double
   {
     const double deadZone = 1.0;
 
@@ -480,20 +516,71 @@ void readRadioReceiver()
       tmp += deadZone;
     }
 
-    return (tmp < -amplitudeMax) ? (-amplitudeMax) : (tmp > amplitudeMax) ? amplitudeMax : tmp;
+    double retVal = (tmp < -amplitudeMax) ? (-amplitudeMax) : (tmp > amplitudeMax) ? amplitudeMax : tmp;
+
+    if (invertAxe)
+      return -retVal;
+
+    return retVal;
+  };
+
+  /* Lambda to integrate yaw command */
+  auto convertYawToAngle = [](const unsigned long& duration, const double& dt) -> double
+  {
+    static double yawAngle = 0.0;
+
+    const double deadZone = 0.05;
+    const double speed = 200.0;
+
+    double tmp = ((((double)duration) - 1000.0) / 1000.0) - 0.5;
+
+    // Hysteresis to have a stable zero
+    if (tmp > -deadZone && tmp < deadZone)
+    {
+      tmp = 0.0;
+    }
+    else if (tmp > 0.0)
+    {
+      tmp -= deadZone;
+    }
+    else
+    {
+      tmp += deadZone;
+    }
+
+    // Integrate target yaw
+    yawAngle += tmp * speed * dt;
+
+    // Clamp value to [-180;+180]
+    if (yawAngle > 180.0)
+      yawAngle -= 360.0;
+    else if (yawAngle < -180.0)
+      yawAngle += 360.0;
+
+    return yawAngle;
   };
 
   /* Read the radio receiver */
-  g_targetRoll = convertToAngle(getRadioChannel(0), TARGET_ANGLE_MAX);
-  g_targetPitch = convertToAngle(getRadioChannel(1), TARGET_ANGLE_MAX);
-  g_targetYaw = convertToAngle(getRadioChannel(3), TARGET_ANGLE_MAX);
-  g_targetThrust = ((double)getRadioChannel(2) - 1000.0) / 10.0;
+  g_radioChannel1 = getRadioChannel(0); // Roll
+  g_radioChannel2 = getRadioChannel(1); // Pitch
+  g_radioChannel3 = getRadioChannel(2); // Thrust
+  g_radioChannel4 = getRadioChannel(3); // Yaw
+  auto printRadioChannels = []() -> void
+  {
+    Serial.print(g_radioChannel1);
+    Serial.print("\t");
+    Serial.print(g_radioChannel2);
+    Serial.print("\t");
+    Serial.print(g_radioChannel3);
+    Serial.print("\t");
+    Serial.println(g_radioChannel4);
+  };
+  //printRadioChannels();
+
+  g_targetRoll = convertToAngle(g_radioChannel1, TARGET_ANGLE_MAX, true);
+  g_targetPitch = convertToAngle(g_radioChannel2, TARGET_ANGLE_MAX, false);
+  g_targetYaw = convertYawToAngle(g_radioChannel4, dt);
+  g_targetThrust = ((double)g_radioChannel3 - 1000.0) / 10.0;
 }
-
-
-
-
-
-
 
 

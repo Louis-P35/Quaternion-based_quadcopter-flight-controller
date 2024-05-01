@@ -4,6 +4,8 @@
 
 using namespace BLA;
 
+// With quaternion, the transition matrix is linear so no need for the extended kalman filter
+
 
 Kalman::Kalman()
 {
@@ -27,6 +29,27 @@ Kalman1D::Kalman1D(double Qangle, double Qbias, double Rmeasure) : Kalman()
 
 double Kalman1D::compute(double accelAngle, double gyroRate, double dt)
 {
+  /* Extended Kalman Filter (EKF) high-level and intuitive pseudo-code: */
+
+  // Predict step: Integrate gyro data over time to predict the current angle
+  // estimated_angle += dt * gyro_rate  
+
+  // Update error estimates
+  // error_estimate: Increase with time as confidence in the prediction decreases
+  // error_estimate += process_noise // process_noise is represented in the covarience matrix
+
+  // error_measurement: Set based on how noisy the accelerometer data is
+  // error_measurement = accelerometer_noise // accelerometer_noise is also represented in the covarience matrix
+
+  // Update Kalman Gain based on the ratio of prediction uncertainty to the total uncertainty
+  // kalman_gain = error_estimate / (error_estimate + error_measurement) 
+
+  // Update step: Correct the estimated angle with accelerometer data, adjusted by the Kalman Gain
+  // estimated_angle += kalman_gain * (accel_angle - estimated_angle)
+
+  /**************************************************************************/
+
+
   // Integrate the angular velocity (from gyro) to get angle
   m_estimatedAngle += dt * (gyroRate - m_estimatedBias);
 
@@ -42,6 +65,7 @@ double Kalman1D::compute(double accelAngle, double gyroRate, double dt)
   m_K[1] = m_P[1][0] / S;
 
   // Compute angular error
+  // Error between mesurement (t) and prediction done at t-1
   double y = accelAngle - m_estimatedAngle;
 
   // Update of estimated angle and biais

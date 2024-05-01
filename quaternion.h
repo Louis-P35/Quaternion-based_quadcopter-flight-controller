@@ -60,7 +60,7 @@ public:
   // Inverse of the quaternion
   Quaternion inverse() const
   {
-    double norm_sq = normSquared();
+    double norm_sq = normSquared(); // TODO: norm ? norm squared ? 
 
     // Handle zero norm case, though it should ideally never occur
     if (norm_sq == 0.0)
