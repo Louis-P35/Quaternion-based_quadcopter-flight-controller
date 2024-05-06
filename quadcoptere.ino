@@ -25,9 +25,9 @@
 #define READ_PWM_CHANNEL_3_PIN 19
 
 /* PID coefficients */
-#define ANGLE_KP 10.0
-#define ANGLE_KI 0.0
-#define ANGLE_KD 0.0
+#define ANGLE_KP 40.0
+#define ANGLE_KI 0.4
+#define ANGLE_KD 12.0
 
 //#define VELOCITY_KP 0.6
 //0.6
@@ -36,7 +36,7 @@
 //#define VELOCITY_KD 0.03
 //0.03
 
-#define SATURATION 100.0
+#define SATURATION 10000.0
 
 #define TARGET_ANGLE_MAX 45.0
 
@@ -61,6 +61,7 @@ enum class DroneState
 // TODO: MPU9250 SPI (+ rapide)
 // TODO: Read magnetometer sensor
 // TODO: Accelerometer odometry
+// TODO: Throttle curve (throttle MID & throttle EXPO)
 
 // Done:
 // DONE: Kalman filters
@@ -71,6 +72,11 @@ enum class DroneState
 // DONE: Read barometer sensor
 // DONE: Madgwick filters
 // DONE: Full quaternion
+
+// Why use quaternion:
+//    - No gimbal lock
+//    - Interpolation between two quaternion is spherical, always take the shortest path
+//    - No need to worry about rotation order
 
 
 // mpu6050 IMU (accelerometer + gyroscope)
@@ -115,6 +121,10 @@ double g_yaw = 0.0;
 // Current state of the drone
 DroneState g_state = DroneState::SAFE_MODE;
 
+// Hover attitude calibration
+Quaternion g_zeroRollPitch = Quaternion(0.99955, 0.005, -0.0065, 0.0);
+Quaternion g_calibratedAttitude = Quaternion(1.0, 0.0, 0.0, 0.0);
+
 
 void calibrateIMU();
 void readRadioReceiver();
@@ -129,6 +139,7 @@ void complementaryFilter(
   );
 void handleFlyingState();
 void motorsControl(const double& dt);
+Quaternion correctImuMissAlignment(const Quaternion& zeroOffset, const Quaternion& imuRotation);
 
 
 
@@ -157,7 +168,12 @@ void setup()
   }
 
   // Configure interrupt for radio receiver reading
-  setup_PWM_reader(READ_PWM_CHANNEL_0_PIN, READ_PWM_CHANNEL_1_PIN, READ_PWM_CHANNEL_2_PIN, READ_PWM_CHANNEL_3_PIN);
+  setup_PWM_reader(
+    READ_PWM_CHANNEL_0_PIN, 
+    READ_PWM_CHANNEL_1_PIN, 
+    READ_PWM_CHANNEL_2_PIN, 
+    READ_PWM_CHANNEL_3_PIN
+    );
 
   // Setup timer 1 and 5 for PWM mode
   setupPWM();
@@ -268,7 +284,7 @@ void loop()
   auto printAttitude = []() -> void
   {
     double roll, pitch, yaw = 0.0;
-    g_madgwickFilter.m_qEst.toEuler(roll, pitch, yaw);
+    g_calibratedAttitude.toEuler(roll, pitch, yaw);
     Serial.print("Roll: ");
     Serial.print(roll);
     Serial.print("\t Pitch:");
@@ -277,10 +293,10 @@ void loop()
     Serial.println(yaw);
   };
   //printAttitude();
+  //g_madgwickFilter.m_qEst.print();
 
   // Run the PID's and update PWM signal to the ESCss
   motorsControl(elapsedTime);
-
 }
 
 
@@ -296,7 +312,7 @@ void motorsControl(const double& dt)
 
   // Compute angular errors in the Quaternion space
   // This give the rotation error in the bodyframe
-  Quaternion qError = PID::getError(g_madgwickFilter.m_qEst, qTarget);
+  Quaternion qError = PID::getError(g_calibratedAttitude, qTarget);
 
   // Use directly the vector part of the error quaternion as inputs of the PIDs
   double error_roll = qError.m_x;
@@ -340,10 +356,10 @@ void motorsControl(const double& dt)
   //            BACK
 
   // Apply PID adjustments to each motor
-  double motor1Power = g_targetThrust - pidPitch - pidRoll + pidYaw;
-  double motor2Power = g_targetThrust - pidPitch + pidRoll - pidYaw;
-  double motor3Power = g_targetThrust + pidPitch - pidRoll - pidYaw;
-  double motor4Power = g_targetThrust + pidPitch + pidRoll + pidYaw;
+  double motor1Power = g_targetThrust - pidPitch - pidRoll - pidYaw;
+  double motor2Power = g_targetThrust - pidPitch + pidRoll + pidYaw;
+  double motor3Power = g_targetThrust + pidPitch - pidRoll + pidYaw;
+  double motor4Power = g_targetThrust + pidPitch + pidRoll - pidYaw;
 
   // Scale values to match PWM's resolution
   const double scale = (PWM_MOTOR_MAX_POWER - PWM_MOTOR_MIN_POWER) / 100.0;
@@ -381,7 +397,7 @@ void motorsControl(const double& dt)
       Serial.print("\t");
       Serial.println(PWM_MOTOR_MAX_POWER);
     };
-    printMotorsPower();
+    //printMotorsPower();
   }
   else // DroneState::SAFE_MODE
   {
@@ -478,6 +494,9 @@ void imuDataFusion(const double& dt)
   );
   //g_madgwickFilter.getEulerAngle(g_roll, g_pitch, g_yaw);
   //g_madgwickFilter.m_qEst.print();
+
+  // Correct the miss alignment of the IMU
+  g_calibratedAttitude = correctImuMissAlignment(g_zeroRollPitch, g_madgwickFilter.m_qEst);
 }
 
 
@@ -532,6 +551,10 @@ void readRadioReceiver()
     const double deadZone = 0.05;
     const double speed = 200.0;
 
+    // Update target yaw only when flying
+    if (g_state != DroneState::FLYING)
+      return yawAngle;
+
     double tmp = ((((double)duration) - 1000.0) / 1000.0) - 0.5;
 
     // Hysteresis to have a stable zero
@@ -581,6 +604,16 @@ void readRadioReceiver()
   g_targetPitch = convertToAngle(g_radioChannel2, TARGET_ANGLE_MAX, false);
   g_targetYaw = convertYawToAngle(g_radioChannel4, dt);
   g_targetThrust = ((double)g_radioChannel3 - 1000.0) / 10.0;
+}
+
+
+/*
+This function apply a cerrection to the measured quaternion attitude
+to correct for the IMU missalignment.
+*/
+Quaternion correctImuMissAlignment(const Quaternion& zeroOffset, const Quaternion& imuRotation)
+{
+  return zeroOffset.inverse() * imuRotation;
 }
 
 

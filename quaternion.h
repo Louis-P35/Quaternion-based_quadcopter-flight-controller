@@ -82,13 +82,13 @@ public:
   void print() const
   {
     Serial.print("m_w: ");
-    Serial.print(m_w);
+    Serial.print(m_w, 6);
     Serial.print("\t m_x: ");
-    Serial.print(m_x);
+    Serial.print(m_x, 6);
     Serial.print("\t m_y: ");
-    Serial.print(m_y);
+    Serial.print(m_y, 6);
     Serial.print("\t m_z: ");
-    Serial.println(m_z);
+    Serial.println(m_z, 6);
   }
 
   // Compute the Euler angle from the quaternion
