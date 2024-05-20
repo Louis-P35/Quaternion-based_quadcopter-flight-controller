@@ -85,6 +85,8 @@ double Kalman1D::compute(double accelAngle, double gyroRate, double dt)
 }
 
 
+
+
 Kalman2D::Kalman2D() : Kalman()
 {
   F = {1, 0.004, 0, 1};  

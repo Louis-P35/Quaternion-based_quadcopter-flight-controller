@@ -11,12 +11,14 @@
 #include "pwm.h"
 #include "dataFusion.h"
 #include "madgwick.h"
+#include "radio.h"
 
 
 #define DEGREE_TO_RAD (PI / 180.0)
 #define RAD_TO_DEGREE (180.0 / PI)
 
 #define USE_KALMAN_FILTER
+//#define CALIBRATE_IMU_HOVER_OFFSET
 
 /* Pins mapping for PWM input (from the radio receiver) */
 #define READ_PWM_CHANNEL_0_PIN 2
@@ -44,6 +46,11 @@
 #define PWM_MOTOR_FULL_STOP 16000
 #define PWM_MOTOR_MIN_POWER 17500
 #define PWM_MOTOR_MAX_POWER 31500
+#define POWER_SCALE ((PWM_MOTOR_MAX_POWER - PWM_MOTOR_MIN_POWER) / 100.0)
+
+// Radio control
+#define THROTTLE_MID 0.1 // Around hover point
+#define THROTTLE_EXPO 0.75
 
 enum class DroneState
 {
@@ -52,16 +59,15 @@ enum class DroneState
   FLYING
 };
 
-// TODO: Implement a panic recovery mode, by detecting the free fall with accelerometer
 // TODO: Dual loop PID control
-// TODO: DMP
 // TODO: Interrupt when MPU6050 has new data available
-// TODO: Battery level check
+// TODO: Battery level check and scale throttle accordingly
 // TODO: Scale accAngle values to match -90 +90 (calibration)
 // TODO: MPU9250 SPI (+ rapide)
 // TODO: Read magnetometer sensor
 // TODO: Accelerometer odometry
-// TODO: Throttle curve (throttle MID & throttle EXPO)
+
+// TODO: pid calibration (grater I term)
 
 // Done:
 // DONE: Kalman filters
@@ -72,11 +78,13 @@ enum class DroneState
 // DONE: Read barometer sensor
 // DONE: Madgwick filters
 // DONE: Full quaternion
+// DONE: Throttle curve (throttle MID & throttle EXPO)
 
 // Why use quaternion:
 //    - No gimbal lock
 //    - Interpolation between two quaternion is spherical, always take the shortest path
 //    - No need to worry about rotation order
+//    - Faster to compute than rotation matrix
 
 
 // mpu6050 IMU (accelerometer + gyroscope)
@@ -84,13 +92,6 @@ MPU6050 g_imu = MPU6050();
 
 // ms5611 barometer
 MS5611 g_barometer = MS5611();
-
-// Kalman filters, to perform the data fusion between the gyroscope and accelerometer
-//Kalman1D g_kalman_roll = Kalman1D(0.001, 0.003, 0.03);
-//Kalman1D g_kalman_pitch = Kalman1D(0.001, 0.003, 0.03);
-
-// Two dimentional Kalman filter to perform data fusion between the barometer and accelerometer
-//Kalman2D g_kalman2d_altitude = Kalman2D();
 
 // Madgwick filter
 MadgwickFilter g_madgwickFilter = MadgwickFilter();
@@ -100,23 +101,8 @@ PID attitudeControl_roll = PID(ANGLE_KP, ANGLE_KI, ANGLE_KD, SATURATION);
 PID attitudeControl_pitch = PID(ANGLE_KP, ANGLE_KI, ANGLE_KD, SATURATION);
 PID attitudeControl_yaw = PID(ANGLE_KP, 0.0, ANGLE_KD, SATURATION);
 
-
-unsigned long g_radioChannel1 = 0;
-unsigned long g_radioChannel2 = 0;
-unsigned long g_radioChannel3 = 0;
-unsigned long g_radioChannel4 = 0;
-
-double g_magnetometerAngle = 0.0;
-
-double g_targetRoll = 0.0;
-double g_targetPitch = 0.0;
-double g_targetYaw = 0.0;
-double g_targetThrust = 0.0;
-
-/* Final attitude */
-double g_roll = 0.0;
-double g_pitch = 0.0;
-double g_yaw = 0.0;
+// Radio control logic
+Radio g_radio = Radio(THROTTLE_MID, THROTTLE_EXPO, TARGET_ANGLE_MAX);
 
 // Current state of the drone
 DroneState g_state = DroneState::SAFE_MODE;
@@ -128,7 +114,7 @@ Quaternion g_calibratedAttitude = Quaternion(1.0, 0.0, 0.0, 0.0);
 
 void calibrateIMU();
 void readRadioReceiver();
-void imuDataFusion(const double& dt);
+void compute_ahrs(const double& dt);
 void complementaryFilter(
   const double& accAngleX, 
   const double& accAngleY, 
@@ -147,6 +133,9 @@ void setup()
 {
   // Setup serial communication for debugging
   Serial.begin(19200);
+
+  // I2C 400 KHz
+  TWBR = 12;
 
   // Init the mpu6050 IMU
   g_imu.init();
@@ -187,6 +176,11 @@ void setup()
   delay(2000);
 
   //madgwickUnitTest();
+
+#ifdef CALIBRATE_IMU_HOVER_OFFSET
+  // Calibrate IMU hover offset
+  Serial.println("IMU hover offset calibration...");
+#endif
 }
 
 
@@ -211,46 +205,9 @@ void loop()
   }
   bb = !bb;*/
 
-
-
-  // Compute altitude using barometer and accelerometer
-  // double barometerAltitude = readAltitude(&g_barometer);
-
-  /*double worldAccZ = computeAltitude(
-    g_imu.m_filteredAcceloremeterX, 
-    g_imu.m_filteredAcceloremeterY, 
-    g_imu.m_filteredAcceloremeterZ, 
-    g_roll * DEGREE_TO_RAD, 
-    g_pitch * DEGREE_TO_RAD, 
-    barometerAltitude, 
-    elapsedTime
-    );
-  double altitude = g_kalman2d_altitude.compute(barometerAltitude, worldAccZ, elapsedTime);*/
-  //Serial.print("Alt: ");
-  //Serial.println(barometerAltitude);
-  //Serial.print(" AltAcc: ");
-  /*Serial.print(-8.0);
-  Serial.print(",");
-  Serial.print(-12.0);
-  Serial.print(",");
-  Serial.print(barometerAltitude);
-  Serial.print(",");
-  Serial.println(worldAccZ);*/
-
   // Read the radio receiver at a 50 hz maximum frequency
-  readRadioReceiver();
-  auto printRadio = []() -> void
-  {
-    Serial.print("Roll: ");
-    Serial.print(g_targetRoll);
-    Serial.print("\t Pitch: ");
-    Serial.print(g_targetPitch);
-    Serial.print("\t Yaw: ");
-    Serial.print(g_targetYaw);
-    Serial.print("\t Thrust: ");
-    Serial.println(g_targetThrust);
-  };
-  //printRadio();
+  g_radio.readRadioReceiver(g_state == DroneState::FLYING);
+  printRadio(g_radio);
 
 
   // Handle the state of the drone
@@ -279,21 +236,14 @@ void loop()
   //g_magnetometerAngle = fetch_magnetometer_data();
 
   // Fuse the data (accelerometer and gyroscope) to compute attitude
-  imuDataFusion(elapsedTime);
-
-  auto printAttitude = []() -> void
-  {
-    double roll, pitch, yaw = 0.0;
-    g_calibratedAttitude.toEuler(roll, pitch, yaw);
-    Serial.print("Roll: ");
-    Serial.print(roll);
-    Serial.print("\t Pitch:");
-    Serial.print(pitch);
-    Serial.print("\t Yaw:");
-    Serial.println(yaw);
-  };
-  //printAttitude();
+  compute_ahrs(elapsedTime);
+  //printAttitude(g_calibratedAttitude);
   //g_madgwickFilter.m_qEst.print();
+
+#ifdef CALIBRATE_IMU_HOVER_OFFSET
+  // Calibrate IMU hover offset
+  calibrateImuHoverOffset();
+#endif
 
   // Run the PID's and update PWM signal to the ESCss
   motorsControl(elapsedTime);
@@ -305,9 +255,9 @@ void motorsControl(const double& dt)
 {
   // Get the target quaternion from the target Euler angles
   Quaternion qTarget = Quaternion::fromEuler(
-    g_targetRoll * DEGREE_TO_RAD, 
-    g_targetPitch * DEGREE_TO_RAD, 
-    g_targetYaw * DEGREE_TO_RAD
+    g_radio.m_targetRoll * DEGREE_TO_RAD, 
+    g_radio.m_targetPitch * DEGREE_TO_RAD, 
+    g_radio.m_targetYaw * DEGREE_TO_RAD
     );
 
   // Compute angular errors in the Quaternion space
@@ -319,23 +269,6 @@ void motorsControl(const double& dt)
   double error_pitch = qError.m_y;
   double error_yaw = qError.m_z;
 
-  // Print for debug
-  auto printError = [](const Quaternion& qErr) -> void
-  {
-    double errRoll = 0.0;
-    double errPitch = 0.0;
-    double errYaw = 0.0;
-
-    // Switching to Euler representation can lead to gimbal lock
-    qErr.toEuler(errRoll, errPitch, errYaw);
-
-    Serial.print("Error roll: ");
-    Serial.print(errRoll);
-    Serial.print("\t Error pitch:");
-    Serial.print(errPitch);
-    Serial.print("\t Error yaw:");
-    Serial.println(errYaw);
-  };
   //printError(qError);
 
   // Compute PIDs
@@ -356,17 +289,16 @@ void motorsControl(const double& dt)
   //            BACK
 
   // Apply PID adjustments to each motor
-  double motor1Power = g_targetThrust - pidPitch - pidRoll - pidYaw;
-  double motor2Power = g_targetThrust - pidPitch + pidRoll + pidYaw;
-  double motor3Power = g_targetThrust + pidPitch - pidRoll + pidYaw;
-  double motor4Power = g_targetThrust + pidPitch + pidRoll - pidYaw;
+  double motor1Power = g_radio.m_targetThrust - pidPitch - pidRoll - pidYaw;
+  double motor2Power = g_radio.m_targetThrust - pidPitch + pidRoll + pidYaw;
+  double motor3Power = g_radio.m_targetThrust + pidPitch - pidRoll + pidYaw;
+  double motor4Power = g_radio.m_targetThrust + pidPitch + pidRoll - pidYaw;
 
   // Scale values to match PWM's resolution
-  const double scale = (PWM_MOTOR_MAX_POWER - PWM_MOTOR_MIN_POWER) / 100.0;
-  motor1Power *= scale;
-  motor2Power *= scale;
-  motor3Power *= scale;
-  motor4Power *= scale;
+  motor1Power *= POWER_SCALE;
+  motor2Power *= POWER_SCALE;
+  motor3Power *= POWER_SCALE;
+  motor4Power *= POWER_SCALE;
 
   // Set PWMs to control ESCs
   // The ESCs are fed with a 500hz PWM signal
@@ -383,21 +315,7 @@ void motorsControl(const double& dt)
     setPwmPin44(pwm3);
     setPwmPin45(pwm4);
 
-    auto printMotorsPower = [pwm1, pwm2, pwm3, pwm4]() -> void
-    {
-      Serial.print(pwm1);
-      Serial.print("\t");
-      Serial.print(pwm2);
-      Serial.print("\t");
-      Serial.print(pwm3);
-      Serial.print("\t");
-      Serial.print(pwm4);
-      Serial.print("\t");
-      Serial.print(PWM_MOTOR_MIN_POWER);
-      Serial.print("\t");
-      Serial.println(PWM_MOTOR_MAX_POWER);
-    };
-    //printMotorsPower();
+    //printMotorsPower(pwm1, pwm2, pwm3, pwm4, PWM_MOTOR_MIN_POWER, PWM_MOTOR_MAX_POWER);
   }
   else // DroneState::SAFE_MODE
   {
@@ -416,10 +334,10 @@ void handleFlyingState()
     case DroneState::SAFE_MODE:
     {
       // Wait for sticks to be down and toward inside
-      if (g_radioChannel3 < 1150 && 
-          g_radioChannel2 > 1800 &&
-          g_radioChannel1 < 1150 &&
-          g_radioChannel4 > 1800)
+      if (g_radio.m_radioChannel3 < 1150 && 
+          g_radio.m_radioChannel2 > 1800 &&
+          g_radio.m_radioChannel1 < 1150 &&
+          g_radio.m_radioChannel4 > 1800)
       {
         g_state = DroneState::READY_TO_TAKE_OFF;
       }
@@ -427,13 +345,13 @@ void handleFlyingState()
     }
     case DroneState::READY_TO_TAKE_OFF:
     {
-      if (g_radioChannel3 > 1150)
+      if (g_radio.m_radioChannel3 > 1150)
       {
         g_state = DroneState::FLYING;
 
         // Resetting target yaw because it has been affected
         // by the stick when exiting safe mode.
-        g_targetYaw = 0.0;
+        g_radio.m_targetYaw = 0.0;
       }
       break;
     }
@@ -450,6 +368,7 @@ void handleFlyingState()
 
 
 
+// Legacy code ...
 void complementaryFilter(
   const double& accAngleX, 
   const double& accAngleY, 
@@ -460,16 +379,19 @@ void complementaryFilter(
   )
 {
   static const double COMPLEMENTARY_FILTER_GAIN = 0.98;
+  static double roll = 0.0;
+  static double pitch = 0.0;
+  static double yaw = 0.0;
 
-  g_roll = COMPLEMENTARY_FILTER_GAIN * (g_roll + (gyroX * dt)) + (1.0 - COMPLEMENTARY_FILTER_GAIN) * accAngleX;
-  g_pitch = COMPLEMENTARY_FILTER_GAIN * (g_pitch + (gyroY * dt)) + (1.0 - COMPLEMENTARY_FILTER_GAIN) * accAngleY;
-  g_yaw += gyroZ * dt;
-  if (g_yaw > 180.0) g_yaw -= 360.0;
-  else if (g_yaw < -180.0) g_yaw += 360.0;
+  roll = COMPLEMENTARY_FILTER_GAIN * (roll + (gyroX * dt)) + (1.0 - COMPLEMENTARY_FILTER_GAIN) * accAngleX;
+  pitch = COMPLEMENTARY_FILTER_GAIN * (pitch + (gyroY * dt)) + (1.0 - COMPLEMENTARY_FILTER_GAIN) * accAngleY;
+  yaw += gyroZ * dt;
+  if (yaw > 180.0) yaw -= 360.0;
+  else if (yaw < -180.0) yaw += 360.0;
 }
 
 
-void imuDataFusion(const double& dt)
+void compute_ahrs(const double& dt)
 {
 /*#ifdef USE_KALMAN_FILTER
   // Fuse the data (accelerometer and gyroscope) with Kalman filter to compute attitude
@@ -499,121 +421,39 @@ void imuDataFusion(const double& dt)
   g_calibratedAttitude = correctImuMissAlignment(g_zeroRollPitch, g_madgwickFilter.m_qEst);
 }
 
-
-void readRadioReceiver()
-{
-  static unsigned long previousTime = millis();
-  
-  // Get the ellapsed time since the last time the receiver has been read
-  // and read the data only every 20 ms
-  unsigned long currentTime = millis();
-  double dt = (currentTime - previousTime) / 1000.0;
-  if ((currentTime - previousTime) < 20)
-  {
-    return;
-  }
-  previousTime = currentTime;
-
-  /* Lambda to convert microseconds to angle */
-  auto convertToAngle = [](const unsigned long& duration, const double& amplitudeMax, const bool& invertAxe) -> double
-  {
-    const double deadZone = 1.0;
-
-    double tmp = (((((double)duration) - 1000.0) / 1000.0) * (amplitudeMax * 2.0)) - amplitudeMax;
-
-    // Hysteresis to have a stable zero
-    if (tmp > -deadZone && tmp < deadZone)
-    {
-      tmp = 0.0;
-    }
-    else if (tmp > 0.0)
-    {
-      tmp -= deadZone;
-    }
-    else
-    {
-      tmp += deadZone;
-    }
-
-    double retVal = (tmp < -amplitudeMax) ? (-amplitudeMax) : (tmp > amplitudeMax) ? amplitudeMax : tmp;
-
-    if (invertAxe)
-      return -retVal;
-
-    return retVal;
-  };
-
-  /* Lambda to integrate yaw command */
-  auto convertYawToAngle = [](const unsigned long& duration, const double& dt) -> double
-  {
-    static double yawAngle = 0.0;
-
-    const double deadZone = 0.05;
-    const double speed = 200.0;
-
-    // Update target yaw only when flying
-    if (g_state != DroneState::FLYING)
-      return yawAngle;
-
-    double tmp = ((((double)duration) - 1000.0) / 1000.0) - 0.5;
-
-    // Hysteresis to have a stable zero
-    if (tmp > -deadZone && tmp < deadZone)
-    {
-      tmp = 0.0;
-    }
-    else if (tmp > 0.0)
-    {
-      tmp -= deadZone;
-    }
-    else
-    {
-      tmp += deadZone;
-    }
-
-    // Integrate target yaw
-    yawAngle += tmp * speed * dt;
-
-    // Clamp value to [-180;+180]
-    if (yawAngle > 180.0)
-      yawAngle -= 360.0;
-    else if (yawAngle < -180.0)
-      yawAngle += 360.0;
-
-    return yawAngle;
-  };
-
-  /* Read the radio receiver */
-  g_radioChannel1 = getRadioChannel(0); // Roll
-  g_radioChannel2 = getRadioChannel(1); // Pitch
-  g_radioChannel3 = getRadioChannel(2); // Thrust
-  g_radioChannel4 = getRadioChannel(3); // Yaw
-  auto printRadioChannels = []() -> void
-  {
-    Serial.print(g_radioChannel1);
-    Serial.print("\t");
-    Serial.print(g_radioChannel2);
-    Serial.print("\t");
-    Serial.print(g_radioChannel3);
-    Serial.print("\t");
-    Serial.println(g_radioChannel4);
-  };
-  //printRadioChannels();
-
-  g_targetRoll = convertToAngle(g_radioChannel1, TARGET_ANGLE_MAX, true);
-  g_targetPitch = convertToAngle(g_radioChannel2, TARGET_ANGLE_MAX, false);
-  g_targetYaw = convertYawToAngle(g_radioChannel4, dt);
-  g_targetThrust = ((double)g_radioChannel3 - 1000.0) / 10.0;
-}
-
-
 /*
-This function apply a cerrection to the measured quaternion attitude
+This function apply a correction to the measured quaternion attitude
 to correct for the IMU missalignment.
 */
 Quaternion correctImuMissAlignment(const Quaternion& zeroOffset, const Quaternion& imuRotation)
 {
   return zeroOffset.inverse() * imuRotation;
 }
+
+
+
+/* Calibrate the IMU orientation
+Because the IMU is never solder and mounted perfectly flat on the drone
+This function must not be build on release */
+void calibrateImuHoverOffset()
+{
+  // Calibrate IMU hover offset
+  static Quaternion qSum = Quaternion(1.0, 0.0, 0.0, 0.0);
+  static unsigned int nbPass = 0;
+  const int nbLoop = 1000;
+  
+  if (nbPass < nbLoop)
+  {
+    qSum += g_madgwickFilter.m_qEst;
+    nbPass++;
+  }
+  else
+  {
+    Quaternion qTmp = qSum * (1.0/(double)nbLoop);
+    Serial.print("IMU world orientation: ");
+    qTmp.print();
+  }
+}
+
 
 
