@@ -1,0 +1,10 @@
+# Ignore everything
+*
+
+# But not these file types
+!*.c
+!*.cpp
+!*.h
+!*.hpp
+!*/
+!.gitignore
