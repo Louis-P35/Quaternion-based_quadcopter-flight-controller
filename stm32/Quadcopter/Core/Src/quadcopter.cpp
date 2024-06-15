@@ -6,6 +6,8 @@
  */
 
 #include "quadcopter.hpp"
+#include "Utils/vectorNd.hpp"
+#include "Utils/quaternion.hpp"
 
 
 
@@ -23,7 +25,7 @@ DroneController::DroneController(SPI_HandleTypeDef hspi, uint16_t spi_cs_pin, GP
 void DroneController::mainSetup()
 {
 	// Setup the IMU (MPU9250)
-	m_imu.init();
+	m_imu.init(AccScale::_8G, GyroScale::DPS500);
 }
 
 

@@ -101,13 +101,16 @@ int main(void)
   controller.mainSetup();
 
   /* USER CODE END 2 */
+  uint8_t pBuffer[256] = "Hello world!";
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-	  controller.mainLoop();
+	  //controller.mainLoop();
+	  HAL_UART_Transmit(&huart2, pBuffer, sizeof(pBuffer), 100);
+	  HAL_Delay(1000);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
