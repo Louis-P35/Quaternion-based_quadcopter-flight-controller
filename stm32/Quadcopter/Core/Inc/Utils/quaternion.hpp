@@ -7,7 +7,10 @@
 
 #pragma once
 
+// STL
 #include <cmath>
+
+// Project
 #include "Utils/vectorNd.hpp"
 
 #define RAD_TO_DEGREE (180.0 / M_PI)
@@ -35,13 +38,15 @@ public:
 	/*
 	 * Return the conjugated quaternion (imaginary component with the reverse sign)
 	 */
-	Quaternion conjugate() const
+	inline Quaternion conjugate() const
 	{
 		return Quaternion(m_q.m_vect[0], -m_q.m_vect[1], -m_q.m_vect[2], -m_q.m_vect[3]);
 	}
 
-	// Return the norm of the quaternion
-	double norm() const
+	/*
+	 * Return the norm of the quaternion
+	 */
+	inline double norm() const
 	{
 		return m_q.norm();
 	}
@@ -49,7 +54,7 @@ public:
 	/*
 	 * Return the norm squared of the quaternion
 	 */
-	double normSquared() const
+	inline double normSquared() const
 	{
 		// The dot product with itself is equal to the squared norm
 		return m_q.dot(m_q);
@@ -58,7 +63,7 @@ public:
 	/*
 	 * Normalize the quaternion
 	 */
-	Quaternion& normalize()
+	inline Quaternion& normalize()
 	{
 		m_q.normalize();
 
@@ -68,7 +73,7 @@ public:
 	/*
 	 * Inverse of the quaternion
 	 */
-	Quaternion inverse() const
+	inline Quaternion inverse() const
 	{
 		double norm_sq = normSquared(); // TODO: norm ? norm squared ?
 
@@ -89,7 +94,7 @@ public:
 	/*
 	 * Return the dot product of two quaternion
 	 */
-	double dotProduct(const Quaternion& b) const
+	inline double dotProduct(const Quaternion& b) const
 	{
 		return m_q.dot(b.m_q);
 	}
@@ -155,7 +160,7 @@ public:
 	/*
 	 * Quaternion multiplication override
 	 */
-	Quaternion operator*(const Quaternion& b) const
+	inline Quaternion operator*(const Quaternion& b) const
 	{
 		return Quaternion(
 				m_q.m_vect[0] * b.m_q.m_vect[0] - m_q.m_vect[1] * b.m_q.m_vect[1] - m_q.m_vect[2] * b.m_q.m_vect[2] - m_q.m_vect[3] * b.m_q.m_vect[3],  // Real part
@@ -168,7 +173,7 @@ public:
 	/*
 	 * Assignment and Quaternion multiplication override
 	 */
-	Quaternion& operator*=(const Quaternion& b)
+	inline Quaternion& operator*=(const Quaternion& b)
 	{
 		Quaternion tmp = *this * b;
 
@@ -180,7 +185,7 @@ public:
 	/*
 	 * Scalar multiplictaion override
 	 */
-	Quaternion operator*(const double& scalar) const
+	inline Quaternion operator*(const double& scalar) const
 	{
 		return Quaternion(m_q * scalar);
 	}
@@ -188,7 +193,7 @@ public:
 	/*
 	 * Assignment and scalar multiplication override
 	 */
-	Quaternion& operator*=(const double& scalar)
+	inline Quaternion& operator*=(const double& scalar)
 	{
 		m_q *= scalar;
 
@@ -198,7 +203,7 @@ public:
 	/*
 	 * Quaternion addition override
 	 */
-	Quaternion operator+(const Quaternion& b) const
+	inline Quaternion operator+(const Quaternion& b) const
 	{
 		return Quaternion(m_q + b.m_q);
 	}
@@ -206,7 +211,7 @@ public:
 	/*
 	 * Assignment and quaternion addition override
 	 */
-	Quaternion& operator+=(const Quaternion& b)
+	inline Quaternion& operator+=(const Quaternion& b)
 	{
 		m_q += b.m_q;
 
@@ -216,7 +221,7 @@ public:
 	/*
 	 * Quaternion substraction override
 	 */
-	Quaternion operator-(const Quaternion& b) const
+	inline Quaternion operator-(const Quaternion& b) const
 	{
 		return Quaternion(m_q - b.m_q);
 	}
@@ -224,7 +229,7 @@ public:
 	/*
 	 * Assignment and quaternion substraction override
 	 */
-	Quaternion& operator-=(const Quaternion& b)
+	inline Quaternion& operator-=(const Quaternion& b)
 	{
 		m_q -= b.m_q;
 

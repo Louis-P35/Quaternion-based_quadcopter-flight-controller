@@ -7,9 +7,16 @@
 
 #pragma once
 
+// STL
 #include "stdint.h"
 
+// Driver
 #include "stm32h7xx_hal.h"
+
+// Project
+#include "Utils/vectorNd.hpp"
+
+
 
 
 enum class AccScale
@@ -43,9 +50,9 @@ private:
 	uint16_t m_spi_cs_pin;
 	GPIO_TypeDef* m_spi_cs_gpio_port;
 
-	uint16_t m_rawAcc[3] = {0};
-	uint16_t m_rawGyro[3] = {0};
-	uint16_t m_rawTemp = 0;
+	Vector<int16_t, 3> m_rawAcc = {0, 0, 0};
+	Vector<int16_t, 3> m_rawGyro = {0, 0, 0};
+	int16_t m_rawTemp = 0;
 
 	// Config
 	AccScale m_accScaleConf = AccScale::_2G; // 2g is the default value
@@ -57,36 +64,26 @@ private:
 	double m_gyroScale = 131.0;
 
 	// Raw value scaled according to setup
-	double m_rawScaledAcc[3] = {0.0};
-	double m_rawScaledGyro[3] = {0.0};
+	Vector<double, 3> m_rawScaledAcc = {0.0, 0.0, 0.0};
+	Vector<double, 3> m_rawScaledGyro = {0.0, 0.0, 0.0};
 
 	// Sensor offset that need to be substracted
-	double m_accOffset[3] = {0.0};
-	double m_gyroOffset[3] = {1.56, 1.75, -0.12};
+	Vector<double, 3> m_accOffset = {0.0, 0.0, 0.0};
+	Vector<double, 3> m_gyroOffset = {1.56, 1.75, -0.12};
 
 public:
-	double m_filteredAcceloremeterX = 0.0;
-	double m_filteredAcceloremeterY = 0.0;
-	double m_filteredAcceloremeterZ = 0.0;
-
+	// Low pass filter for accelerometer
+	Vector<double, 3> m_filteredAcceloremeter = {0.0, 0.0, 0.0};
+	Vector<double, 3> m_previousAcc = {0.0, 0.0, 0.0};
 	const double m_lpf_acc_gain = 0.1;
 
-	double m_previousAccX = 0.0;
-	double m_previousAccY = 0.0;
-	double m_previousAccZ = 0.0;
+	// Low pass filter for gyroscope
+	Vector<double, 3> m_filteredGyro = {0.0, 0.0, 0.0};
+	Vector<double, 3> m_previousGyro = {0.0, 0.0, 0.0};
+	const double m_lpf_gyro_gain = 0.01;
 
 	double m_angleAccX = 0.0;
 	double m_angleAccY = 0.0;
-
-	double m_filteredGyroX = 0.0;
-	double m_filteredGyroY = 0.0;
-	double m_filteredGyroZ = 0.0;
-
-	double m_previousGyroX = 0.0;
-	double m_previousGyroY = 0.0;
-	double m_previousGyroZ = 0.0;
-
-	const double m_lpf_gyro_gain = 0.01;
 
 public:
 	MPU9250(SPI_HandleTypeDef hspi, uint16_t spi_cs_pin, GPIO_TypeDef* spi_cs_gpio_port);
@@ -94,7 +91,7 @@ public:
 	void calibrate();
 	void read_gyro_acc_data();
 	void read_magnetometer_data();
-	void get_mpu9250_data();
+	void filter_and_calibrate_data();
 
 private:
 	void configureAccelerometer(const AccScale& accScaleConf);

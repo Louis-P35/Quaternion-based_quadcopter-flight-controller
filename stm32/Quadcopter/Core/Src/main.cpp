@@ -97,20 +97,19 @@ int main(void)
   MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
 
-  DroneController controller = DroneController(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port);
+  DroneController controller = DroneController(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2);
   controller.mainSetup();
 
   /* USER CODE END 2 */
-  uint8_t pBuffer[256] = "Hello world!";
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
     /* USER CODE END WHILE */
-	  //controller.mainLoop();
-	  HAL_UART_Transmit(&huart2, pBuffer, sizeof(pBuffer), 100);
-	  HAL_Delay(1000);
+	controller.mainLoop();
+
+	HAL_Delay(100);
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */

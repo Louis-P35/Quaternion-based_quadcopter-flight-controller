@@ -5,9 +5,13 @@
  *      Author: louis
  */
 
+// STL
 #include <math.h>
 
+// Project
 #include "Sensors/mpu9250.hpp"
+
+
 
 #define RAD_TO_DEGREE 57.295779513082321
 
@@ -236,25 +240,21 @@ void MPU9250::read_gyro_acc_data()
 	read_register(59, data, sizeof(data));
 
 	// Accelerometer high byte and low byte combination
-	m_rawAcc[0] = (static_cast<uint16_t>(data[0]) << 8) + data[1];
-	m_rawAcc[1] = (static_cast<uint16_t>(data[2]) << 8) + data[3];
-	m_rawAcc[2] = (static_cast<uint16_t>(data[4]) << 8) + data[5];
+	m_rawAcc.m_vect[0] = (static_cast<int16_t>(data[0]) << 8) + data[1];
+	m_rawAcc.m_vect[1] = (static_cast<int16_t>(data[2]) << 8) + data[3];
+	m_rawAcc.m_vect[2] = (static_cast<int16_t>(data[4]) << 8) + data[5];
 	// Scale
-	m_rawScaledAcc[0] = static_cast<double>(m_rawAcc[0]) / m_accScale;
-	m_rawScaledAcc[1] = static_cast<double>(m_rawAcc[1]) / m_accScale;
-	m_rawScaledAcc[2] = static_cast<double>(m_rawAcc[2]) / m_accScale;
+	m_rawScaledAcc = Vector<double, 3>(m_rawAcc) / m_accScale;
 
 	// Temperature high byte and low byte combination
-	m_rawTemp = ((uint16_t)data[6] << 8) + data[7];
+	m_rawTemp = ((int16_t)data[6] << 8) + data[7];
 
 	// Gyroscope high byte and low byte combination
-	m_rawGyro[0] = (static_cast<uint16_t>(data[8]) << 8) + data[9];
-	m_rawGyro[1] = (static_cast<uint16_t>(data[10]) << 8) + data[11];
-	m_rawGyro[2] = (static_cast<uint16_t>(data[12]) << 8) + data[13];
+	m_rawGyro.m_vect[0] = (static_cast<int16_t>(data[8]) << 8) + data[9];
+	m_rawGyro.m_vect[1] = (static_cast<int16_t>(data[10]) << 8) + data[11];
+	m_rawGyro.m_vect[2] = (static_cast<int16_t>(data[12]) << 8) + data[13];
 	// Scale
-	m_rawScaledGyro[0] = static_cast<double>(m_rawGyro[0]) / m_gyroScale;
-	m_rawScaledGyro[1] = static_cast<double>(m_rawGyro[1]) / m_gyroScale;
-	m_rawScaledGyro[2] = static_cast<double>(m_rawGyro[2]) / m_gyroScale;
+	m_rawScaledGyro = Vector<double, 3>(m_rawGyro) / m_gyroScale;
 }
 
 /*
@@ -273,13 +273,9 @@ void MPU9250::read_magnetometer_data()
  */
 void MPU9250::calibrate()
 {
-	m_accOffset[0] = 0.0;
-	m_accOffset[1] = 0.0;
-	m_accOffset[2] = 0.0;
-
-	m_gyroOffset[0] = 0.0;
-	m_gyroOffset[1] = 0.0;
-	m_gyroOffset[2] = 0.0;
+	// Initialize offsets
+	m_accOffset.m_vect = {0.0, 0.0, 0.0};
+	m_gyroOffset.m_vect = {0.0, 0.0, 0.0};
 
 	const int range = 200; // Number of reading
 
@@ -290,45 +286,46 @@ void MPU9250::calibrate()
 
 		// Sum all readings
 		// For accelerometer
-		m_accOffset[0] += m_rawScaledAcc[0];
-		m_accOffset[1] += m_rawScaledAcc[1];
-		m_accOffset[2] += m_rawScaledAcc[2];
+		m_accOffset += m_rawScaledAcc;
+
 		// For gyroscope
-		m_gyroOffset[0] += m_rawScaledGyro[0];
-		m_gyroOffset[1] += m_rawScaledGyro[1];
-		m_gyroOffset[2] += m_rawScaledGyro[2];
+		m_gyroOffset += m_rawScaledGyro;
 	}
 
-	// Divide the sum to get the error value
+	/* Divide the sum to get the average value */
 	// For accelerometer
-	m_accOffset[0] /= static_cast<double>(range);
-	m_accOffset[1] /= static_cast<double>(range);
-	m_accOffset[2] /= static_cast<double>(range);
+	m_accOffset /= static_cast<double>(range);
+
 	// For gyroscope
-	m_gyroOffset[0] /= static_cast<double>(range);
-	m_gyroOffset[1] /= static_cast<double>(range);
-	m_gyroOffset[2] /= static_cast<double>(range);
+	m_gyroOffset /= static_cast<double>(range);
 
 	// Find the g vector and normalize it
-	const double norm = sqrt(
-			m_accOffset[0] * m_accOffset[0] +
-			m_accOffset[1] * m_accOffset[1] +
-			m_accOffset[2] * m_accOffset[2]
-			);
-	const double normalizedAccX = m_accOffset[0] / norm;
-	const double normalizedAccY = m_accOffset[1] / norm;
-	const double normalizedAccZ = m_accOffset[2] / norm;
+	const Vector<double, 3> normalizedAcc = m_accOffset.normalized();
 
 	// Remove the gravity vector from the offset
-	m_accOffset[0] -= normalizedAccX;
-	m_accOffset[1] -= normalizedAccY;
-	m_accOffset[2] -= normalizedAccZ;
+	m_accOffset -= normalizedAcc;
 }
 
 
-void MPU9250::get_mpu9250_data()
+/*
+ * Apply a low pass filter on the data.
+ * Remove the offset found during calibration.
+ */
+void MPU9250::filter_and_calibrate_data()
 {
+	// Filtering accelerometer data
+	m_filteredAcceloremeter = m_previousAcc * m_lpf_acc_gain + m_rawScaledAcc * (1.0 - m_lpf_acc_gain);
+	m_previousAcc = m_filteredAcceloremeter;
 
+	// Remove offset
+	m_filteredAcceloremeter -= m_accOffset;
+
+	// Filtering gyroscope data
+	m_filteredGyro = m_previousGyro * m_lpf_gyro_gain + m_rawScaledGyro * (1.0 - m_lpf_gyro_gain);
+	m_previousGyro = m_filteredGyro;
+
+	// Remove offset
+	m_filteredGyro -= m_gyroOffset;
 }
 
 

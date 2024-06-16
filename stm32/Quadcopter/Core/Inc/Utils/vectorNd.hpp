@@ -7,6 +7,7 @@
 
 #pragma once
 
+// STL
 #include <array>
 #include <cmath>
 
@@ -27,11 +28,25 @@ public:
 public:
 	Vector() {};
 
-	// Variadic template constructor to initialize vector elements
+	/*
+	 * Variadic template constructor to initialize vector elements
+	 */
 	template<typename ... Args>
-	Vector(const Args&... args) : m_vect({args...})
+	Vector(const Args&... args) : m_vect({static_cast<T>(args)...})
 	{
 		static_assert(sizeof...(Args) == N, "Incorrect vector dimension.");
+	}
+
+	/*
+	 * Type conversion constructor
+	 */
+	template<typename U>
+	Vector(const Vector<U, N>& v)
+	{
+		for (size_t i = 0; i < N; ++i)
+		{
+			m_vect[i] = static_cast<T>(v.m_vect[i]);
+		}
 	}
 
 	//void print(); // TODO, over UART
@@ -167,6 +182,18 @@ public:
 		{
 			*this /= _norm;
 		}
+	}
+
+	/*
+	 * Return the normalized vector
+	 */
+	inline Vector normalized() const
+	{
+		Vector result = Vector(*this);
+
+		result.normalize();
+
+		return result;
 	}
 
 	/*
