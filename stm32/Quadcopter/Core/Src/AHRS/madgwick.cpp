@@ -39,9 +39,10 @@ this drift, although they are susceptible to short-term disturbances.
  * Gyroscope Angular Velocity components are in Radians per Second.
  * Accelerometer components will be normalized.
  */
-void MadgwickFilter::compute(
+Quaternion MadgwickFilter::compute(
 		const Vector<double, 3>& acc,
 		const Vector<double, 3>& gyro,
+		const Vector<double, 3>& magneto,
 		const double& dt
 		)
 {
@@ -124,6 +125,7 @@ void MadgwickFilter::compute(
 	m_qEst = q_est_prev + q_est_dot;	// Integrate orientation rate to find position
 	m_qEst.normalize();                 // normalize the orientation of the estimate
 										//(shown in diagram, plus always use unit quaternions for orientation)
+	return m_qEst;
 }
 
 

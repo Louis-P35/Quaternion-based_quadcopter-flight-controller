@@ -35,6 +35,11 @@ public:
 
 	}
 
+	Quaternion()
+	{
+
+	}
+
 	/*
 	 * Return the conjugated quaternion (imaginary component with the reverse sign)
 	 */

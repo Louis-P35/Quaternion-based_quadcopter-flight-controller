@@ -9,6 +9,7 @@
 
 // Project
 #include "Utils/quaternion.hpp"
+#include "AHRS/ahrs.hpp"
 
 /*
 The Madgwick filter utilizes quaternion representations for calculating orientations.
@@ -20,24 +21,22 @@ ensures stable and continuous calculations even during full 360-degree rotations
 */
 
 
-class MadgwickFilter
+class MadgwickFilter : public IFilter
 {
-public:
-	Quaternion m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
-
 public:
 	MadgwickFilter()
 	{
 		m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
 	}
 
-	void compute(
+	Quaternion compute(
 			const Vector<double, 3>& acc,
 			const Vector<double, 3>& gyro,
+			const Vector<double, 3>& magneto,
 			const double& dt
-			);
+			) override;
 
-	void getEulerAngle(double& roll, double& pitch, double& yaw) const;
+	void getEulerAngle(double& roll, double& pitch, double& yaw) const; // TODO remove ?
 };
 
 
