@@ -160,10 +160,10 @@ public:
 		return Quaternion(w, x, y, z);
 	}
 
-	/* Operators override */
+	/* Operators overload */
 
 	/*
-	 * Quaternion multiplication override
+	 * Quaternion multiplication overload
 	 */
 	inline Quaternion operator*(const Quaternion& b) const
 	{
@@ -176,7 +176,7 @@ public:
 	}
 
 	/*
-	 * Assignment and Quaternion multiplication override
+	 * Assignment and Quaternion multiplication overload
 	 */
 	inline Quaternion& operator*=(const Quaternion& b)
 	{
@@ -188,7 +188,7 @@ public:
 	}
 
 	/*
-	 * Scalar multiplictaion override
+	 * Scalar multiplication overload
 	 */
 	inline Quaternion operator*(const double& scalar) const
 	{
@@ -196,7 +196,7 @@ public:
 	}
 
 	/*
-	 * Assignment and scalar multiplication override
+	 * Assignment and scalar multiplication overload
 	 */
 	inline Quaternion& operator*=(const double& scalar)
 	{
@@ -206,7 +206,7 @@ public:
 	}
 
 	/*
-	 * Quaternion addition override
+	 * Quaternion addition overload
 	 */
 	inline Quaternion operator+(const Quaternion& b) const
 	{
@@ -214,7 +214,7 @@ public:
 	}
 
 	/*
-	 * Assignment and quaternion addition override
+	 * Assignment and quaternion addition overload
 	 */
 	inline Quaternion& operator+=(const Quaternion& b)
 	{
@@ -224,7 +224,7 @@ public:
 	}
 
 	/*
-	 * Quaternion substraction override
+	 * Quaternion subtraction overload
 	 */
 	inline Quaternion operator-(const Quaternion& b) const
 	{
@@ -232,7 +232,7 @@ public:
 	}
 
 	/*
-	 * Assignment and quaternion substraction override
+	 * Assignment and quaternion subtraction overload
 	 */
 	inline Quaternion& operator-=(const Quaternion& b)
 	{

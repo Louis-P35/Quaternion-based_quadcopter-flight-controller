@@ -52,7 +52,7 @@ public:
 	//void print(); // TODO, over UART
 
 	/*
-	 * Addition operator override
+	 * Addition operator overload
 	 */
 	inline Vector operator+(const Vector& v) const
 	{
@@ -75,7 +75,7 @@ public:
 	}
 
 	/*
-	 * Substraction operator override
+	 * Subtraction operator overload
 	 */
 	inline Vector operator-(const Vector& v) const
 	{
@@ -98,7 +98,7 @@ public:
 	}
 
 	/*
-	 * Scalar multiplication operator override
+	 * Scalar multiplication operator overload
 	 */
 	inline Vector operator*(const T& scalar) const
 	{
@@ -121,7 +121,7 @@ public:
 	}
 
 	/*
-	 * Scalar division operator override
+	 * Scalar division operator overload
 	 */
 	inline Vector operator/(const T& scalar) const
 	{

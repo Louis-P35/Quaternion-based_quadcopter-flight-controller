@@ -44,7 +44,7 @@ enum class GyroScale
  */
 class MPU9250
 {
-private:
+public:
 	// SPI
 	SPI_HandleTypeDef m_hspi;
 	uint16_t m_spi_cs_pin;

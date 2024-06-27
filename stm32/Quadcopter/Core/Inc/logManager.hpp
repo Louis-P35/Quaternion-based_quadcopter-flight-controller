@@ -10,6 +10,9 @@
 // Driver
 #include "stm32h7xx_hal.h"
 
+// Project
+#include "Utils/vectorNd.hpp"
+
 
 /*
  * Singleton class allowing to access the UART
@@ -46,6 +49,9 @@ public:
 	void serialPrint(const float val);
 	void serialPrint(const double val);
 	void serialPrint(char* pVal);
+	void serialPrint(const Vector<double, 3>& v);
+	void serialPrint(const Vector<int, 3>& v);
+	void serialPrint(const Vector<int, 3>& v1, const Vector<int, 3>& v2);
 };
 
 

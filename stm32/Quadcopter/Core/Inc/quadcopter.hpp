@@ -12,6 +12,9 @@
 
 // Project
 #include "Sensors/mpu9250.hpp"
+#include "AHRS/ahrs.hpp"
+#include "AHRS/complementaryFilter.hpp"
+#include "AHRS/madgwick.hpp"
 
 
 /*
@@ -25,6 +28,12 @@ public:
 	MPU9250 m_imu;
 
 	UART_HandleTypeDef m_huart_ext;
+
+	// AHRS
+	ComplementaryFilter m_complementaryFilter;
+	MadgwickFilter m_madgwickFilter;
+	AHRS m_ahrs;
+	AHRS m_ahrs2;
 
 
 public:

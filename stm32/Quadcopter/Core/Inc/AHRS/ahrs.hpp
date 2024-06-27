@@ -37,7 +37,9 @@ public:
 
 
 /*
- * AHRS class
+ * AHRS class.
+ * Use one filter (extended Kalman, complementary or Madgwick)
+ * to estimate attitude.
  */
 class AHRS
 {
@@ -52,5 +54,11 @@ public:
 			const Vector<double, 3>& gyro,
 			const Vector<double, 3>& magneto,
 			const double& dt
-			);
+			)
+	{
+		if (m_pFilter != nullptr)
+			return m_pFilter->compute(acc, gyro, magneto, dt);
+
+		return Quaternion(1.0, 0.0, 0.0, 0.0);
+	};
 };

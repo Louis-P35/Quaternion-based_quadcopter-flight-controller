@@ -45,7 +45,7 @@ void LogManager::serialPrint(const int val)
 	char pBuffer[256];
 	int numBytes;
 
-	numBytes = sprintf(pBuffer, "%d", val);
+	numBytes = sprintf(pBuffer, "%d\n", val);
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
 }
 
@@ -69,10 +69,57 @@ void LogManager::serialPrint(const float val)
 	// Extract the decimal part
 	int decimal = abs(static_cast<int>((val - static_cast<float>(integer)) * 1000.0f));
 
-	numBytes = sprintf(pBuffer, "%d.%d", integer, decimal);
+	numBytes = sprintf(pBuffer, "%d.%d\n", integer, decimal);
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
 }
 
+/*
+ * Write a vector on the serial port
+ */
+void LogManager::serialPrint(const Vector<double, 3>& v)
+{
+	char pBuffer[256];
+	int numBytes;
+
+	int x = static_cast<int>(v.m_vect[0] * 1000.0);
+	int y = static_cast<int>(v.m_vect[1] * 1000.0);
+	int z = static_cast<int>(v.m_vect[2] * 1000.0);
+
+
+	numBytes = sprintf(pBuffer, "%d,%d,%d\n", x, y, z);
+	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+}
+
+
+void LogManager::serialPrint(const Vector<int, 3>& v)
+{
+	char pBuffer[256];
+	int numBytes;
+
+
+	numBytes = sprintf(pBuffer, "%d,%d,%d\n", v.m_vect[0], v.m_vect[1], v.m_vect[2]);
+	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+}
+
+void LogManager::serialPrint(const Vector<int, 3>& v1, const Vector<int, 3>& v2)
+{
+	char pBuffer[256];
+	int numBytes;
+
+
+	numBytes = sprintf(
+			pBuffer,
+			"%d,%d,%d,%d,%d,%d\n",
+			v1.m_vect[0],
+			v1.m_vect[1],
+			v1.m_vect[2],
+			v2.m_vect[0],
+			v2.m_vect[1],
+			v2.m_vect[2]
+			);
+
+	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+}
 
 /*
  * Write a double on the serial port

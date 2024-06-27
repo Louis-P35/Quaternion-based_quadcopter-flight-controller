@@ -15,6 +15,7 @@
 
 #define GYRO_MEAN_ERROR M_PI * (5.0 / 180.0) // 5 deg/s gyroscope measurement error (in rad/s)  *from paper*
 #define BETA sqrt(3.0/4.0) * GYRO_MEAN_ERROR    //*from paper*
+#define DEGREE_TO_RAD (M_PI / 180.0)
 
 /*
 Sensor Fusion: The Madgwick filter uses accelerometer, gyroscope and magnetometer
@@ -46,6 +47,9 @@ Quaternion MadgwickFilter::compute(
 		const double& dt
 		)
 {
+	// Radian per second conversion
+	Vector<double, 3> gyroRad = gyro * DEGREE_TO_RAD;
+
 	Quaternion q_est_prev = m_qEst;
 	Quaternion q_est_dot = Quaternion(0.0, 0.0, 0.0, 0.0);
 	Quaternion q_a = Quaternion(0.0, acc.m_vect[0], acc.m_vect[1], acc.m_vect[2]);
@@ -56,7 +60,7 @@ Quaternion MadgwickFilter::compute(
 	Quaternion gradient = Quaternion(0.0, 0.0, 0.0, 0.0);
 
 	// Integrate angluar velocity to obtain position in angles
-	Quaternion q_w = Quaternion(0.0, gyro.m_vect[0], gyro.m_vect[1], gyro.m_vect[2]);                   // equation (10), places gyroscope readings in a quaternion
+	Quaternion q_w = Quaternion(0.0, gyroRad.m_vect[0], gyroRad.m_vect[1], gyroRad.m_vect[2]);                   // equation (10), places gyroscope readings in a quaternion
 	// the real component is zero, which the Madgwick uses to simplfy quat. mult.
 
 
