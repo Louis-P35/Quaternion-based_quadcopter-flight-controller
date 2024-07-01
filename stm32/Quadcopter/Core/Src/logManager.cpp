@@ -101,7 +101,11 @@ void LogManager::serialPrint(const Vector<int, 3>& v)
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
 }
 
-void LogManager::serialPrint(const Vector<int, 3>& v1, const Vector<int, 3>& v2)
+void LogManager::serialPrint(
+		const Vector<int, 3>& v1,
+		const Vector<int, 3>& v2,
+		const Vector<int, 3>& v3
+		)
 {
 	char pBuffer[256];
 	int numBytes;
@@ -109,13 +113,16 @@ void LogManager::serialPrint(const Vector<int, 3>& v1, const Vector<int, 3>& v2)
 
 	numBytes = sprintf(
 			pBuffer,
-			"%d,%d,%d,%d,%d,%d\n",
+			"%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
 			v1.m_vect[0],
 			v1.m_vect[1],
 			v1.m_vect[2],
 			v2.m_vect[0],
 			v2.m_vect[1],
-			v2.m_vect[2]
+			v2.m_vect[2],
+			v3.m_vect[0],
+			v3.m_vect[1],
+			v3.m_vect[2]
 			);
 
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);

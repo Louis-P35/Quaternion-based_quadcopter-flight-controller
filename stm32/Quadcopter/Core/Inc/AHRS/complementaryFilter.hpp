@@ -34,11 +34,4 @@ public:
 			const Vector<double, 3>& magneto,
 			const double& dt
 			) override;
-
-private:
-	Quaternion gyroToQuaternion(const Vector<double, 3>& gyro, const double dt) const;
-	Quaternion accMagToQuaternion(
-			const Vector<double, 3>& accel,
-			const Vector<double, 3>& mag
-			) const;
 };

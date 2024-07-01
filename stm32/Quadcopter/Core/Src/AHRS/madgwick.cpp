@@ -15,7 +15,6 @@
 
 #define GYRO_MEAN_ERROR M_PI * (5.0 / 180.0) // 5 deg/s gyroscope measurement error (in rad/s)  *from paper*
 #define BETA sqrt(3.0/4.0) * GYRO_MEAN_ERROR    //*from paper*
-#define DEGREE_TO_RAD (M_PI / 180.0)
 
 /*
 Sensor Fusion: The Madgwick filter uses accelerometer, gyroscope and magnetometer

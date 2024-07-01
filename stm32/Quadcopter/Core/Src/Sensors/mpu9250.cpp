@@ -40,6 +40,9 @@ void MPU9250::init(const AccScale& accScaleConf, const GyroScale& gyroScaleConf)
 	configureAccelerometer(accScaleConf);
 	configureGyroscope(gyroScaleConf);
 
+	// 10 ms delay in case the MPU need time to update to its new calibration
+	HAL_Delay(10);
+
 	// Calibrate accelerometer and gyroscope offsets
 	calibrate();
 }
@@ -277,7 +280,7 @@ void MPU9250::calibrate()
 	m_accOffset.m_vect = {0.0, 0.0, 0.0};
 	m_gyroOffset.m_vect = {0.0, 0.0, 0.0};
 
-	const int range = 200; // Number of reading
+	const int range = 1000; // Number of reading
 
 	for (int i = 0; i < range; ++i)
 	{
@@ -290,6 +293,8 @@ void MPU9250::calibrate()
 
 		// For gyroscope
 		m_gyroOffset += m_rawScaledGyro;
+
+		HAL_Delay(1);
 	}
 
 	/* Divide the sum to get the average value */
@@ -321,11 +326,13 @@ void MPU9250::filter_and_calibrate_data()
 	m_filteredAcceloremeter -= m_accOffset;
 
 	// Filtering gyroscope data
-	m_filteredGyro = m_previousGyro * m_lpf_gyro_gain + m_rawScaledGyro * (1.0 - m_lpf_gyro_gain);
-	m_previousGyro = m_filteredGyro;
+	//m_filteredGyro = m_previousGyro * m_lpf_gyro_gain + m_rawScaledGyro * (1.0 - m_lpf_gyro_gain);
+	//m_previousGyro = m_filteredGyro;
 
 	// Remove offset
-	m_filteredGyro -= m_gyroOffset;
+	//m_filteredGyro -= m_gyroOffset;
+
+	m_filteredGyro = m_rawScaledGyro - m_gyroOffset;
 }
 
 

@@ -212,4 +212,17 @@ public:
 
 		return result;
 	}
+
+	/*
+	 * [] operator (get & set)
+	 */
+	/*inline T& operator[](const size_t i)
+	{
+		return m_vect[i];
+	}
+
+	inline const T& operator[](const size_t i) const
+	{
+		return m_vect[i];
+	}*/
 };

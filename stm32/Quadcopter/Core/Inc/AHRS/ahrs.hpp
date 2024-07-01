@@ -10,6 +10,8 @@
 // Project
 #include "Utils/quaternion.hpp"
 
+#define DEGREE_TO_RAD (M_PI / 180.0)
+
 
 /*
  * Interface class for all the filters

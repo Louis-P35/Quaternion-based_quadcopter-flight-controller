@@ -17,8 +17,9 @@
 
 
 /*
-Quaternion class
-*/
+ * Quaternion class
+ */
+// TODO: template type
 class Quaternion
 {
 public:
@@ -158,6 +159,79 @@ public:
 		const double z = cr * cp * sy - sr * sp * cy;
 
 		return Quaternion(w, x, y, z);
+	}
+
+	/*
+	 * Integrate the angular velocity and return
+	 * the corresponding quaternion rotation
+	 */
+	static Quaternion gyroToQuaternion(
+			const Vector<double, 3>& gyro,
+			const double dt
+			)
+	{
+		if (gyro.norm() > 0.0 && dt != 0.0) // TODO: Norm computed twice, need to optimize that
+		{
+			// Update the orientation quaternion using half `dt` to correctly integrate angular velocity.
+			// This accounts for quaternion properties where each component of angular velocity contributes
+			// half as much as it would in a straightforward vector integration,
+			// ensuring accurate rotational updates.
+
+			const double half_dt = 0.5 * dt;
+
+			const double w = 1.0;
+			const double x = gyro.m_vect[0] * half_dt;
+			const double y = gyro.m_vect[1] * half_dt;
+			const double z = gyro.m_vect[2] * half_dt;
+
+			return Quaternion(w, x, y, z).normalize();
+		}
+
+		// Return identity quaternion if norm is zero
+		return Quaternion(1.0, 0.0, 0.0, 0.0);
+	}
+
+
+	/*
+	 * Return the quaternion that represent the orientation given
+	 * by the accelerometer and magnetometer
+	 */
+	static Quaternion accMagToQuaternion(
+			const Vector<double, 3>& accel,
+			const Vector<double, 3>& mag
+			)
+	{
+		// Calculate roll and pitch from accelerometer
+		const double roll = atan2(accel.m_vect[1], accel.m_vect[2]);
+		const double pitch = atan2(
+				-accel.m_vect[0],
+				sqrt(accel.m_vect[1] * accel.m_vect[1] + accel.m_vect[2] * accel.m_vect[2])
+				);
+
+		// Calculate yaw from magnetometer (simplified, assumes flat Earth and no tilt compensation)
+		// TODO: Use final estimated attitude ?
+		const double magX = mag.m_vect[0] * cos(pitch) + mag.m_vect[1] * sin(roll) * sin(pitch) +
+				mag.m_vect[2] * cos(roll) * sin(pitch);
+		const double magY = mag.m_vect[1] * cos(roll) - mag.m_vect[2] * sin(roll);
+		const double yaw = atan2(-magY, magX);
+
+		return Quaternion::fromEuler(roll, pitch, yaw);
+	}
+
+
+	/*
+	 * Rotate a vector using this quaternion
+	 */
+	Vector<double, 3> rotate(const Vector<double, 3>& v) const
+	{
+		// Convert vector to quaternion
+		const Quaternion vec(0, v.m_vect[0], v.m_vect[1], v.m_vect[2]);
+
+		// Compute this * vec * conjugate(this)
+		const Quaternion q_vec = *this * vec * conjugate();
+
+		// Return the vector part of the resulting quaternion
+		return Vector<double, 3>{q_vec.m_q.m_vect[1], q_vec.m_q.m_vect[2], q_vec.m_q.m_vect[3]};
 	}
 
 	/* Operators overload */

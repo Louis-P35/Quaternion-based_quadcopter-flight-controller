@@ -51,7 +51,11 @@ public:
 	void serialPrint(char* pVal);
 	void serialPrint(const Vector<double, 3>& v);
 	void serialPrint(const Vector<int, 3>& v);
-	void serialPrint(const Vector<int, 3>& v1, const Vector<int, 3>& v2);
+	void serialPrint(
+			const Vector<int, 3>& v1,
+			const Vector<int, 3>& v2,
+			const Vector<int, 3>& v3
+			);
 };
 
 
