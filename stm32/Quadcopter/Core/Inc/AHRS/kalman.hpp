@@ -13,6 +13,12 @@
 #include "AHRS/ahrs.hpp"
 #include "Utils/Eigen/Dense"
 
+
+#define INITIAL_GYRO_BIAS 0.0
+#define NOISE_COVARIANCE_SCALE 0.1
+#define MEASUREMENT_NOISE_COVARIANCE_SCALE 0.5
+
+
 //https://codingcorner.org/extended-kalman-filter-in-cpp-with-eigen3/
 
 
@@ -29,6 +35,7 @@
  * Fuse accelerometer, gyroscope and magnetometer data.
  * Work with quaternions.
  */
+//template<typename T, size_t StateVectSize, size_t MeasureVectSize>
 class ExtendedKalmanFilter : public IFilter
 {
 private:
@@ -36,7 +43,7 @@ private:
 	Eigen::Vector<double, 7> m_stateEstimate_X;
 	Eigen::Matrix<double, 7, 7> m_errorCovariance_P; // Covariance matrix
 	Eigen::Matrix<double, 7, 7> m_noiseCovarience_Q; // Process noise covariance
-	Eigen::Matrix<double, 4, 4> m_stateTransition_A;
+	Eigen::Matrix<double, 7, 7> m_stateTransition_A;
 
 	Eigen::Matrix<double, 6, 6> m_measurementNoiseCovarience_R; // Measurement noise covariance
 
@@ -49,12 +56,16 @@ public:
     	// Sets to identity quaternion
     	m_stateEstimate_X << 1, 0, 0, 0, 0, 0, 0;
 
-    	m_errorCovariance_P.setIdentity(); // Initial state covariance
-    	m_noiseCovarience_Q.setIdentity(); // Process noise covariance, scaled as needed
-    	m_noiseCovarience_Q *= 0.1;
+    	// Initial state covariance
+    	m_errorCovariance_P.setIdentity();
 
-    	m_measurementNoiseCovarience_R.setIdentity(); // Measurement noise covariance matrix for 6 measurements
-    	m_measurementNoiseCovarience_R *= 0.5;
+    	// Process noise covariance, scaled as needed
+    	m_noiseCovarience_Q.setIdentity();
+    	m_noiseCovarience_Q *= NOISE_COVARIANCE_SCALE;
+
+    	// Measurement noise covariance matrix for 6 measurements
+    	m_measurementNoiseCovarience_R.setIdentity();
+    	m_measurementNoiseCovarience_R *= MEASUREMENT_NOISE_COVARIANCE_SCALE;
 
 		// Set initial values for H. Update based on how measurements relate to the states
 		//updateH();
@@ -93,23 +104,16 @@ public:
      */
     void predict(const Eigen::Vector3d& gyro, const double& dt)
     {
-    	// Quaternion integration
+    	// Compute state transition matrix and predict state estimate
     	m_stateTransition_A = computeStateTransitionMatrix(gyro, dt);
-    	Eigen::Vector4d q = m_stateTransition_A * m_stateEstimate_X.head<4>(); // q = A * [x(0), x(1), x(2), x(3)]
+    	m_stateEstimate_X = m_stateTransition_A * m_stateEstimate_X;
 
     	// Normalize quaternion
-    	q.normalize();
-
-    	// Update quaternion part of the state vector
-    	m_stateEstimate_X(0) = q(0);
-    	m_stateEstimate_X(1) = q(1);
-    	m_stateEstimate_X(2) = q(2);
-    	m_stateEstimate_X(3) = q(3);
+    	m_stateEstimate_X.head<4>().normalize();
 
 
-		// Jacobian of the state transition matrix
-    	Eigen::Matrix<double, 7, 7> F;
-		F = computeJacobianStateTransitionModel();
+    	// Compute the Jacobian of the state transition model
+    	Eigen::Matrix<double, 7, 7> F = computeJacobianStateTransitionModel();
 
 		// Predict error covariance
 		m_errorCovariance_P = F * m_errorCovariance_P * F.transpose() + m_noiseCovarience_Q;
@@ -126,6 +130,7 @@ public:
     	Eigen::Matrix<double, 6, 7> H = computeJacobianMeasurementModel_H(z);
 
     	Eigen::Matrix<double, 6, 6> S = H * m_errorCovariance_P * H.transpose() + m_measurementNoiseCovarience_R;
+
     	// Kalman gain
     	Eigen::Matrix<double, 7, 6> K;
     	K = m_errorCovariance_P * H.transpose() * S.inverse();
@@ -140,9 +145,7 @@ public:
     	m_stateEstimate_X = m_stateEstimate_X + K * y;
 
     	// Normalize output quaternion
-    	Eigen::Vector4d q_updated = m_stateEstimate_X.head<4>();
-    	q_updated.normalize();
-    	m_stateEstimate_X.head<4>() = q_updated;
+    	m_stateEstimate_X.head<4>().normalize();
 
     	// Update error covariance matrix
     	Eigen::Matrix<double, 7, 7> I;
@@ -160,8 +163,11 @@ public:
 
     /*
      * Compute the state transition matrix
+     * The quaternion part will integrate the gyro
+     * The gyro offset part is just identity
      */
-    virtual Eigen::Matrix<double, 4, 4> computeStateTransitionMatrix(const Eigen::Vector3d& gyro, const double& dt)
+    // TODO: Remove parameters. Handle this in derived class
+    virtual Eigen::Matrix<double, 7, 7> computeStateTransitionMatrix(const Eigen::Vector3d& gyro, const double& dt)
     {
     	// (Wx, Wy, Wz): angular rate
 
@@ -184,7 +190,14 @@ public:
 				wz, wy, -wx, 0.0;
 		Ac = 0.5 * Ac;
 
-		return Eigen::Matrix4d::Identity() + Ac * dt;
+		Eigen::Matrix<double, 4, 4> A_quaternion = Eigen::Matrix4d::Identity() + Ac * dt;
+
+		// Combine with identity for gyro offsets
+		Eigen::Matrix<double, 7, 7> A;
+		A.setIdentity();
+		A.topLeftCorner<4, 4>() = A_quaternion;
+
+		return A;
     }
 
 
@@ -198,7 +211,7 @@ public:
     	Eigen::Matrix<double, 7, 7> F;
 
     	F.setZero();
-    	F.topLeftCorner<4, 4>() = m_stateTransition_A;  // State transition matrix for quaternion
+    	F.topLeftCorner<4, 4>() = m_stateTransition_A.topLeftCorner<4, 4>();  // State transition matrix for quaternion
     	F.bottomRightCorner<3, 3>().setIdentity();  // Identity for gyro offstes
 
     	return F;
@@ -218,10 +231,14 @@ public:
 		// ENU defines the (x, y, z) axis colinear to the geographical
 		// East, North, and Up directions, respectively.
 
-		const Eigen::Vector3d g(0.0, 0.0, 1.0); // Gravity reference vector
+    	 // TODO: member variable in derived class
+    	// Gravity reference vector
+		const Eigen::Vector3d g(0.0, 0.0, 1.0);
 
 		// TODO: measure value
-		const Eigen::Vector3d r(0.0, 1.0, 0.0); // Earth magnetic field reference vector
+		// TODO: member variable in derived class
+		// Earth magnetic field reference vector
+		const Eigen::Vector3d r(0.0, 1.0, 0.0);
 
 		// Normalize accelerometer and magnetometer's reading
 		Eigen::Vector3d a(z(0), z(1), z(2));
@@ -263,11 +280,11 @@ public:
     	// Current quaternion
 		Eigen::Quaterniond q(m_stateEstimate_X(0), m_stateEstimate_X(1), m_stateEstimate_X(2), m_stateEstimate_X(3));
 
-		// Gravity vector in ENU frame
-		Eigen::Vector3d g(0.0, 0.0, 1.0);
+		// Gravity vector in ENU frame // TODO duplicate code
+		Eigen::Vector3d g(0.0, 0.0, 1.0); // TODO: member variable in derived class
 
 		// Earth magnetic field vector in ENU frame TODO
-		Eigen::Vector3d r(0.0, 1.0, 0.0);
+		Eigen::Vector3d r(0.0, 1.0, 0.0); // TODO: member variable in derived class
 
 		// Transform the gravity vector by the quaternion
 		Eigen::Vector3d accExpected = q * g;
