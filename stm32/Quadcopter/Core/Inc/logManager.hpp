@@ -11,7 +11,9 @@
 #include "stm32h7xx_hal.h"
 
 // Project
-#include "Utils/vectorNd.hpp"
+
+// External lib
+#include "Utils/Eigen/Dense"
 
 
 /*
@@ -49,12 +51,14 @@ public:
 	void serialPrint(const float val);
 	void serialPrint(const double val);
 	void serialPrint(char* pVal);
-	void serialPrint(const Vector<double, 3>& v);
-	void serialPrint(const Vector<int, 3>& v);
+	void serialPrint(const Eigen::Vector3d& v);
+	void serialPrint(const Eigen::Vector3i& v);
+	void serialPrint(const Eigen::Quaterniond& q);
+	void serialPrint(const Eigen::Quaterniond& q, const Eigen::Vector3d& v);
 	void serialPrint(
-			const Vector<int, 3>& v1,
-			const Vector<int, 3>& v2,
-			const Vector<int, 3>& v3
+			const Eigen::Vector3d& v1,
+			const Eigen::Vector3d& v2,
+			const Eigen::Vector3d& v3
 			);
 };
 

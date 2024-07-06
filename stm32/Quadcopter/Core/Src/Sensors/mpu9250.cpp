@@ -36,8 +36,13 @@ m_hspi(hspi), m_spi_cs_pin(spi_cs_pin), m_spi_cs_gpio_port(spi_cs_gpio_port)
  */
 void MPU9250::init(const AccScale& accScaleConf, const GyroScale& gyroScaleConf)
 {
+	HAL_Delay(10);
+
 	// Configure the IMU sensitivity
 	configureAccelerometer(accScaleConf);
+
+	HAL_Delay(10);
+
 	configureGyroscope(gyroScaleConf);
 
 	// 10 ms delay in case the MPU need time to update to its new calibration
@@ -45,6 +50,8 @@ void MPU9250::init(const AccScale& accScaleConf, const GyroScale& gyroScaleConf)
 
 	// Calibrate accelerometer and gyroscope offsets
 	calibrate();
+
+	HAL_Delay(10);
 }
 
 
@@ -243,21 +250,25 @@ void MPU9250::read_gyro_acc_data()
 	read_register(59, data, sizeof(data));
 
 	// Accelerometer high byte and low byte combination
-	m_rawAcc.m_vect[0] = (static_cast<int16_t>(data[0]) << 8) + data[1];
-	m_rawAcc.m_vect[1] = (static_cast<int16_t>(data[2]) << 8) + data[3];
-	m_rawAcc.m_vect[2] = (static_cast<int16_t>(data[4]) << 8) + data[5];
+	m_rawAcc(0) = (static_cast<int16_t>(data[0]) << 8) + data[1];
+	m_rawAcc(1) = (static_cast<int16_t>(data[2]) << 8) + data[3];
+	m_rawAcc(2) = (static_cast<int16_t>(data[4]) << 8) + data[5];
 	// Scale
-	m_rawScaledAcc = Vector<double, 3>(m_rawAcc) / m_accScale;
+	m_rawScaledAcc(0) = static_cast<double>(m_rawAcc(0)) / m_accScale;
+	m_rawScaledAcc(1) = static_cast<double>(m_rawAcc(1)) / m_accScale;
+	m_rawScaledAcc(2) = static_cast<double>(m_rawAcc(2)) / m_accScale;
 
 	// Temperature high byte and low byte combination
 	m_rawTemp = ((int16_t)data[6] << 8) + data[7];
 
 	// Gyroscope high byte and low byte combination
-	m_rawGyro.m_vect[0] = (static_cast<int16_t>(data[8]) << 8) + data[9];
-	m_rawGyro.m_vect[1] = (static_cast<int16_t>(data[10]) << 8) + data[11];
-	m_rawGyro.m_vect[2] = (static_cast<int16_t>(data[12]) << 8) + data[13];
+	m_rawGyro(0) = (static_cast<int16_t>(data[8]) << 8) + data[9];
+	m_rawGyro(1) = (static_cast<int16_t>(data[10]) << 8) + data[11];
+	m_rawGyro(2) = (static_cast<int16_t>(data[12]) << 8) + data[13];
 	// Scale
-	m_rawScaledGyro = Vector<double, 3>(m_rawGyro) / m_gyroScale;
+	m_rawScaledGyro(0) = static_cast<double>(m_rawGyro(0)) / m_gyroScale;
+	m_rawScaledGyro(1) = static_cast<double>(m_rawGyro(1)) / m_gyroScale;
+	m_rawScaledGyro(2) = static_cast<double>(m_rawGyro(2)) / m_gyroScale;
 }
 
 /*
@@ -277,8 +288,8 @@ void MPU9250::read_magnetometer_data()
 void MPU9250::calibrate()
 {
 	// Initialize offsets
-	m_accOffset.m_vect = {0.0, 0.0, 0.0};
-	m_gyroOffset.m_vect = {0.0, 0.0, 0.0};
+	m_accOffset = {0.0, 0.0, 0.0};
+	m_gyroOffset = {0.0, 0.0, 0.0};
 
 	const int range = 1000; // Number of reading
 
@@ -305,7 +316,7 @@ void MPU9250::calibrate()
 	m_gyroOffset /= static_cast<double>(range);
 
 	// Find the g vector and normalize it
-	const Vector<double, 3> normalizedAcc = m_accOffset.normalized();
+	const Eigen::Vector3d normalizedAcc = m_accOffset.normalized();
 
 	// Remove the gravity vector from the offset
 	m_accOffset -= normalizedAcc;
@@ -326,11 +337,11 @@ void MPU9250::filter_and_calibrate_data()
 	m_filteredAcceloremeter -= m_accOffset;
 
 	// Filtering gyroscope data
-	//m_filteredGyro = m_previousGyro * m_lpf_gyro_gain + m_rawScaledGyro * (1.0 - m_lpf_gyro_gain);
-	//m_previousGyro = m_filteredGyro;
+	m_filteredGyro = m_previousGyro * m_lpf_gyro_gain + m_rawScaledGyro * (1.0 - m_lpf_gyro_gain);
+	m_previousGyro = m_filteredGyro;
 
 	// Remove offset
-	//m_filteredGyro -= m_gyroOffset;
+	m_filteredGyro -= m_gyroOffset;
 
 	m_filteredGyro = m_rawScaledGyro - m_gyroOffset;
 }

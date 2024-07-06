@@ -14,7 +14,7 @@
 #include "stm32h7xx_hal.h"
 
 // Project
-#include "Utils/vectorNd.hpp"
+#include "Utils/Eigen/Dense"
 
 
 
@@ -50,8 +50,8 @@ public:
 	uint16_t m_spi_cs_pin;
 	GPIO_TypeDef* m_spi_cs_gpio_port;
 
-	Vector<int16_t, 3> m_rawAcc = {0, 0, 0};
-	Vector<int16_t, 3> m_rawGyro = {0, 0, 0};
+	Eigen::Vector<int16_t, 3> m_rawAcc = {0, 0, 0};
+	Eigen::Vector<int16_t, 3> m_rawGyro = {0, 0, 0};
 	int16_t m_rawTemp = 0;
 
 	// Config
@@ -64,22 +64,22 @@ public:
 	double m_gyroScale = 131.0;
 
 	// Raw value scaled according to setup
-	Vector<double, 3> m_rawScaledAcc = {0.0, 0.0, 0.0};
-	Vector<double, 3> m_rawScaledGyro = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_rawScaledAcc = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_rawScaledGyro = {0.0, 0.0, 0.0};
 
 	// Sensor offset that need to be substracted
-	Vector<double, 3> m_accOffset = {0.0, 0.0, 0.0};
-	Vector<double, 3> m_gyroOffset = {1.56, 1.75, -0.12};
+	Eigen::Vector3d m_accOffset = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_gyroOffset = {1.56, 1.75, -0.12};
 
 public:
 	// Low pass filter for accelerometer
-	Vector<double, 3> m_filteredAcceloremeter = {0.0, 0.0, 0.0};
-	Vector<double, 3> m_previousAcc = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_filteredAcceloremeter = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_previousAcc = {0.0, 0.0, 0.0};
 	const double m_lpf_acc_gain = 0.1;
 
 	// Low pass filter for gyroscope
-	Vector<double, 3> m_filteredGyro = {0.0, 0.0, 0.0};
-	Vector<double, 3> m_previousGyro = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_filteredGyro = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_previousGyro = {0.0, 0.0, 0.0};
 	const double m_lpf_gyro_gain = 0.01;
 
 	double m_angleAccX = 0.0;

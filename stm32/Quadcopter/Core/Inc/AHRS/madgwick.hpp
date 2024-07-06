@@ -8,8 +8,11 @@
 #pragma once
 
 // Project
-#include "Utils/quaternion.hpp"
+//#include "Utils/quaternion.hpp"
 #include "AHRS/ahrs.hpp"
+
+// External lib
+#include "Utils/Eigen/Dense"
 
 /*
 The Madgwick filter utilizes quaternion representations for calculating orientations.
@@ -26,13 +29,13 @@ class MadgwickFilter : public IFilter
 public:
 	MadgwickFilter()
 	{
-		m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
+		m_qEst = Eigen::Quaterniond(1.0, 0.0, 0.0, 0.0);
 	}
 
-	Quaternion compute(
-			const Vector<double, 3>& acc,
-			const Vector<double, 3>& gyro,
-			const Vector<double, 3>& magneto,
+	Eigen::Quaterniond compute(
+			const Eigen::Vector3d& acc,
+			const Eigen::Vector3d& gyro,
+			const Eigen::Vector3d& magneto,
 			const double& dt
 			) override;
 

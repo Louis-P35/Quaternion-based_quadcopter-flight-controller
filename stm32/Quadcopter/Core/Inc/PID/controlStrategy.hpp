@@ -7,9 +7,11 @@
 
 #pragma once
 
+// Project
 #include "PID/pid.hpp"
-#include "Utils/VectorNd.hpp"
-#include "Utils/Quaternion.hpp"
+
+// External lib
+#include "Utils/Eigen/Dense"
 
 // Composite design pattern
 
@@ -26,13 +28,13 @@ class Telemetry
 {
 public:
 	// Attitude (angle) of the drone
-	Quaternion m_attitude;
+	Eigen::Quaterniond m_attitude;
 
 	// Angular velocity of the drone
-	Vector<double, 3> m_angularRate;
+	Eigen::Vector3d m_angularRate;
 
 	// Absolute (X, Y, Z) position of the drone
-	Vector<double, 3> m_position;
+	Eigen::Vector3d m_position;
 
 	// Power of the 4 motors, scaled between [0, 1]
 	double m_motorPower[4];

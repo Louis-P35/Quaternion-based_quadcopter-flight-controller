@@ -26,8 +26,22 @@
 
 /*
  * Extended Kalman filter
- * The state is a vector 10 ( quaternion (4), gyro (3), gyro's offset (3) )
+ * The state is a vector 7 ( quaternion (4), gyro's offset (3) )
  */
+
+// 1: calcul of the Kalman Gain
+// Kalman_Gain = error_estimate / (error_estimate + error_measurement)
+// K close to 1 => error_estimate is large comparing to the error_measurement
+// K close to 0 => error_measurement is large comparing to the error_estimate
+
+// 2: calcul of the estimate
+// estimate(t) = estimate(t-1) + K*(measured_valu - estimate(t-1))
+
+// 3: Recalculate the error in the estimate compared to the previous
+// Error_estimate(t) = (1 - K)*error_estimate(t-1)
+// k close to 1 -> error_measurement is small -> error_estimate will be small to converge fast
+// k close to 0 -> error_measurement is large -> error_estimate will not change quickly
+
 
 
 /*
@@ -40,9 +54,16 @@ class ExtendedKalmanFilter : public IFilter
 {
 private:
 	// State vector (quaternion (4) + gyro offset (3))
+	// State estimate vector, the value that the kalman filter estimate
 	Eigen::Vector<double, 7> m_stateEstimate_X;
-	Eigen::Matrix<double, 7, 7> m_errorCovariance_P; // Covariance matrix
-	Eigen::Matrix<double, 7, 7> m_noiseCovarience_Q; // Process noise covariance
+
+	// Error covariance matrix, represent the uncertainty in the state estimate
+	Eigen::Matrix<double, 7, 7> m_errorCovariance_P;
+
+	// Noise covariance matrix, represent the uncertainty in the process model
+	Eigen::Matrix<double, 7, 7> m_noiseCovarience_Q;
+
+
 	Eigen::Matrix<double, 7, 7> m_stateTransition_A;
 
 	Eigen::Matrix<double, 6, 6> m_measurementNoiseCovarience_R; // Measurement noise covariance
@@ -71,25 +92,24 @@ public:
 		//updateH();
     }
 
-    Quaternion compute(
-    		const Vector<double, 3>& acc,
-			const Vector<double, 3>& gyro,
-			const Vector<double, 3>& magneto,
+    Eigen::Quaterniond compute(
+    		const Eigen::Vector3d& acc,
+			const Eigen::Vector3d& gyro,
+			const Eigen::Vector3d& magneto,
 			const double& dt
 			) override
     {
-    	Eigen::Vector3d _gyro(gyro.m_vect[0], gyro.m_vect[1], gyro.m_vect[2]);
         // Prediction
-        predict(_gyro * DEGREE_TO_RAD, dt);
+        predict(gyro * DEGREE_TO_RAD, dt);
 
         // Update with accelerometer and magnetometer
         Eigen::Vector<double, 6> measurementVector(
-        		acc.m_vect[0],
-				acc.m_vect[1],
-				acc.m_vect[2],
-				magneto.m_vect[0],
-				magneto.m_vect[1],
-				magneto.m_vect[2]
+        		acc(0),
+				acc(1),
+				acc(2),
+				magneto(0),
+				magneto(1),
+				magneto(2)
 				);
         update(measurementVector);
 
@@ -153,10 +173,10 @@ public:
     	m_errorCovariance_P = (I - K * H) * m_errorCovariance_P;
     }
 
-    Quaternion getEstimateAttitude() const
+    Eigen::Quaterniond getEstimateAttitude() const
     {
     	// TODO: m_stateEstimate_X.head<4>()
-        return Quaternion(m_stateEstimate_X(0), m_stateEstimate_X(1), m_stateEstimate_X(2), m_stateEstimate_X(3));
+        return Eigen::Quaterniond(m_stateEstimate_X(0), m_stateEstimate_X(1), m_stateEstimate_X(2), m_stateEstimate_X(3));
     }
 
 

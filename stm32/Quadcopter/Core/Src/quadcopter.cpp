@@ -10,11 +10,10 @@
 
 // Project
 #include "quadcopter.hpp"
-#include "Utils/vectorNd.hpp"
-#include "Utils/quaternion.hpp"
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
-#include "Utils/matrix.hpp"
+#include "Utils/utilsAlgebra.hpp"
+//#include "Utils/matrix.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
 
@@ -29,8 +28,8 @@ DroneController::DroneController(
   m_complementaryFilter(),
   m_madgwickFilter(),
   m_ahrs(&m_complementaryFilter),
-  m_ahrs2(&m_madgwickFilter),
-  m_ahrs3(&m_kalmanFilter)
+  m_ahrs2(&m_madgwickFilter)
+  //m_ahrs3(&m_kalmanFilter)
 {
 
 }
@@ -60,9 +59,11 @@ void DroneController::mainLoop()
 	m_imu.read_gyro_acc_data();
 	m_imu.filter_and_calibrate_data();
 
-	Vector<double, 3> gyroTmp = Vector<double, 3>(0.1, 0.5, -0.1);
-	Vector<double, 3> magnetoTmp = Vector<double, 3>(0.0, 0.0, 0.0);
-	Quaternion attitude = m_ahrs.computeAHRS(
+	Eigen::Vector3d gyroTmp = Eigen::Vector3d(0.1, 0.5, -0.1);
+	Eigen::Vector3d magnetoTmp = Eigen::Vector3d(0.0, 0.0, 0.0);
+	//Eigen::Vector3d accTmp = Eigen::Vector3d(0.1145, -0.9839, 0.1369);
+	//Eigen::Vector3i accTmpR = Eigen::Vector3i(m_imu.m_rawAcc.m_vect[0], m_imu.m_rawAcc.m_vect[1], m_imu.m_rawAcc.m_vect[2]);
+	Eigen::Quaterniond attitude = m_ahrs.computeAHRS(
 			m_imu.m_filteredAcceloremeter,
 			m_imu.m_filteredGyro,
 			//gyroTmp,
@@ -70,7 +71,7 @@ void DroneController::mainLoop()
 			0.1
 			);
 
-	Quaternion attitude2 = m_ahrs2.computeAHRS(
+	Eigen::Quaterniond attitude2 = m_ahrs2.computeAHRS(
 			m_imu.m_filteredAcceloremeter,
 			m_imu.m_filteredGyro,
 			//gyroTmp,
@@ -79,31 +80,32 @@ void DroneController::mainLoop()
 			);
 
 	//Vector<double, 3> test(attitude2.m_q.m_vect[1], attitude2.m_q.m_vect[2], attitude2.m_q.m_vect[3]);
-	Quaternion attitude3 = m_ahrs3.computeAHRS(
+	/*Quaternion attitude3 = m_ahrs3.computeAHRS(
 				m_imu.m_filteredAcceloremeter,
 				m_imu.m_filteredGyro,
 				//gyroTmp,
 				magnetoTmp,
 				0.1
-				);
+				);*/
 
 	//uint32_t sysClockFreq = HAL_RCC_GetSysClockFreq();
 
 	//Vector<int, 3> gyroTmp2((int)(m_imu.m_filteredGyro.m_vect[2]*1000.0), (int)(m_imu.m_rawScaledGyro.m_vect[2]*1000.0), (int)(m_imu.m_gyroOffset.m_vect[2]*1000.0));
 
-	double roll, pitch, yaw;
+	/*double roll, pitch, yaw;
 	roll = pitch = yaw = 0.0;
-	attitude.toEuler(roll, pitch, yaw);
-	Vector<int, 3> tmppp((int)roll, (int)pitch, (int)yaw);
+	Eigen::Vector3d vTmp0 = Utils::quaternionToEulerDeg(attitude);
+	Vector<int, 3> tmppp((int)vTmp0(0), (int)vTmp0(1), (int)vTmp0(2));
 
 	//attitude2.toEuler(roll, pitch, yaw);
-	Vector<int, 3> tmppp2((int)roll, (int)pitch, (int)yaw);
+	Eigen::Vector3d vTmp = Utils::quaternionToEulerDeg(attitude2);
+	Vector<int, 3> tmppp2((int)vTmp(0), (int)vTmp(1), (int)vTmp(2));
 
-	attitude3.toEuler(roll, pitch, yaw);
-	Vector<int, 3> tmppp3((int)roll, (int)pitch, (int)yaw);
+	//attitude3.toEuler(roll, pitch, yaw);
+	Vector<int, 3> tmppp3((int)roll, (int)pitch, (int)yaw);*/
 
-	Vector<double, 3> tm(attitude3.m_q.m_vect[1], attitude3.m_q.m_vect[2], attitude3.m_q.m_vect[3]);
-	LogManager::getInstance().serialPrint(tmppp3);
+	//Vector<double, 3> tm(attitude2.m_q.m_vect[1], attitude2.m_q.m_vect[2], attitude2.m_q.m_vect[3]);
+	LogManager::getInstance().serialPrint(attitude);
 	//Vector<double, 3> tm2(attitude.m_q.m_vect[1], attitude.m_q.m_vect[2], attitude.m_q.m_vect[3]);
 	//LogManager::getInstance().serialPrint(tm2);
 	//LogManager::getInstance().serialPrint(tmppp, tmppp2, tmppp3);

@@ -16,7 +16,10 @@ double PID::getError(const double& current, const double& target)
 }
 
 // For Quaternion-based PID
-Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
+Eigen::Quaterniond PID::getError(
+		const Eigen::Quaterniond& current,
+		const Eigen::Quaterniond& target
+		)
 {
 	// Compute error
 	/*
@@ -24,10 +27,10 @@ Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
 	This operation is from the perspective of the current orientation being the reference frame, and
 	it calculates the relative rotation needed to align exactly with the target.
 	*/
-	Quaternion q_error = current.inverse() * target;
+	Eigen::Quaterniond q_error = current.inverse() * target;
 
 	// Ensure it is normalized
-	q_error = q_error.normalize();
+	q_error.normalize();
 
 	/*
 	A quaternion q and its negative -q represent the same orientation. This can result in a sudden
@@ -36,13 +39,13 @@ Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
 	point, leading to a sign reversal. If so, we adjust the error quaternion by negating it to ensure
 	it represents the shortest path.
 	*/
-	if (current.dotProduct(target) < 0.0)
+	if (current.dot(target) < 0.0)
 	{
-		return Quaternion(
-				-q_error.m_q.m_vect[0],
-				-q_error.m_q.m_vect[1],
-				-q_error.m_q.m_vect[2],
-				-q_error.m_q.m_vect[3]
+		return Eigen::Quaterniond(
+				-q_error.w(),
+				-q_error.x(),
+				-q_error.y(),
+				-q_error.z()
 				);
 	}
 
@@ -50,6 +53,10 @@ Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
 }
 
 
+/*
+ * PID control.
+ * Compute the response to an error.
+ */
 double PID::computePID(const double& error, const double& dt, const bool& integrate)
 {
 	// Proportionnal gain

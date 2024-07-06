@@ -8,7 +8,9 @@
 #pragma once
 
 // Project
-#include "Utils/quaternion.hpp"
+
+// External lib
+#include "Utils/Eigen/Dense"
 
 
 /*
@@ -41,7 +43,10 @@ public:
 	static double getError(const double& current, const double& target);
 
 	// For Quaternion-based PID
-	static Quaternion getError(const Quaternion& current, const Quaternion& target);
+	static Eigen::Quaterniond getError(
+			const Eigen::Quaterniond& current,
+			const Eigen::Quaterniond& target
+			);
 
 	double computePID(const double& error, const double& dt, const bool& integrate);
 };

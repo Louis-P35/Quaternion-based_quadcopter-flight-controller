@@ -8,9 +8,7 @@
 #pragma once
 
 // Project
-#include "Utils/quaternion.hpp"
-
-#define DEGREE_TO_RAD (M_PI / 180.0)
+#include "Utils/Eigen/Dense"
 
 
 /*
@@ -20,17 +18,20 @@
 class IFilter
 {
 protected:
-	Quaternion m_qEst;
+	Eigen::Quaterniond m_qEst;
 
 public:
-	IFilter() {};
-	virtual Quaternion compute(const Vector<double, 3>& acc,
-				const Vector<double, 3>& gyro,
-				const Vector<double, 3>& magneto,
+	IFilter()
+	{
+		m_qEst = Eigen::Quaterniond(1.0, 0.0, 0.0, 0.0);
+	};
+	virtual Eigen::Quaterniond compute(const Eigen::Vector3d& acc,
+				const Eigen::Vector3d& gyro,
+				const Eigen::Vector3d& magneto,
 				const double& dt
 				) = 0;
 
-	Quaternion getEstimateAttitude() const
+	Eigen::Quaterniond getEstimateAttitude() const
 	{
 		return m_qEst;
 	};
@@ -52,15 +53,16 @@ private:
 public:
 	AHRS(IFilter* const pF) : m_pFilter(pF) {};
 
-	Quaternion computeAHRS(const Vector<double, 3>& acc,
-			const Vector<double, 3>& gyro,
-			const Vector<double, 3>& magneto,
+	Eigen::Quaterniond computeAHRS(
+			const Eigen::Vector3d& acc,
+			const Eigen::Vector3d& gyro,
+			const Eigen::Vector3d& magneto,
 			const double& dt
 			)
 	{
 		if (m_pFilter != nullptr)
 			return m_pFilter->compute(acc, gyro, magneto, dt);
 
-		return Quaternion(1.0, 0.0, 0.0, 0.0);
+		return Eigen::Quaterniond(1.0, 0.0, 0.0, 0.0);
 	};
 };

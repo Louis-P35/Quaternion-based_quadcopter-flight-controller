@@ -9,6 +9,7 @@
 
 // Project
 #include "AHRS/ahrs.hpp"
+#include "Utils/Eigen/Dense"
 
 
 
@@ -25,13 +26,16 @@ private:
 	double m_alpha = 0.98;
 
 public:
-	ComplementaryFilter() {};
+	ComplementaryFilter()
+	{
+		m_qEst = Eigen::Quaterniond(1.0, 0.0, 0.0, 0.0);
+	};
 	ComplementaryFilter(const double alpha) : m_alpha(alpha) {};
 
-	Quaternion compute(
-			const Vector<double, 3>& acc,
-			const Vector<double, 3>& gyro,
-			const Vector<double, 3>& magneto,
+	Eigen::Quaterniond compute(
+			const Eigen::Vector3d& acc,
+			const Eigen::Vector3d& gyro,
+			const Eigen::Vector3d& magneto,
 			const double& dt
 			) override;
 };
