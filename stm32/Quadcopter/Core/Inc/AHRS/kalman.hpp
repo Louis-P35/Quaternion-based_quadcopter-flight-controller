@@ -11,6 +11,9 @@
 
 // Project
 #include "AHRS/ahrs.hpp"
+#include "Utils/utilsAlgebra.hpp"
+
+// External library
 #include "Utils/Eigen/Dense"
 
 
@@ -18,8 +21,12 @@
 #define NOISE_COVARIANCE_SCALE 0.1
 #define MEASUREMENT_NOISE_COVARIANCE_SCALE 0.5
 
+// TODO:
+// why computeJacobianStateTransitionModel() == m_stateTransition_A ?
 
-//https://codingcorner.org/extended-kalman-filter-in-cpp-with-eigen3/
+
+// Theory:
+// https://codingcorner.org/extended-kalman-filter-in-cpp-with-eigen3/
 
 
 // the kalman filter choose the kalman gain K, such that P is minimized.
@@ -49,24 +56,27 @@
  * Fuse accelerometer, gyroscope and magnetometer data.
  * Work with quaternions.
  */
+
 //template<typename T, size_t StateVectSize, size_t MeasureVectSize>
+#define StateVectSize 4  // XXX
+#define MeasureVectSize 6
 class ExtendedKalmanFilter : public IFilter
 {
 private:
 	// State vector (quaternion (4) + gyro offset (3))
 	// State estimate vector, the value that the kalman filter estimate
-	Eigen::Vector<double, 7> m_stateEstimate_X;
+	Eigen::Vector<double, StateVectSize> m_stateEstimate_X;
 
 	// Error covariance matrix, represent the uncertainty in the state estimate
-	Eigen::Matrix<double, 7, 7> m_errorCovariance_P;
+	Eigen::Matrix<double, StateVectSize, StateVectSize> m_errorCovariance_P;
 
 	// Noise covariance matrix, represent the uncertainty in the process model
-	Eigen::Matrix<double, 7, 7> m_noiseCovarience_Q;
+	Eigen::Matrix<double, StateVectSize, StateVectSize> m_noiseCovarience_Q;
 
 
-	Eigen::Matrix<double, 7, 7> m_stateTransition_A;
+	Eigen::Matrix<double, StateVectSize, StateVectSize> m_stateTransition_A;
 
-	Eigen::Matrix<double, 6, 6> m_measurementNoiseCovarience_R; // Measurement noise covariance
+	Eigen::Matrix<double, MeasureVectSize, MeasureVectSize> m_measurementNoiseCovarience_R; // Measurement noise covariance
 
 
 
@@ -75,7 +85,7 @@ public:
     {
     	// Initial state - quaternion (w, x, y, z)
     	// Sets to identity quaternion
-    	m_stateEstimate_X << 1, 0, 0, 0, 0, 0, 0;
+    	m_stateEstimate_X << 1, 0, 0, 0; //, 0, 0, 0;  // XXX
 
     	// Initial state covariance
     	m_errorCovariance_P.setIdentity();
@@ -102,14 +112,19 @@ public:
         // Prediction
         predict(gyro * DEGREE_TO_RAD, dt);
 
+        Eigen::Vector<double, MeasureVectSize> tmp = computeMeasurementEstimate_h();
+
         // Update with accelerometer and magnetometer
-        Eigen::Vector<double, 6> measurementVector(
+        Eigen::Vector<double, MeasureVectSize> measurementVector(
         		acc(0),
 				acc(1),
 				acc(2),
-				magneto(0),
+				tmp(3),
+				tmp(4),
+				tmp(5)
+				/*magneto(0),
 				magneto(1),
-				magneto(2)
+				magneto(2)*/
 				);
         update(measurementVector);
 
@@ -129,11 +144,12 @@ public:
     	m_stateEstimate_X = m_stateTransition_A * m_stateEstimate_X;
 
     	// Normalize quaternion
+    	// TODO: Create a function that may be overloaded if needed
     	m_stateEstimate_X.head<4>().normalize();
 
 
     	// Compute the Jacobian of the state transition model
-    	Eigen::Matrix<double, 7, 7> F = computeJacobianStateTransitionModel();
+    	Eigen::Matrix<double, StateVectSize, StateVectSize> F = computeJacobianStateTransitionModel();
 
 		// Predict error covariance
 		m_errorCovariance_P = F * m_errorCovariance_P * F.transpose() + m_noiseCovarience_Q;
@@ -143,32 +159,42 @@ public:
      * Correction step
      * Use accelerometer and magnetometer to correct the gyro estimation
      */
-    void update(const Eigen::Vector<double, 6>& z)
+    void update(const Eigen::Vector<double, MeasureVectSize>& z)
     {
     	// Compute H based on the current state vector
     	// Jacobian of the measurement function matrix
-    	Eigen::Matrix<double, 6, 7> H = computeJacobianMeasurementModel_H(z);
+    	Eigen::Matrix<double, MeasureVectSize, StateVectSize> H = computeJacobianMeasurementModel_H(z);
 
-    	Eigen::Matrix<double, 6, 6> S = H * m_errorCovariance_P * H.transpose() + m_measurementNoiseCovarience_R;
+    	Eigen::Matrix<double, MeasureVectSize, MeasureVectSize> S = H * m_errorCovariance_P * H.transpose() + m_measurementNoiseCovarience_R;
 
     	// Kalman gain
-    	Eigen::Matrix<double, 7, 6> K;
+    	Eigen::Matrix<double, StateVectSize, MeasureVectSize> K;
     	K = m_errorCovariance_P * H.transpose() * S.inverse();
 
     	// Compute expected measurement from accelerometer and magnetometer
-    	Eigen::Vector<double, 6> h = computeMeasurementEstimate_h();
+    	Eigen::Vector<double, MeasureVectSize> h = computeMeasurementEstimate_h();
 
     	// Innovation (residual)
-    	Eigen::Vector<double, 6> y = z - h;
+    	Eigen::Vector<double, MeasureVectSize> y = z - h;
+    	//K.setIdentity();
+    	// Update error state
+    	/*Eigen::Vector4d quaternionCorrection = K.topRows<4>() * y;
+    	// Convert correction term to a quaternion (small angle approximation)
+    	Eigen::Quaterniond delta_q(1.0, 0.5 * quaternionCorrection(1), 0.5 * quaternionCorrection(2), 0.5 * quaternionCorrection(3));
+    	// Update state quaternion with quaternion multiplication
+		Eigen::Quaterniond current_q(m_stateEstimate_X(0), m_stateEstimate_X(1), m_stateEstimate_X(2), m_stateEstimate_X(3));
+		Eigen::Quaterniond updated_q = current_q * delta_q;
+		updated_q.normalize();
+		// Update the state estimate quaternion part
+		m_stateEstimate_X.head<4>() << updated_q.w(), updated_q.x(), updated_q.y(), updated_q.z();*/
 
-    	// Update state estimate
+		// Update state estimate
     	m_stateEstimate_X = m_stateEstimate_X + K * y;
-
     	// Normalize output quaternion
     	m_stateEstimate_X.head<4>().normalize();
 
     	// Update error covariance matrix
-    	Eigen::Matrix<double, 7, 7> I;
+    	Eigen::Matrix<double, StateVectSize, StateVectSize> I;
     	I.setIdentity();
     	m_errorCovariance_P = (I - K * H) * m_errorCovariance_P;
     }
@@ -187,7 +213,7 @@ public:
      * The gyro offset part is just identity
      */
     // TODO: Remove parameters. Handle this in derived class
-    virtual Eigen::Matrix<double, 7, 7> computeStateTransitionMatrix(const Eigen::Vector3d& gyro, const double& dt)
+    virtual Eigen::Matrix<double, StateVectSize, StateVectSize> computeStateTransitionMatrix(const Eigen::Vector3d& gyro, const double& dt)
     {
     	// (Wx, Wy, Wz): angular rate
 
@@ -198,9 +224,9 @@ public:
 
 
 		// Remove the estimated gyro offset (bias) from raw gyro
-		double wx = gyro(0) - m_stateEstimate_X(4);
-		double wy = gyro(1) - m_stateEstimate_X(5);
-		double wz = gyro(2) - m_stateEstimate_X(6);
+		double wx = gyro(0);// - m_stateEstimate_X(4); // XXX
+		double wy = gyro(1);// - m_stateEstimate_X(5);
+		double wz = gyro(2);// - m_stateEstimate_X(6);
 
 		// Construct state transition matrix
 		Eigen::Matrix4d Ac;
@@ -213,7 +239,7 @@ public:
 		Eigen::Matrix<double, 4, 4> A_quaternion = Eigen::Matrix4d::Identity() + Ac * dt;
 
 		// Combine with identity for gyro offsets
-		Eigen::Matrix<double, 7, 7> A;
+		Eigen::Matrix<double, StateVectSize, StateVectSize> A;
 		A.setIdentity();
 		A.topLeftCorner<4, 4>() = A_quaternion;
 
@@ -226,13 +252,13 @@ public:
      * Matrix of partial derivative.
      * It's purpose is to linearize non-linear systems
      */
-    virtual Eigen::Matrix<double, 7, 7> computeJacobianStateTransitionModel()
+    virtual Eigen::Matrix<double, StateVectSize, StateVectSize> computeJacobianStateTransitionModel()
     {
-    	Eigen::Matrix<double, 7, 7> F;
+    	Eigen::Matrix<double, StateVectSize, StateVectSize> F;
 
     	F.setZero();
     	F.topLeftCorner<4, 4>() = m_stateTransition_A.topLeftCorner<4, 4>();  // State transition matrix for quaternion
-    	F.bottomRightCorner<3, 3>().setIdentity();  // Identity for gyro offstes
+    	//F.bottomRightCorner<3, 3>().setIdentity();  // Identity for gyro offstes  // XXX
 
     	return F;
     }
@@ -245,7 +271,7 @@ public:
 	 * Rows = Size of measurement vector
      * Columns = Size of state vector
 	 */
-    virtual Eigen::Matrix<double, 6, 7> computeJacobianMeasurementModel_H(const Eigen::Vector<double, 6>& z)
+    virtual Eigen::Matrix<double, MeasureVectSize, StateVectSize> computeJacobianMeasurementModel_H(const Eigen::Vector<double, MeasureVectSize>& z)
 	{
 		// ENU reference is used here.
 		// ENU defines the (x, y, z) axis colinear to the geographical
@@ -263,7 +289,7 @@ public:
 		// Normalize accelerometer and magnetometer's reading
 		Eigen::Vector3d a(z(0), z(1), z(2));
 		a.normalize();
-		Eigen::Vector3d m(z(0), z(1), z(2));
+		Eigen::Vector3d m(z(3), z(4), z(5));
 		m.normalize();
 
 		const double g_x = g(0), g_y = g(1), g_z = g(2);
@@ -275,15 +301,15 @@ public:
 
 		// Create the jacobian of the measurement matrix
 		// The topLeft<6, 4> map the quaternion, and the rest that is 0 map the gyro offset
-		Eigen::Matrix<double, 6, 7> H;
+		Eigen::Matrix<double, MeasureVectSize, StateVectSize> H;
 		H.setZero();
 
-		H << g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x - g_y*q_y - g_z*q_z, g_x*q_y + g_y*q_x + g_z*q_w, g_x*q_z - g_y*q_w + g_z*q_x, 0.0, 0.0, 0.0,
-		     -g_x*q_z + g_y*q_w + g_z*q_x, g_x*q_y + g_y*q_x - g_z*q_w, -g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z, 0.0, 0.0, 0.0,
-		     g_x*q_y - g_y*q_x + g_z*q_w, g_x*q_z + g_y*q_w - g_z*q_x, g_x*q_w - g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z, 0.0, 0.0, 0.0,
-		     r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x - r_y*q_y - r_z*q_z, r_x*q_y + r_y*q_x + r_z*q_w, r_x*q_z - r_y*q_w + r_z*q_x, 0.0, 0.0, 0.0,
-		     -r_x*q_z + r_y*q_w + r_z*q_x, r_x*q_y + r_y*q_x - r_z*q_w, -r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z, 0.0, 0.0, 0.0,
-		     r_x*q_y - r_y*q_x + r_z*q_w, r_x*q_z + r_y*q_w - r_z*q_x, r_x*q_w - r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z, 0.0, 0.0, 0.0;
+		H << g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x - g_y*q_y - g_z*q_z, g_x*q_y + g_y*q_x + g_z*q_w, g_x*q_z - g_y*q_w + g_z*q_x, //0.0, 0.0, 0.0,  // XXX
+		     -g_x*q_z + g_y*q_w + g_z*q_x, g_x*q_y + g_y*q_x - g_z*q_w, -g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z, //0.0, 0.0, 0.0,
+		     g_x*q_y - g_y*q_x + g_z*q_w, g_x*q_z + g_y*q_w - g_z*q_x, g_x*q_w - g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z, //0.0, 0.0, 0.0,
+		     r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x - r_y*q_y - r_z*q_z, r_x*q_y + r_y*q_x + r_z*q_w, r_x*q_z - r_y*q_w + r_z*q_x, //0.0, 0.0, 0.0,
+		     -r_x*q_z + r_y*q_w + r_z*q_x, r_x*q_y + r_y*q_x - r_z*q_w, -r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z, //0.0, 0.0, 0.0,
+		     r_x*q_y - r_y*q_x + r_z*q_w, r_x*q_z + r_y*q_w - r_z*q_x, r_x*q_w - r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z; //0.0, 0.0, 0.0;
 
 
 		H = 2.0 * H;
@@ -295,7 +321,7 @@ public:
     /*
      * Compute the expected accelerometer and magnetometer readings from current quaternion
      */
-    virtual Eigen::Vector<double, 6> computeMeasurementEstimate_h()
+    virtual Eigen::Vector<double, MeasureVectSize> computeMeasurementEstimate_h()
     {
     	// Current quaternion
 		Eigen::Quaterniond q(m_stateEstimate_X(0), m_stateEstimate_X(1), m_stateEstimate_X(2), m_stateEstimate_X(3));
@@ -312,9 +338,12 @@ public:
 		// Transform the magnetic field vector by the quaternion
 		Eigen::Vector3d magExpected = q * r;
 
-		Eigen::Vector<double, 6> h;
+		Eigen::Vector<double, MeasureVectSize> h;
 		h << accExpected, magExpected;
 
 		return h;
     }
 };
+
+
+

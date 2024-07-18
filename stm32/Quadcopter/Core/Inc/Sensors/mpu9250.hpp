@@ -50,8 +50,31 @@ public:
 	uint16_t m_spi_cs_pin;
 	GPIO_TypeDef* m_spi_cs_gpio_port;
 
+	// AK8963 (magnetometer) adress registers
+	static constexpr uint8_t m_mpu9250_USER_CTRL = 0x6A;
+	static constexpr uint8_t m_mpu9250_WHO_AM_I = 0x75;
+
+	static constexpr uint8_t m_mpu9250_I2C_MST_CTRL = 0x24;
+	static constexpr uint8_t m_mpu9250_I2C_SLV0_ADDR = 0x25;
+	static constexpr uint8_t m_mpu9250_I2C_SLV0_REG = 0x26;
+	static constexpr uint8_t m_mpu9250_I2C_SLV0_DO = 0x63;
+	static constexpr uint8_t m_mpu9250_I2C_SLV0_CTRL = 0x27;
+	static constexpr uint8_t m_mpu9250_EXT_SENS_DATA_00 = 0x49;
+	static constexpr uint8_t m_mpu925_I2C_SLV4_CTRL = 0x34;
+	static constexpr uint8_t m_mpu925_I2C_SLV4_REG = 0x32;
+	static constexpr uint8_t m_mpu925_I2C_SLV4_ADDR = 0x31;
+
+	static constexpr uint8_t m_ak8963_HXL = 0x03;
+	static constexpr uint8_t m_ak8963_CNTL1 = 0x0A;
+	static constexpr uint8_t m_ak8963_CNTL2 = 0x0B;
+	static constexpr uint8_t m_ak8963_ST1 = 0x02;
+	static constexpr uint8_t m_ak8963_ST2 = 0x09;
+	static constexpr uint8_t m_ak8963_I2C_ADDR = 0x0C;
+	static constexpr uint8_t m_ak8963_WHO_AM_I = 0x00;
+
 	Eigen::Vector<int16_t, 3> m_rawAcc = {0, 0, 0};
 	Eigen::Vector<int16_t, 3> m_rawGyro = {0, 0, 0};
+	Eigen::Vector<int16_t, 3> m_rawMag = {0, 0, 0};
 	int16_t m_rawTemp = 0;
 
 	// Config
@@ -63,9 +86,12 @@ public:
 	// For 250 dps (default), we need to divide the raw values by 131
 	double m_gyroScale = 131.0;
 
+	double m_magScale = 1.0;
+
 	// Raw value scaled according to setup
 	Eigen::Vector3d m_rawScaledAcc = {0.0, 0.0, 0.0};
 	Eigen::Vector3d m_rawScaledGyro = {0.0, 0.0, 0.0};
+	Eigen::Vector3d m_rawScaledMag = {0.0, 0.0, 0.0};
 
 	// Sensor offset that need to be substracted
 	Eigen::Vector3d m_accOffset = {0.0, 0.0, 0.0};
@@ -99,6 +125,10 @@ private:
 	void read_register(uint8_t regAddr, uint8_t* pData, uint8_t len);
 	void write_register(uint8_t regAddr, uint8_t data);
 	void handle_spi_error(HAL_StatusTypeDef result);
+	void init_magnetometer();
+	void setup_i2c_slave(uint8_t address, uint8_t reg, uint8_t length, bool read);
+	uint8_t read_mpu9250_who_am_i();
+	uint8_t read_ak8963_who_am_i();
 };
 
 

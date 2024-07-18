@@ -28,8 +28,8 @@ DroneController::DroneController(
   m_complementaryFilter(),
   m_madgwickFilter(),
   m_ahrs(&m_complementaryFilter),
-  m_ahrs2(&m_madgwickFilter)
-  //m_ahrs3(&m_kalmanFilter)
+  m_ahrs2(&m_madgwickFilter),
+  m_ahrs3(&m_kalmanFilter)
 {
 
 }
@@ -57,6 +57,7 @@ void DroneController::mainLoop()
 {
 	// Read IMU
 	m_imu.read_gyro_acc_data();
+	//m_imu.read_magnetometer_data();
 	m_imu.filter_and_calibrate_data();
 
 	Eigen::Vector3d gyroTmp = Eigen::Vector3d(0.1, 0.5, -0.1);
@@ -80,13 +81,13 @@ void DroneController::mainLoop()
 			);
 
 	//Vector<double, 3> test(attitude2.m_q.m_vect[1], attitude2.m_q.m_vect[2], attitude2.m_q.m_vect[3]);
-	/*Quaternion attitude3 = m_ahrs3.computeAHRS(
+	Eigen::Quaterniond attitude3 = m_ahrs3.computeAHRS(
 				m_imu.m_filteredAcceloremeter,
 				m_imu.m_filteredGyro,
 				//gyroTmp,
 				magnetoTmp,
 				0.1
-				);*/
+				);
 
 	//uint32_t sysClockFreq = HAL_RCC_GetSysClockFreq();
 
@@ -105,9 +106,9 @@ void DroneController::mainLoop()
 	Vector<int, 3> tmppp3((int)roll, (int)pitch, (int)yaw);*/
 
 	//Vector<double, 3> tm(attitude2.m_q.m_vect[1], attitude2.m_q.m_vect[2], attitude2.m_q.m_vect[3]);
-	LogManager::getInstance().serialPrint(attitude);
+	LogManager::getInstance().serialPrint(attitude3);
 	//Vector<double, 3> tm2(attitude.m_q.m_vect[1], attitude.m_q.m_vect[2], attitude.m_q.m_vect[3]);
-	//LogManager::getInstance().serialPrint(tm2);
+	//LogManager::getInstance().serialPrint(m_imu.m_filteredAcceloremeter);
 	//LogManager::getInstance().serialPrint(tmppp, tmppp2, tmppp3);
 
 

@@ -31,27 +31,111 @@ m_hspi(hspi), m_spi_cs_pin(spi_cs_pin), m_spi_cs_gpio_port(spi_cs_gpio_port)
 
 
 /*
+ * Init the magnetometer of the mpu9250.
+ *
+ * The AK8963 magnetometer inside the MPU9250 can be accessed via the SPI interface
+ * of the MPU9250. However, the communication between the MPU9250 and the AK8963 internally
+ * uses I2C.
+ * When using SPI to interface with the MPU9250, the magnetometer data are accessed through
+ * the MPU9250's registers. The MPU9250 acts as an intermediary that handles the I2C
+ * communication with the AK8963 magnetometer and exposes the magnetometer data through
+ * its own SPI interface.
+ */
+void MPU9250::init_magnetometer()
+{
+	HAL_Delay(10);
+
+	// I2C Master mode
+	//write_register(m_mpu9250_USER_CTRL, 0x20);
+	//HAL_Delay(10);
+
+	// Configure MPU9250 I2C frequency 400KHz
+	write_register(m_mpu9250_I2C_MST_CTRL, 0x0D);
+	HAL_Delay(10);
+
+	//Set the I2C slave addres of AK8963 and set for write.
+	/*write_register(m_mpu9250_I2C_SLV0_ADDR, 0x0C);
+	HAL_Delay(10);
+
+	//I2C slave 0 register address from where to begin data transfer
+	write_register(m_mpu9250_I2C_SLV0_REG, 0x0B);
+	HAL_Delay(10);
+
+	// Reset AK8963
+	write_register(m_mpu9250_I2C_SLV0_DO, 0x01);
+	HAL_Delay(10);
+	//Enable I2C and set 1 byte
+	write_register(m_mpu9250_I2C_SLV0_CTRL, 0x81);
+	HAL_Delay(10);*/
+
+	//I2C slave 0 register address from where to begin data transfer
+	/*write_register(m_mpu9250_I2C_SLV0_REG, 0x0A);
+	HAL_Delay(10);
+	// Register value to continuous measurement in 16bit
+	write_register(m_mpu9250_I2C_SLV0_DO, 0x12);
+	HAL_Delay(10);
+	//Enable I2C and set 1 byte
+	write_register(m_mpu9250_I2C_SLV0_CTRL, 0x81);
+	HAL_Delay(10);*/
+	setup_i2c_slave(0x0C, m_ak8963_CNTL2, 1, false);
+	write_register(m_mpu9250_I2C_SLV0_DO, 0x1);
+	HAL_Delay(100);
+
+	setup_i2c_slave(0x0C, m_ak8963_CNTL1, 1, false);
+	write_register(m_mpu9250_I2C_SLV0_DO, 0x16);
+
+	// Enable MPU9250 internal I2C bus
+	/*uint8_t USER_CTRL_reg;
+	read_register(m_mpu9250_USER_CTRL, &USER_CTRL_reg, 1);
+	USER_CTRL_reg |= 0x20;
+	write_register(m_mpu9250_USER_CTRL, USER_CTRL_reg);
+
+	uint8_t USER_CTRL_reg2;
+	read_register(m_mpu9250_USER_CTRL, &USER_CTRL_reg2, 1);
+
+	// Configure MPU9250 I2C frequency 400KHz
+	write_register(m_mpu9250_I2C_MST_CTRL, 0x0D);
+
+	// reset the ak8963 in the mpu9250
+	write_register(m_ak8963_CNTL2, 0x01);
+	HAL_Delay(100);*/
+
+    // Set the I2C master mode to pass through mode
+    /*write_register(m_mpu9250_I2C_MST_CTRL, 0x0D); // I2C Master mode and 400 kHz
+    HAL_Delay(10);
+
+    // Enable bypass mode to allow direct access to the AK8963 registers through the MPU9250
+    write_register(0x37, 0x02); // INT_PIN_CFG register: Enable bypass mode
+    HAL_Delay(10);
+
+    // Reset the magnetometer
+    write_register(m_ak8963_CNTL2, 0x01);
+    HAL_Delay(100);
+
+    // Set the magnetometer to 16-bit output and continuous measurement mode 2 (100Hz)
+    write_register(m_ak8963_CNTL1, 0x16);
+    HAL_Delay(10);*/
+}
+
+
+/*
  * This method communicate with the sensor,
  * configure and calibrate it.
  */
 void MPU9250::init(const AccScale& accScaleConf, const GyroScale& gyroScaleConf)
 {
-	HAL_Delay(10);
+	//read_mpu9250_who_am_i();
+	//read_ak8963_who_am_i();
 
 	// Configure the IMU sensitivity
 	configureAccelerometer(accScaleConf);
 
-	HAL_Delay(10);
-
 	configureGyroscope(gyroScaleConf);
 
-	// 10 ms delay in case the MPU need time to update to its new calibration
-	HAL_Delay(10);
+	//init_magnetometer();
 
 	// Calibrate accelerometer and gyroscope offsets
 	calibrate();
-
-	HAL_Delay(10);
 }
 
 
@@ -62,6 +146,8 @@ void MPU9250::init(const AccScale& accScaleConf, const GyroScale& gyroScaleConf)
 void MPU9250::configureAccelerometer(const AccScale& accScaleConf)
 {
 	m_accScaleConf = accScaleConf;
+
+	HAL_Delay(10);
 
 	// Register 28 is accelerometer configuration
 	switch(m_accScaleConf)
@@ -99,6 +185,8 @@ void MPU9250::configureAccelerometer(const AccScale& accScaleConf)
 			// TODO: log error
 			break;
 	}
+
+	HAL_Delay(10);
 }
 
 
@@ -109,6 +197,8 @@ void MPU9250::configureAccelerometer(const AccScale& accScaleConf)
 void MPU9250::configureGyroscope(const GyroScale& gyroScaleConf)
 {
 	m_gyroScaleConf = gyroScaleConf;
+
+	HAL_Delay(10);
 
 	// Register 27 is gyroscope configuration
 	switch(m_gyroScaleConf)
@@ -124,21 +214,21 @@ void MPU9250::configureGyroscope(const GyroScale& gyroScaleConf)
 			// Write 01 on bits [4:3] for 500 dps configuration
 			write_register(27, 0b00001000);
 			// Configure the scaler value
-			m_gyroScale = 131.0;
+			m_gyroScale = 65.5;
 			break;
 
 		case GyroScale::DPS1000:
 			// Write 10 on bits [4:3] for 1000 dps configuration
 			write_register(27, 0b00010000);
 			// Configure the scaler value
-			m_gyroScale = 131.0;
+			m_gyroScale = 32.8;
 			break;
 
 		case GyroScale::DPS2000:
 			// Write 11 on bits [4:3] for 2000 dps configuration
 			write_register(27, 0b00011000);
 			// Configure the scaler value
-			m_gyroScale = 131.0;
+			m_gyroScale = 16.4;
 			break;
 
 		default:
@@ -146,6 +236,8 @@ void MPU9250::configureGyroscope(const GyroScale& gyroScaleConf)
 			// TODO: log error
 			break;
 	}
+
+	HAL_Delay(10);
 }
 
 
@@ -269,6 +361,15 @@ void MPU9250::read_gyro_acc_data()
 	m_rawScaledGyro(0) = static_cast<double>(m_rawGyro(0)) / m_gyroScale;
 	m_rawScaledGyro(1) = static_cast<double>(m_rawGyro(1)) / m_gyroScale;
 	m_rawScaledGyro(2) = static_cast<double>(m_rawGyro(2)) / m_gyroScale;
+	m_rawScaledGyro *= -1.0; // To match accelerometer 'direction'
+}
+
+
+void MPU9250::setup_i2c_slave(uint8_t address, uint8_t reg, uint8_t length, bool read)
+{
+    write_register(m_mpu9250_I2C_SLV0_ADDR, address | (read ? 0x80 : 0x00));
+    write_register(m_mpu9250_I2C_SLV0_REG, reg);
+    write_register(m_mpu9250_I2C_SLV0_CTRL, 0x80 | length);
 }
 
 /*
@@ -277,8 +378,74 @@ void MPU9250::read_gyro_acc_data()
  */
 void MPU9250::read_magnetometer_data()
 {
+    uint8_t data[7]; // Read ST1, HXH, HXL, HYH, HYL, HZH, HZL
 
+    //write_register(m_mpu925_I2C_SLV4_ADDR, 0x0C|0x80); //Set the I2C slave addres of AK8963 and set for read.
+	//write_register(m_mpu925_I2C_SLV4_REG, 0x03); //I2C slave 0 register address from where to begin data transfer
+	//write_register(m_mpu925_I2C_SLV4_CTRL, 0x87); //Read 6 bytes from the magnetometer
+	setup_i2c_slave(0x0C, 0x03, 7, true);
+
+	HAL_Delay(1);
+	read_register(m_mpu9250_EXT_SENS_DATA_00, data, 7);
+
+
+	// Check if data is ready and if data overflow bit is not set in ST2 register
+	if ((data[0] & 0x01) && !(data[6] & 0x08))
+	{
+		// Combine high and low bytes
+		m_rawMag(0) = (static_cast<int16_t>(data[1]) << 8) | data[0];
+		m_rawMag(1) = (static_cast<int16_t>(data[3]) << 8) | data[2];
+		m_rawMag(2) = (static_cast<int16_t>(data[5]) << 8) | data[4];
+
+		// Apply scale factor
+		m_rawScaledMag(0) = static_cast<double>(m_rawMag(0)) * m_magScale;
+		m_rawScaledMag(1) = static_cast<double>(m_rawMag(1)) * m_magScale;
+		m_rawScaledMag(2) = static_cast<double>(m_rawMag(2)) * m_magScale;
+	}
+
+    // Check if data is ready by reading ST1 register
+    /*read_register(m_ak8963_ST1, data, 1);
+    if (data[0] & 0x01) // Data ready bit
+    {
+        // Read magnetometer data
+        read_register(m_ak8963_HXL, data, 7);
+
+        // Check if data overflow bit is set in ST2 register
+        if (!(data[6] & 0x08))
+        {
+            // Combine high and low bytes
+            m_rawMag(0) = (static_cast<int16_t>(data[1]) << 8) | data[0];
+            m_rawMag(1) = (static_cast<int16_t>(data[3]) << 8) | data[2];
+            m_rawMag(2) = (static_cast<int16_t>(data[5]) << 8) | data[4];
+
+            // Apply scale factor
+            m_rawScaledMag(0) = static_cast<double>(m_rawMag(0)) * m_magScale;
+            m_rawScaledMag(1) = static_cast<double>(m_rawMag(1)) * m_magScale;
+            m_rawScaledMag(2) = static_cast<double>(m_rawMag(2)) * m_magScale;
+        }
+    }*/
 }
+
+
+uint8_t MPU9250::read_mpu9250_who_am_i()
+{
+    uint8_t who_am_i;
+
+    read_register(m_mpu9250_WHO_AM_I, &who_am_i, 1);
+
+    return who_am_i;
+}
+
+uint8_t MPU9250::read_ak8963_who_am_i()
+{
+    uint8_t who_am_i;
+
+    setup_i2c_slave(m_ak8963_I2C_ADDR, m_ak8963_WHO_AM_I, 1, true);
+    read_register(m_mpu9250_EXT_SENS_DATA_00, &who_am_i, 1);
+
+    return who_am_i;
+}
+
 
 
 /*
@@ -291,7 +458,9 @@ void MPU9250::calibrate()
 	m_accOffset = {0.0, 0.0, 0.0};
 	m_gyroOffset = {0.0, 0.0, 0.0};
 
-	const int range = 1000; // Number of reading
+	const int range = 100; // Number of reading
+
+	HAL_Delay(10);
 
 	for (int i = 0; i < range; ++i)
 	{
@@ -320,6 +489,8 @@ void MPU9250::calibrate()
 
 	// Remove the gravity vector from the offset
 	m_accOffset -= normalizedAcc;
+
+	HAL_Delay(10);
 }
 
 
@@ -342,8 +513,6 @@ void MPU9250::filter_and_calibrate_data()
 
 	// Remove offset
 	m_filteredGyro -= m_gyroOffset;
-
-	m_filteredGyro = m_rawScaledGyro - m_gyroOffset;
 }
 
 

@@ -17,7 +17,7 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
-#include "main.hpp"
+#include <main.hpp>
 #include "quadcopter.hpp"
 
 /* Private includes ----------------------------------------------------------*/
@@ -54,14 +54,58 @@ UART_HandleTypeDef huart2;
 void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART2_UART_Init(void);
 static void MX_SPI1_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+/*
+ * Functions below to test the clock configuration
+ */
+void DWT_Init(void) {
+    // Enable TRC (Trace Control Register)
+    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+    // Enable the counter
+    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+void DWT_Reset(void) {
+    // Reset the cycle counter
+    DWT->CYCCNT = 0;
+}
+
+uint32_t DWT_GetCycles(void) {
+    // Return the current cycle count
+    return DWT->CYCCNT;
+}
+
+void measure_HAL_Delay() {
+    // Initialize DWT
+    DWT_Init();
+
+    // Reset the cycle counter
+    DWT_Reset();
+
+    // Get the start cycle count
+    uint32_t start = DWT_GetCycles();
+
+    // Call HAL_Delay(100)
+    HAL_Delay(100);
+
+    // Get the end cycle count
+    uint32_t end = DWT_GetCycles();
+
+    // Calculate the number of cycles elapsed
+    uint32_t cycles_elapsed = end - start;
+
+    // Calculate the time in microseconds (assuming 400 MHz system clock)
+    uint32_t time_us = cycles_elapsed / (SystemCoreClock / 1000000);
+    // Use debugger to see the result
+}
+
 
 /* USER CODE END 0 */
 
@@ -97,22 +141,37 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_USART2_UART_Init();
   MX_SPI1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
   DroneController controller = DroneController(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2);
   controller.mainSetup();
 
+  /* USER CODE END 2 */
+
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  measure_HAL_Delay();
   while (1)
   {
-    /* USER CODE END WHILE */
-	 controller.mainLoop();
+	// Reset the cycle counter
+	DWT_Reset();
 
-	 HAL_Delay(100);
+	// Get the start cycle count
+	uint32_t start = DWT_GetCycles();
+    /* USER CODE END WHILE */
+	controller.mainLoop();
+
+	HAL_Delay(100);
+
+	// Get the end cycle count
+	uint32_t end = DWT_GetCycles();
+
+	// Calculate the number of cycles elapsed
+	uint32_t cycles_elapsed = end - start;
+
+	// Calculate the time in microseconds (assuming 400 MHz system clock)
+	uint32_t time_us = cycles_elapsed / (SystemCoreClock / 1000000);
 
     /* USER CODE BEGIN 3 */
   }
@@ -158,7 +217,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.PLL.PLLR = 2;
   RCC_OscInitStruct.PLL.PLLRGE = RCC_PLL1VCIRANGE_3;
   RCC_OscInitStruct.PLL.PLLVCOSEL = RCC_PLL1VCOWIDE;
-  RCC_OscInitStruct.PLL.PLLFRACN = 3072;
+  RCC_OscInitStruct.PLL.PLLFRACN = 0;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
