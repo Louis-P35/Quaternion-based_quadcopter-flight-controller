@@ -53,7 +53,7 @@ void DroneController::mainSetup()
  * Called indefinitely in a loop
  * This is the main loop of this software
  */
-void DroneController::mainLoop()
+void DroneController::mainLoop(const double dt)
 {
 	// Read IMU
 	m_imu.read_gyro_acc_data();
@@ -61,7 +61,7 @@ void DroneController::mainLoop()
 	m_imu.filter_and_calibrate_data();
 
 	Eigen::Vector3d gyroTmp = Eigen::Vector3d(0.1, 0.5, -0.1);
-	Eigen::Vector3d magnetoTmp = Eigen::Vector3d(0.0, 0.0, 0.0);
+	Eigen::Vector3d magnetoTmp = Eigen::Vector3d(0.0, 1.0, 0.0);
 	//Eigen::Vector3d accTmp = Eigen::Vector3d(0.1145, -0.9839, 0.1369);
 	//Eigen::Vector3i accTmpR = Eigen::Vector3i(m_imu.m_rawAcc.m_vect[0], m_imu.m_rawAcc.m_vect[1], m_imu.m_rawAcc.m_vect[2]);
 	Eigen::Quaterniond attitude = m_ahrs.computeAHRS(
@@ -69,7 +69,7 @@ void DroneController::mainLoop()
 			m_imu.m_filteredGyro,
 			//gyroTmp,
 			magnetoTmp,
-			0.1
+			dt
 			);
 
 	Eigen::Quaterniond attitude2 = m_ahrs2.computeAHRS(
@@ -77,16 +77,18 @@ void DroneController::mainLoop()
 			m_imu.m_filteredGyro,
 			//gyroTmp,
 			magnetoTmp,
-			0.1
+			dt
 			);
+
+	Eigen::Vector3d gyroOffsetDebug(0.0, 0.0, 0.0);
 
 	//Vector<double, 3> test(attitude2.m_q.m_vect[1], attitude2.m_q.m_vect[2], attitude2.m_q.m_vect[3]);
 	Eigen::Quaterniond attitude3 = m_ahrs3.computeAHRS(
 				m_imu.m_filteredAcceloremeter,
-				m_imu.m_filteredGyro,
+				m_imu.m_filteredGyro,// + gyroOffsetDebug,
 				//gyroTmp,
 				magnetoTmp,
-				0.1
+				dt
 				);
 
 	//uint32_t sysClockFreq = HAL_RCC_GetSysClockFreq();

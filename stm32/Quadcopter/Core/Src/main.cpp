@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include <main.hpp>
 #include "quadcopter.hpp"
+#include "Utils/utilsTimer.hpp"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -62,49 +63,6 @@ static void MX_USART2_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/*
- * Functions below to test the clock configuration
- */
-void DWT_Init(void) {
-    // Enable TRC (Trace Control Register)
-    CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
-    // Enable the counter
-    DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-void DWT_Reset(void) {
-    // Reset the cycle counter
-    DWT->CYCCNT = 0;
-}
-
-uint32_t DWT_GetCycles(void) {
-    // Return the current cycle count
-    return DWT->CYCCNT;
-}
-
-void measure_HAL_Delay() {
-    // Initialize DWT
-    DWT_Init();
-
-    // Reset the cycle counter
-    DWT_Reset();
-
-    // Get the start cycle count
-    uint32_t start = DWT_GetCycles();
-
-    // Call HAL_Delay(100)
-    HAL_Delay(100);
-
-    // Get the end cycle count
-    uint32_t end = DWT_GetCycles();
-
-    // Calculate the number of cycles elapsed
-    uint32_t cycles_elapsed = end - start;
-
-    // Calculate the time in microseconds (assuming 400 MHz system clock)
-    uint32_t time_us = cycles_elapsed / (SystemCoreClock / 1000000);
-    // Use debugger to see the result
-}
 
 
 /* USER CODE END 0 */
@@ -144,6 +102,13 @@ int main(void)
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  /*
+   * Init and reset the timer counter
+   */
+  timerCounterInit();
+  timerCounterReset();
+
   DroneController controller = DroneController(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2);
   controller.mainSetup();
 
@@ -151,27 +116,20 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  measure_HAL_Delay();
+  uint32_t start = 0;
+  HAL_Delay(10); // Avoid first dt = 0
   while (1)
   {
-	// Reset the cycle counter
-	DWT_Reset();
-
+	// Get the delta time in second
+	const double dt = getEllapsedTime_s(start);
 	// Get the start cycle count
-	uint32_t start = DWT_GetCycles();
+	timerCounterReset();
+	start = timerCounterGetCycles();
+
     /* USER CODE END WHILE */
-	controller.mainLoop();
+	controller.mainLoop(dt);
 
-	HAL_Delay(100);
-
-	// Get the end cycle count
-	uint32_t end = DWT_GetCycles();
-
-	// Calculate the number of cycles elapsed
-	uint32_t cycles_elapsed = end - start;
-
-	// Calculate the time in microseconds (assuming 400 MHz system clock)
-	uint32_t time_us = cycles_elapsed / (SystemCoreClock / 1000000);
+	HAL_Delay(10);
 
     /* USER CODE BEGIN 3 */
   }

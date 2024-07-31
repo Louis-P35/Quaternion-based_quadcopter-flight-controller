@@ -12,6 +12,7 @@
 
 // Project
 #include "Sensors/mpu9250.hpp"
+#include "Sensors/ICM29048.hpp"
 #include "AHRS/ahrs.hpp"
 #include "AHRS/complementaryFilter.hpp"
 #include "AHRS/madgwick.hpp"
@@ -26,7 +27,7 @@
 class DroneController
 {
 public:
-	MPU9250 m_imu;
+	ICM29048 m_imu;
 
 	UART_HandleTypeDef m_huart_ext;
 
@@ -47,7 +48,7 @@ public:
 			UART_HandleTypeDef uart_ext
 			);
 	void mainSetup();
-	void mainLoop();
+	void mainLoop(const double dt);
 
 	void print(int val);
 	void print(float val);

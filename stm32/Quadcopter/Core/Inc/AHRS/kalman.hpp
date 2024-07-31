@@ -5,7 +5,6 @@
  *      Author: Louis
  */
 
-// https://ahrs.readthedocs.io/en/latest/filters/ekf.html
 
 #pragma once
 
@@ -18,11 +17,12 @@
 
 
 #define INITIAL_GYRO_BIAS 0.0
-#define NOISE_COVARIANCE_SCALE 0.1
-#define MEASUREMENT_NOISE_COVARIANCE_SCALE 0.5
 
-// TODO:
-// why computeJacobianStateTransitionModel() == m_stateTransition_A ?
+// Increase this value to trust more the measurement
+#define NOISE_COVARIANCE_SCALE (0.01)//0.1
+
+// Decrease this value to trust more the measurement
+#define MEASUREMENT_NOISE_COVARIANCE_SCALE (5.0)//0.5
 
 
 // Theory:
@@ -85,7 +85,7 @@ public:
     {
     	// Initial state - quaternion (w, x, y, z)
     	// Sets to identity quaternion
-    	m_stateEstimate_X << 1, 0, 0, 0; //, 0, 0, 0;  // XXX
+    	m_stateEstimate_X << 1, 0, 0, 0;//, 0, 0, 0;  // XXX
 
     	// Initial state covariance
     	m_errorCovariance_P.setIdentity();
@@ -149,7 +149,7 @@ public:
 
 
     	// Compute the Jacobian of the state transition model
-    	Eigen::Matrix<double, StateVectSize, StateVectSize> F = computeJacobianStateTransitionModel();
+    	Eigen::Matrix<double, StateVectSize, StateVectSize> F = computeJacobianStateTransitionModel(/*dt*/);
 
 		// Predict error covariance
 		m_errorCovariance_P = F * m_errorCovariance_P * F.transpose() + m_noiseCovarience_Q;
@@ -176,17 +176,6 @@ public:
 
     	// Innovation (residual)
     	Eigen::Vector<double, MeasureVectSize> y = z - h;
-    	//K.setIdentity();
-    	// Update error state
-    	/*Eigen::Vector4d quaternionCorrection = K.topRows<4>() * y;
-    	// Convert correction term to a quaternion (small angle approximation)
-    	Eigen::Quaterniond delta_q(1.0, 0.5 * quaternionCorrection(1), 0.5 * quaternionCorrection(2), 0.5 * quaternionCorrection(3));
-    	// Update state quaternion with quaternion multiplication
-		Eigen::Quaterniond current_q(m_stateEstimate_X(0), m_stateEstimate_X(1), m_stateEstimate_X(2), m_stateEstimate_X(3));
-		Eigen::Quaterniond updated_q = current_q * delta_q;
-		updated_q.normalize();
-		// Update the state estimate quaternion part
-		m_stateEstimate_X.head<4>() << updated_q.w(), updated_q.x(), updated_q.y(), updated_q.z();*/
 
 		// Update state estimate
     	m_stateEstimate_X = m_stateEstimate_X + K * y;
@@ -252,13 +241,24 @@ public:
      * Matrix of partial derivative.
      * It's purpose is to linearize non-linear systems
      */
-    virtual Eigen::Matrix<double, StateVectSize, StateVectSize> computeJacobianStateTransitionModel()
+    virtual Eigen::Matrix<double, StateVectSize, StateVectSize> computeJacobianStateTransitionModel(/*const double dt*/)
     {
     	Eigen::Matrix<double, StateVectSize, StateVectSize> F;
 
-    	F.setZero();
+    	F.setIdentity();
     	F.topLeftCorner<4, 4>() = m_stateTransition_A.topLeftCorner<4, 4>();  // State transition matrix for quaternion
-    	//F.bottomRightCorner<3, 3>().setIdentity();  // Identity for gyro offstes  // XXX
+    	F.bottomRightCorner<3, 3>().setIdentity();  // Identity for gyro offstes  // XXX
+
+    	// gyro offstes
+    	/*const double q0 = m_stateEstimate_X(0);
+    	const double q1 = m_stateEstimate_X(1);
+    	const double q2 = m_stateEstimate_X(2);
+    	const double q3 = m_stateEstimate_X(3);
+
+    	F.block<4, 3>(0, 4) << 	-dt*q1, -dt*q2, -dt*q3,
+    							dt*q0, dt*q3, -dt*q2,
+								-dt*q3, dt*q0, dt*q1,
+								dt*q2, -dt*q1, dt*q0;*/
 
     	return F;
     }
@@ -292,8 +292,12 @@ public:
 		Eigen::Vector3d m(z(3), z(4), z(5));
 		m.normalize();
 
-		const double g_x = g(0), g_y = g(1), g_z = g(2);
-		const double r_x = r(0), r_y = r(1), r_z = r(2);
+		const double g_x = g(0);
+		const double g_y = g(1);
+		const double g_z = g(2);
+		const double r_x = r(0);
+		const double r_y = r(1);
+		const double r_z = r(2);
 		const double q_w = m_stateEstimate_X(0);
 		const double q_x = m_stateEstimate_X(1);
 		const double q_y = m_stateEstimate_X(2);
@@ -304,14 +308,16 @@ public:
 		Eigen::Matrix<double, MeasureVectSize, StateVectSize> H;
 		H.setZero();
 
-		H << g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x - g_y*q_y - g_z*q_z, g_x*q_y + g_y*q_x + g_z*q_w, g_x*q_z - g_y*q_w + g_z*q_x, //0.0, 0.0, 0.0,  // XXX
-		     -g_x*q_z + g_y*q_w + g_z*q_x, g_x*q_y + g_y*q_x - g_z*q_w, -g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z, //0.0, 0.0, 0.0,
-		     g_x*q_y - g_y*q_x + g_z*q_w, g_x*q_z + g_y*q_w - g_z*q_x, g_x*q_w - g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z, //0.0, 0.0, 0.0,
-		     r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x - r_y*q_y - r_z*q_z, r_x*q_y + r_y*q_x + r_z*q_w, r_x*q_z - r_y*q_w + r_z*q_x, //0.0, 0.0, 0.0,
-		     -r_x*q_z + r_y*q_w + r_z*q_x, r_x*q_y + r_y*q_x - r_z*q_w, -r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z, //0.0, 0.0, 0.0,
-		     r_x*q_y - r_y*q_x + r_z*q_w, r_x*q_z + r_y*q_w - r_z*q_x, r_x*q_w - r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z; //0.0, 0.0, 0.0;
+		H << g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x - g_y*q_y - g_z*q_z, g_x*q_y + g_y*q_x + g_z*q_w, g_x*q_z - g_y*q_w + g_z*q_x,// 0.0, 0.0, 0.0, //-(2 * g_x), -(2 * g_y), -(2 * g_z),  // XXX
+		     -g_x*q_z + g_y*q_w + g_z*q_x, g_x*q_y + g_y*q_x - g_z*q_w, -g_x*q_w + g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z,// 0.0, 0.0, 0.0, //-(2 * g_x), -(2 * g_y), -(2 * g_z),
+		     g_x*q_y - g_y*q_x + g_z*q_w, g_x*q_z + g_y*q_w - g_z*q_x, g_x*q_w - g_y*q_z - g_z*q_y, g_x*q_x + g_y*q_y + g_z*q_z,// 0.0, 0.0, 0.0, //-(2 * g_x), -(2 * g_y), -(2 * g_z),
+		     r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x - r_y*q_y - r_z*q_z, r_x*q_y + r_y*q_x + r_z*q_w, r_x*q_z - r_y*q_w + r_z*q_x,// 0.0, 0.0, 0.0, //-(2 * r_x), -(2 * r_y), -(2 * r_z),
+		     -r_x*q_z + r_y*q_w + r_z*q_x, r_x*q_y + r_y*q_x - r_z*q_w, -r_x*q_w + r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z,// 0.0, 0.0, 0.0, //-(2 * r_x), -(2 * r_y), -(2 * r_z),
+		     r_x*q_y - r_y*q_x + r_z*q_w, r_x*q_z + r_y*q_w - r_z*q_x, r_x*q_w - r_y*q_z - r_z*q_y, r_x*q_x + r_y*q_y + r_z*q_z;//, 0.0, 0.0, 0.0; //-(2 * r_x), -(2 * r_y), -(2 * r_z);
 
 
+		// Scale the quaternion part
+		//H.topLeftCorner<6, 4>() = 2.0 * H.topLeftCorner<6, 4>();
 		H = 2.0 * H;
 
 		return H;
@@ -337,6 +343,10 @@ public:
 
 		// Transform the magnetic field vector by the quaternion
 		Eigen::Vector3d magExpected = q * r;
+
+		// Normalize the expected measurement vectors
+		accExpected.normalize();
+		magExpected.normalize();
 
 		Eigen::Vector<double, MeasureVectSize> h;
 		h << accExpected, magExpected;
