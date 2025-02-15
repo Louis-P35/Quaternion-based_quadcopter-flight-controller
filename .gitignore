@@ -1,5 +1,4 @@
-# Ignore everything
-*
+
 
 # But not these file types
 !*.c
@@ -10,3 +9,7 @@
 !.gitignore
 
 stm32/Quadcopter/Drivers/
+
+# Autorise IMU_EKF
+!IMU_EKF/
+!IMU_EKF/*
