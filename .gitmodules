@@ -1,3 +1,6 @@
 [submodule "IMU_EKF"]
 	path = IMU_EKF
 	url = https://github.com/Louis-P35/IMU_EKF.git
+[submodule "submodules/stm32_hal_icm20948"]
+	path = submodules/stm32_hal_icm20948
+	url = https://github.com/Louis-P35/stm32_hal_icm20948.git
