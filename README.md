@@ -3,8 +3,10 @@
 The git branch "Arduino_version" contain the code of the working prototype running on an arduino board
 The git branch "stm32_version" is work in progress. It contain the code of the new version developped on a STM32H7 microcontroller
 
+## First successful flight video
 [![First successful flight video](https://img.youtube.com/vi/6G2gyX3fbNM/0.jpg)](https://youtu.be/6G2gyX3fbNM)
 
+## PID tuning video
 [![PID tuning video](https://img.youtube.com/vi/QKtNMj5TJuc/0.jpg)](https://www.youtube.com/watch?v=QKtNMj5TJuc)
 
 
