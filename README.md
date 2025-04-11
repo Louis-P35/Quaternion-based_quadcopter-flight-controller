@@ -1,5 +1,13 @@
 # Quadcopter Drone Flight Controller
 
+The git branch "Arduino_version" contain the code of the working prototype running on an arduino board
+The git branch "stm32_version" is work in progress. It contain the code of the new version developped on a STM32H7 microcontroller
+
+[![First successful flight video](https://img.youtube.com/vi/6G2gyX3fbNM/0.jpg)](https://youtu.be/6G2gyX3fbNM)
+
+[![PID tuning video](https://img.youtube.com/vi/QKtNMj5TJuc/0.jpg)](https://www.youtube.com/watch?v=QKtNMj5TJuc)
+
+
 ## Overview
 
 This repository contains the source code for a quadcopter drone flight controller developed in C++ on an STM32H7 microcontroller. Various sensors and control algorithms are used to achieve stable and responsive flight.
@@ -25,10 +33,10 @@ The project utilizes PID controllers to manage motor power in different flight m
 - **Stabilized Mode**:
   - **Simple Attitude Control**:
     - The attitude error is fed into a PID controller, which adjusts the motor power.
-  - **Cascaded Control**:
+  - **Cascaded Control (not yet implemented)**:
     - The attitude error is processed by a PID controller to produce an angular rate target. This target is then used as the input for another PID controller, which adjusts the motor power based on the angular rate error.
 
-- **Acrobatic Mode**:
+- **Acrobatic Mode (not yet implemented)**:
   - The angular rate error is processed by a PID controller to directly adjust the motor power.
 
 
