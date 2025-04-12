@@ -26,9 +26,7 @@ DroneController::DroneController(
 : m_imu(hspi, spi_cs_pin, spi_cs_gpio_port), // Initialize m_imu
   m_huart_ext(uart_ext),
   m_complementaryFilter(),
-  m_madgwickFilter(),
   m_ahrs(&m_complementaryFilter),
-  m_ahrs2(&m_madgwickFilter),
   m_ahrs3(&m_kalmanFilter)
 {
 
@@ -65,14 +63,6 @@ void DroneController::mainLoop(const double dt)
 	//Eigen::Vector3d accTmp = Eigen::Vector3d(0.1145, -0.9839, 0.1369);
 	//Eigen::Vector3i accTmpR = Eigen::Vector3i(m_imu.m_rawAcc.m_vect[0], m_imu.m_rawAcc.m_vect[1], m_imu.m_rawAcc.m_vect[2]);
 	Eigen::Quaterniond attitude = m_ahrs.computeAHRS(
-			m_imu.m_filteredAcceloremeter,
-			m_imu.m_filteredGyro,
-			//gyroTmp,
-			magnetoTmp,
-			dt
-			);
-
-	Eigen::Quaterniond attitude2 = m_ahrs2.computeAHRS(
 			m_imu.m_filteredAcceloremeter,
 			m_imu.m_filteredGyro,
 			//gyroTmp,

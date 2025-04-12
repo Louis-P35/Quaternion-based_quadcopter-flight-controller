@@ -15,7 +15,6 @@
 #include "Sensors/ICM29048.hpp"
 #include "AHRS/ahrs.hpp"
 #include "AHRS/complementaryFilter.hpp"
-#include "AHRS/madgwick.hpp"
 #include "AHRS/kalman.hpp"
 
 
@@ -33,10 +32,8 @@ public:
 
 	// AHRS
 	ComplementaryFilter m_complementaryFilter;
-	MadgwickFilter m_madgwickFilter;
 	ExtendedKalmanFilter m_kalmanFilter;
 	AHRS m_ahrs;
-	AHRS m_ahrs2;
 	AHRS m_ahrs3;
 
 

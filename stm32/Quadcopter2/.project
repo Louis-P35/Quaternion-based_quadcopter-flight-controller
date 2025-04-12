@@ -30,4 +30,16 @@
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
 	</natures>
+	<linkedResources>
+		<link>
+			<name>Core/Inc/Sensors/icm20948.h</name>
+			<type>1</type>
+			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter2/Core/Inc/Sensors/icm20948.h</location>
+		</link>
+		<link>
+			<name>Core/Src/Sensors/icm20948.c</name>
+			<type>1</type>
+			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter2/Core/Src/Sensors/icm20948.c</location>
+		</link>
+	</linkedResources>
 </projectDescription>
