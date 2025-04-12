@@ -1,5 +1,0 @@
-../Core/Src/Utils/utilsTimer.cpp:20:6:void timerCounterInit()	1
-../Core/Src/Utils/utilsTimer.cpp:31:6:void timerCounterReset()	1
-../Core/Src/Utils/utilsTimer.cpp:40:10:uint32_t timerCounterGetCycles()	1
-../Core/Src/Utils/utilsTimer.cpp:50:10:uint32_t getEllapsedTime_us(uint32_t)	1
-../Core/Src/Utils/utilsTimer.cpp:66:8:double getEllapsedTime_s(uint32_t)	1
