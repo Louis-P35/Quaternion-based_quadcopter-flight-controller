@@ -1,4 +1,4 @@
-
+*.mp4
 
 # But not these file types
 !*.c
