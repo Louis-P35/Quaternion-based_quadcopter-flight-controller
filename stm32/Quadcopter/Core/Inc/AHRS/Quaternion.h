@@ -93,6 +93,35 @@ public:
         return angles;
     }
 
+    // Convert Euler angles (roll, pitch, yaw) to quaternion (ZYX convention)
+	static Quaternion<precision> fromEuler(precision roll, precision pitch, precision yaw)
+	{
+		// Half angles for efficiency
+		precision halfRoll = roll * 0.5;
+		precision halfPitch = pitch * 0.5;
+		precision halfYaw = yaw * 0.5;
+
+		// Precompute sines and cosines
+		precision cr = std::cos(halfRoll);
+		precision sr = std::sin(halfRoll);
+		precision cp = std::cos(halfPitch);
+		precision sp = std::sin(halfPitch);
+		precision cy = std::cos(halfYaw);
+		precision sy = std::sin(halfYaw);
+
+		// Quaternion components for ZYX convention (Rz * Ry * Rx)
+		precision w = cr * cp * cy + sr * sp * sy;
+		precision v1 = sr * cp * cy - cr * sp * sy; // x
+		precision v2 = cr * sp * cy + sr * cp * sy; // y
+		precision v3 = cr * cp * sy - sr * sp * cy; // z
+
+		Quaternion<precision> q(v1, v2, v3, w);
+		q.normalize(); // Ensure unit quaternion
+
+		return q;
+	}
+
+
     void normalize()
     {
         precision norm = sqrt(v1_ * v1_ + v2_ * v2_ + v3_ * v3_ + w_ * w_);

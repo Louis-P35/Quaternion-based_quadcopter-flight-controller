@@ -7,11 +7,12 @@
 
 #pragma once
 
-// Driver
+// Includes from driver
 #include "stm32h7xx_hal.h"
 
-// Project
+// Includes from project
 #include "Sensors/icm20948.h"
+#include "PID/controlStrategy.hpp"
 
 // Includes from 3rd party
 #include <AHRS/ESKF.h>
@@ -32,19 +33,17 @@ public:
 	axises m_accel;
 	axises m_mag;
 
-	// AHRS
-	//ComplementaryFilter m_complementaryFilter;
-	//ExtendedKalmanFilter m_kalmanFilter;
-	//AHRS m_ahrs;
-	//AHRS m_ahrs3;
-
-	// EKF
+	// AHRS (EKF)
 	IMU_EKF::ESKF<float> m_EKF;
-	// magnetometer calibration
-	Eigen::Matrix<float, 3, 3> m_W; // soft-iron
-	Eigen::Matrix<float, 3, 1> m_V; // hard-iron
-	float m_incl; // inclination
-	float m_B; // geomagnetic field strength
+	// Magnetometer calibration
+	Eigen::Matrix<float, 3, 3> m_W; // Soft-iron
+	Eigen::Matrix<float, 3, 1> m_V; // Hard-iron
+	float m_incl; // Inclination
+	float m_B; // Geomagnetic field strength
+
+
+	Telemetry m_currentState;
+	Telemetry m_targetState;
 
 
 public:

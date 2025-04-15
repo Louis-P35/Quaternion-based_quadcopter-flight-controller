@@ -28,16 +28,13 @@ class Telemetry
 {
 public:
 	// Attitude (angle) of the drone
-	Eigen::Quaterniond m_attitude;
+	Eigen::Quaternionf m_attitude;
 
 	// Angular velocity of the drone
-	Eigen::Vector3d m_angularRate;
+	Eigen::Vector3f m_angularRate;
 
 	// Absolute (X, Y, Z) position of the drone
-	Eigen::Vector3d m_position;
-
-	// Power of the 4 motors, scaled between [0, 1]
-	double m_motorPower[4];
+	Eigen::Vector3f m_position;
 };
 
 
@@ -51,7 +48,7 @@ class Control
 {
 public:
 	// This method execute the control task
-	virtual void execute(const double errors[3]) = 0;
+	virtual void execute(const float errors[3]) = 0;
 
 	// This method compute the error to be corrected
 	virtual void getError(const Telemetry& actualState, Telemetry& targetState) = 0;
@@ -101,7 +98,7 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const double errors[3]) override;
+	void execute(const float errors[3]) override;
 
 	// This method compute the error to be corrected
 	void getError(const Telemetry& actualState, Telemetry& targetState) override;
@@ -121,7 +118,7 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const double errors[3]) override;
+	void execute(const float errors[3]) override;
 
 	// This method compute the error to be corrected
 	void getError(const Telemetry& actualState, Telemetry& targetState) override;
@@ -141,7 +138,7 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const double errors[3]) override;
+	void execute(const float errors[3]) override;
 
 	// This method compute the error to be corrected
 	void getError(const Telemetry& actualState, Telemetry& targetState) override;
@@ -156,7 +153,7 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const double errors[3]) override;
+	void execute(const float errors[3]) override;
 
 	// This method compute the error to be corrected
 	void getError(const Telemetry& actualState, Telemetry& targetState) override;
@@ -171,7 +168,7 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const double errors[3]) override;
+	void execute(const float errors[3]) override;
 
 	// This method compute the error to be corrected
 	void getError(const Telemetry& actualState, Telemetry& targetState) override;

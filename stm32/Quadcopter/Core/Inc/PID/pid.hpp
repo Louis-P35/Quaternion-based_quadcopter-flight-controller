@@ -20,19 +20,19 @@ class PID
 {
 private:
 	// PID coefficients
-	double m_kp = 0.0;
-	double m_ki = 0.0;
-	double m_kd = 0.0;
+	float m_kp = 0.0f;
+	float m_ki = 0.0f;
+	float m_kd = 0.0f;
 
 	// Max integrated value
-	double m_saturation = 100.0;
+	float m_saturation = 100.0f;
 
-	double m_previousError = 0.0;
-	double m_sommeError = 0.0;
+	float m_previousError = 0.0f;
+	float m_sommeError = 0.0f;
 
 public:
 	// Constructor to initialize PID gains
-	PID(double kp, double ki, double kd, double sat) :
+	PID(float kp, float ki, float kd, float sat) :
 		m_kp(kp), m_ki(ki), m_kd(kd), m_saturation(sat)
 	{
 		m_previousError = 0.0;
@@ -40,15 +40,15 @@ public:
 	}
 
 	// For Euler-based PID
-	static double getError(const double& current, const double& target);
+	static float getError(const float& current, const float& target);
 
 	// For Quaternion-based PID
-	static Eigen::Quaterniond getError(
-			const Eigen::Quaterniond& current,
-			const Eigen::Quaterniond& target
+	static Eigen::Quaternionf getError(
+			const Eigen::Quaternionf& current,
+			const Eigen::Quaternionf& target
 			);
 
-	double computePID(const double& error, const double& dt, const bool& integrate);
+	float computePID(const float& error, const float& dt, const bool& integrate);
 };
 
 

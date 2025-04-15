@@ -10,15 +10,15 @@
 
 
 // For Euler-based PID
-double PID::getError(const double& current, const double& target)
+float PID::getError(const float& current, const float& target)
 {
 	return target - current;
 }
 
 // For Quaternion-based PID
-Eigen::Quaterniond PID::getError(
-		const Eigen::Quaterniond& current,
-		const Eigen::Quaterniond& target
+Eigen::Quaternionf PID::getError(
+		const Eigen::Quaternionf& current,
+		const Eigen::Quaternionf& target
 		)
 {
 	// Compute error
@@ -27,7 +27,7 @@ Eigen::Quaterniond PID::getError(
 	This operation is from the perspective of the current orientation being the reference frame, and
 	it calculates the relative rotation needed to align exactly with the target.
 	*/
-	Eigen::Quaterniond q_error = current.inverse() * target;
+	Eigen::Quaternionf q_error = current.inverse() * target;
 
 	// Ensure it is normalized
 	q_error.normalize();
@@ -41,7 +41,7 @@ Eigen::Quaterniond PID::getError(
 	*/
 	if (current.dot(target) < 0.0)
 	{
-		return Eigen::Quaterniond(
+		return Eigen::Quaternionf(
 				-q_error.w(),
 				-q_error.x(),
 				-q_error.y(),
@@ -57,14 +57,14 @@ Eigen::Quaterniond PID::getError(
  * PID control.
  * Compute the response to an error.
  */
-double PID::computePID(const double& error, const double& dt, const bool& integrate)
+float PID::computePID(const float& error, const float& dt, const bool& integrate)
 {
 	// Proportionnal gain
-	double p = error * m_kp;
+	float p = error * m_kp;
 
 	// Derivative gain
-	double derivedError = (error - m_previousError) / dt;
-	double d = derivedError * m_kd;
+	float derivedError = (error - m_previousError) / dt;
+	float d = derivedError * m_kd;
 	m_previousError = error;
 
 	// Integral gain
@@ -83,7 +83,7 @@ double PID::computePID(const double& error, const double& dt, const bool& integr
 		}
 	}
 
-	double i = m_sommeError * m_ki;
+	float i = m_sommeError * m_ki;
 
 	return p + i + d;
 }
