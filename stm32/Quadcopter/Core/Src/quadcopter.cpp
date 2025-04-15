@@ -5,10 +5,10 @@
  *      Author: louis
  */
 
-// STL
+// Includes from STL
 #include <string.h>  // Include for memcpy
 
-// Project
+// Includes from Project
 #include "quadcopter.hpp"
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
@@ -23,10 +23,7 @@ DroneController::DroneController(
 		GPIO_TypeDef* spi_cs_gpio_port,
 		UART_HandleTypeDef uart_ext
 		)
-: m_huart_ext(uart_ext),
-  m_complementaryFilter(),
-  m_ahrs(&m_complementaryFilter),
-  m_ahrs3(&m_kalmanFilter)
+: m_huart_ext(uart_ext)
 {
 
 }
@@ -49,6 +46,18 @@ void DroneController::mainSetup()
 	ak09916_init();  // Magnetometer
 	icm20948_gyro_full_scale_select(_500dps);
 	icm20948_accel_full_scale_select(_8g);
+
+	// fill magnetometer calibration stuff
+	// Winv <<
+	// W <<
+	// B =
+	// incl =
+
+	float ax = 0.0f;
+	float ay = 0.0f;
+	float az = 1.0f;
+	// read accelerometer
+	m_EKF.initWithAcc(ax, ay, az);
 }
 
 
@@ -56,7 +65,7 @@ void DroneController::mainSetup()
  * Called indefinitely in a loop
  * This is the main loop of this software
  */
-void DroneController::mainLoop(const double dt)
+void DroneController::mainLoop(const float dt)
 {
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
@@ -64,7 +73,7 @@ void DroneController::mainLoop(const double dt)
 	ak09916_mag_read_uT(&m_mag);
 
 	// Debug print IMU data
-	char pBuffer[256];
+	/*char pBuffer[256];
 	sprintf(pBuffer,
 		"%7.2f, %7.2f, %7.2f, "
 		"%7.2f, %7.2f, %7.2f, "
@@ -72,7 +81,32 @@ void DroneController::mainLoop(const double dt)
 		m_accel.x, m_accel.y, m_accel.z,
 		m_gyro.x,  m_gyro.y,  m_gyro.z,
 		m_mag.x,   m_mag.y,   m_mag.z);
+	LogManager::getInstance().serialPrint(pBuffer);*/
+
+
+	bool readMag = true;
+	m_EKF.predict(dt);
+	m_EKF.correctGyr(m_gyro.x, m_gyro.y, m_gyro.z);
+	m_EKF.correctAcc(m_accel.x, m_accel.y, m_accel.z);
+	if (readMag)
+	{
+		m_EKF.correctMag(m_mag.x, m_mag.y, m_mag.z, m_incl, m_B, m_W, m_V);
+	}
+	m_EKF.reset();
+
+	// get attitude as roll, pitch, yaw
+	float roll, pitch, yaw;
+	m_EKF.getAttitude(roll, pitch, yaw);
+	// or quaternion
+	//IMU_EKF::Quaternion<float> q = filter.getAttitude();
+
+	// Debug print AHRS result
+	char pBuffer[256];
+	sprintf(pBuffer,
+		"%7.2f, %7.2f, %7.2f, %2.7f\r\n",
+		roll, pitch, yaw, dt);
 	LogManager::getInstance().serialPrint(pBuffer);
+
 
 
 
@@ -135,8 +169,3 @@ void DroneController::mainLoop(const double dt)
 	// Transmit the buffer over UART
 	//HAL_UART_Transmit(&m_huart_ext, buffer, sizeof(buffer), 100);
 }
-
-
-
-
-

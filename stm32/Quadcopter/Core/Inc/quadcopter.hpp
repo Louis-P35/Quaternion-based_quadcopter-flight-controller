@@ -12,9 +12,9 @@
 
 // Project
 #include "Sensors/icm20948.h"
-#include "AHRS/ahrs.hpp"
-#include "AHRS/complementaryFilter.hpp"
-#include "AHRS/kalman.hpp"
+
+// Includes from 3rd party
+#include <AHRS/ESKF.h>
 
 
 /*
@@ -33,10 +33,18 @@ public:
 	axises m_mag;
 
 	// AHRS
-	ComplementaryFilter m_complementaryFilter;
-	ExtendedKalmanFilter m_kalmanFilter;
-	AHRS m_ahrs;
-	AHRS m_ahrs3;
+	//ComplementaryFilter m_complementaryFilter;
+	//ExtendedKalmanFilter m_kalmanFilter;
+	//AHRS m_ahrs;
+	//AHRS m_ahrs3;
+
+	// EKF
+	IMU_EKF::ESKF<float> m_EKF;
+	// magnetometer calibration
+	Eigen::Matrix<float, 3, 3> m_W; // soft-iron
+	Eigen::Matrix<float, 3, 1> m_V; // hard-iron
+	float m_incl; // inclination
+	float m_B; // geomagnetic field strength
 
 
 public:
@@ -47,7 +55,7 @@ public:
 			UART_HandleTypeDef uart_ext
 			);
 	void mainSetup();
-	void mainLoop(const double dt);
+	void mainLoop(const float dt);
 
 	void print(int val);
 	void print(float val);
