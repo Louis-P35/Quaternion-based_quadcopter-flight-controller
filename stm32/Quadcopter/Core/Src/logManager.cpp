@@ -58,18 +58,7 @@ void LogManager::serialPrint(const float val)
 	char pBuffer[256];
 	int numBytes;
 
-	/*
-	For some reason sprintf %f doesn't work here.
-	Printing interger and decimal part as two integers
-	instead.
-	*/
-
-	// Extract the integer part
-	int integer = static_cast<int>(val);
-	// Extract the decimal part
-	int decimal = abs(static_cast<int>((val - static_cast<float>(integer)) * 1000.0f));
-
-	numBytes = sprintf(pBuffer, "%d.%d\n", integer, decimal);
+	numBytes = sprintf(pBuffer, "%f", val);
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
 }
 

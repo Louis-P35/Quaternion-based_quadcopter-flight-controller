@@ -63,9 +63,15 @@ void DroneController::mainLoop(const double dt)
 	icm20948_accel_read_g(&m_accel);
 	ak09916_mag_read_uT(&m_mag);
 
-
-
-	LogManager::getInstance().serialPrint(m_mag.x);
+	char pBuffer[256];
+	int numBytes = sprintf(pBuffer,
+		"%7.2f, %7.2f, %7.2f, "
+		"%7.2f, %7.2f, %7.2f, "
+		"%7.2f, %7.2f, %7.2f\r\n",
+		m_accel.x, m_accel.y, m_accel.z,
+		m_gyro.x,  m_gyro.y,  m_gyro.z,
+		m_mag.x,   m_mag.y,   m_mag.z);
+	LogManager::getInstance().serialPrint(pBuffer);
 
 	/*Eigen::Vector3d gyroTmp = Eigen::Vector3d(0.1, 0.5, -0.1);
 	Eigen::Vector3d magnetoTmp = Eigen::Vector3d(0.0, 1.0, 0.0);
