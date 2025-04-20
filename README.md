@@ -24,6 +24,12 @@ This repository contains the source code for a quadcopter drone flight controlle
 - **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation
 - **PID Controllers**: For various flight modes including stabilized, acrobatic, and GPS position mode
 
+
+## Quaternions
+
+Quaternions avoid singularities (like gimbal lock) that can occur with Euler angles, making them a robust choice for representing 3D rotations, especially in drones that can maneuver aggressively.
+
+
 ## AHRS (Attitude and Heading Reference System)
 
 The AHRS fuses data from the accelerometer, gyroscope, and magnetometer using an Extended Kalman Filter to estimate the attitude of the quadcopter.

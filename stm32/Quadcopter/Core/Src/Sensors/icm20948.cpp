@@ -82,7 +82,7 @@ void icm20948_accel_read(axises* data)
 
 	data->x = (int16_t)(temp[0] << 8 | temp[1]);
 	data->y = (int16_t)(temp[2] << 8 | temp[3]);
-	data->z = (int16_t)(temp[4] << 8 | temp[5]) + accel_scale_factor; 
+	data->z = (int16_t)(temp[4] << 8 | temp[5]) - accel_scale_factor; // XXX - instead of + ?
 	// Add scale factor because calibraiton function offset gravity acceleration.
 }
 

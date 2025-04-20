@@ -10,7 +10,7 @@
 #include "Utils/Eigen/Dense"
 
 #define DEGREE_TO_RAD (M_PI / 180.0)
-#define RAD_TO_DEGREE (180.0 / M_PI)
+#define RAD_TO_DEGREE (180.0f / M_PI)
 
 namespace Utils
 {

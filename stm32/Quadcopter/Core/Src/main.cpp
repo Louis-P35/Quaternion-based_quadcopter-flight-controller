@@ -128,6 +128,7 @@ int main(void)
 
     /* USER CODE END WHILE */
 	controller.mainLoop(dt);
+	//magnetometerCalibration();
 
 	HAL_Delay(10);
 

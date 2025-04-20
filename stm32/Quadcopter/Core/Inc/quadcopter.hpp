@@ -45,6 +45,9 @@ public:
 	Telemetry m_currentState;
 	Telemetry m_targetState;
 
+private:
+	Eigen::Vector3f m_magBias = Eigen::Vector3f(-38.4f, 4.575f, 24.675f);
+
 
 public:
 	DroneController(
@@ -59,3 +62,7 @@ public:
 	void print(int val);
 	void print(float val);
 };
+
+
+
+void magnetometerCalibration();
