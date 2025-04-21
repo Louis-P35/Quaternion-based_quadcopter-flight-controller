@@ -121,7 +121,7 @@ int main(void)
   while (1)
   {
 	// Get the delta time in second
-	const float dt = static_cast<float>(getEllapsedTime_s(start));
+	const double dt = getEllapsedTime_s(start);
 	// Get the start cycle count
 	timerCounterReset();
 	start = timerCounterGetCycles();

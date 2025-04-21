@@ -44,14 +44,14 @@ void DroneController::mainSetup()
 	ak09916_init();  // Magnetometer
 
 	// fill magnetometer calibration stuff
-	m_incl = 63.0f * DEG_TO_RAD; // ~63° inclination in radians (france)
-	m_B    = 48.0f;                 // μT (France averages around 47–50 μT)
-	m_W    = Eigen::Matrix3f::Identity() * 1e-4f;	// EKF magnetometer process noise
+	m_incl = 63.0 * DEG_TO_RAD; // ~63° inclination in radians (france)
+	m_B    = 72.0;// * 1e-6; //48.0f * 1e-6f;                 // T (France averages around 47–50 μT)
+	m_W    = Eigen::Matrix3f::Identity() * 1e-4;	// EKF magnetometer process noise
 	m_V    = Eigen::Vector3f::Zero(); //Eigen::Vector3f::Ones() * 1.0f;		// EKF magnetometer measurement noise
 
 	// Read accelerometer
-	icm20948_accel_read_g(&m_accel);
-	m_EKF.initWithAcc(m_accel.x, m_accel.y, m_accel.z); // Norm must not be 0
+	//icm20948_accel_read_g(&m_accel);
+	//m_EKF.initWithAcc(m_accel.x, m_accel.y, m_accel.z);
 }
 
 
@@ -59,31 +59,57 @@ void DroneController::mainSetup()
  * Called indefinitely in a loop
  * This is the main loop of this software
  */
-void DroneController::mainLoop(const float dt)
+void DroneController::mainLoop(const double dt)
 {
+	static bool initialized = false;
+
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
 	icm20948_accel_read_g(&m_accel);
 	bool readMag = ak09916_mag_read_uT(&m_mag);
+	//Eigen::Vector3d calibratedMag;
 
 	// Magnetometer calibration correction
-	if (readMag)
+	/*if (readMag)
 	{
-		Eigen::Vector3f magRaw = Eigen::Vector3f(m_mag.x, m_mag.y, m_mag.z);
-		Eigen::Vector3f m_calibrated = magRaw - m_magBias;
-		m_mag.x = m_calibrated.x();
-		m_mag.y = m_calibrated.y();
-		m_mag.z = m_calibrated.z();
-		//m_mag.x /= 50.0f;
-		//m_mag.y /= 50.0f;
-		//m_mag.z /= 50.0f;
-		float norm = m_calibrated.norm();
-		char pBuffer2[256];
-		sprintf(pBuffer2,
-			"%4.2f\r\n",
-			norm);
-		LogManager::getInstance().serialPrint(pBuffer2);
+		Eigen::Vector3d magRaw = Eigen::Vector3d((double)m_mag.x, (double)m_mag.y, (double)m_mag.z);
+		// Correct bias to raw data
+		calibratedMag = magRaw - m_magBias;
+		// Then reflect Y and Z axes to remap them aligned to the accelerometer of the Sparkfun board
+		calibratedMag << calibratedMag.x(), -calibratedMag.y(), -calibratedMag.z();
+
+		double norm = calibratedMag.norm();
+		// TODO: The bigger std::abs(norm - m_B) the less impact it should have on the EKF (20 - 70)
+		if (norm != 0.0)//norm > 0.1f && std::abs(norm - m_B) < 10.0f) // Reasonable bounds
+		{
+			calibratedMag *= 1e-6;
+		}
+		else
+		{
+			readMag = false;
+		}
+	}*/
+
+	if (!initialized /*&& readMag*/)
+	{
+		gyroAccelCalibration();
+
+		m_EKF.initWithAcc(m_accel.x, m_accel.y, m_accel.z);
+		//m_EKF.initWithAccAndMag((double)m_accel.x, (double)m_accel.y, (double)m_accel.z, calibratedMag.x(), calibratedMag.y(), calibratedMag.z(), m_W, m_V);
+		initialized = true;
+		return;
 	}
+	if (!initialized)
+	{
+		return;
+	}
+
+	Eigen::Vector3f gyro;
+	Eigen::Vector3f acc;
+	gyro << m_gyro.x, m_gyro.y, m_gyro.z;
+	acc << m_accel.x, m_accel.y, m_accel.z;
+	gyro -= m_gyroOffset;
+	acc -= m_accelOffset;
 
 	// Debug print IMU data
 	/*char pBuffer3[256];
@@ -97,77 +123,51 @@ void DroneController::mainLoop(const float dt)
 	LogManager::getInstance().serialPrint(pBuffer3);
 	return;*/
 
-	/*static float gyroX = 0.0f;
-	static float gyroY = 0.0f;
-	static float gyroZ = 0.0f;
-
-	gyroX += m_gyro.x * dt;
-	gyroY += m_gyro.y * dt;
-	gyroZ += m_gyro.z * dt;
-	char pBuffer2[256];
-	sprintf(pBuffer2,
-		"%4.2f, %4.2f, %4.2f\r\n",
-		gyroX, gyroY, gyroZ);
-	LogManager::getInstance().serialPrint(pBuffer2);*/
-
-	/*char pBuffer2[256];
-	sprintf(pBuffer2,
-		"%4.2f, %4.2f, %4.2f\r\n",
-		m_accel.x, m_accel.y, m_accel.z);
-	LogManager::getInstance().serialPrint(pBuffer2);*/
 
 	// AHRS
 	m_EKF.predict(dt);
-	m_EKF.correctGyr(m_gyro.x, m_gyro.y, m_gyro.z);
-	m_EKF.correctAcc(m_accel.x, m_accel.y, m_accel.z);
-	if (readMag)
+	m_EKF.correctGyr(gyro.x(), gyro.y(), gyro.z());
+	m_EKF.correctAcc(acc.x(), acc.y(), acc.z());
+	/*if (readMag)
 	{
-		m_EKF.correctMag(m_mag.x, m_mag.y, m_mag.z, m_incl, m_B, m_W, m_V);
-	}
+		m_EKF.correctMag(calibratedMag.x(), calibratedMag.y(), calibratedMag.z(), m_incl, m_B, m_W, m_V);
+	}*/
 	m_EKF.reset();
 
 	// get attitude as roll, pitch, yaw
 	//float roll, pitch, yaw;
 	//m_EKF.getAttitude(roll, pitch, yaw);
-	// Debug print AHRS result
-	/*char pBuffer[256];
-	sprintf(pBuffer,
-		"%7.2f, %7.2f, %7.2f, %2.7f\r\n",
-		roll, pitch, yaw, dt);
-	LogManager::getInstance().serialPrint(pBuffer);*/
 
 	// or quaternion
-	IMU_EKF::Quaternion<float> q = m_EKF.getAttitude();
+	IMU_EKF::Quaternion<double> q = m_EKF.getAttitude();
 
 	// Debug print AHRS result
-	//char pBuffer[256];
-	//sprintf(pBuffer,
-	//	"%2.7f, %2.7f, %2.7f, %2.7f\r\n",
-	//	q[IMU_EKF::QuaternionIndex::w], q[IMU_EKF::QuaternionIndex::v1], q[IMU_EKF::QuaternionIndex::v2], q[IMU_EKF::QuaternionIndex::v3]);
-	//LogManager::getInstance().serialPrint(pBuffer);
-
-
+	char pBuffer[256];
+	sprintf(pBuffer,
+		"%4.7f, %4.7f, %4.7f, %4.7f\r\n",
+		q[IMU_EKF::QuaternionIndex::w], q[IMU_EKF::QuaternionIndex::v1], q[IMU_EKF::QuaternionIndex::v2], q[IMU_EKF::QuaternionIndex::v3]);
+	LogManager::getInstance().serialPrint(pBuffer);
 }
 
 
 void motorsControl(const float& dt)
 {
-	float targetRoll = 0.0f;
-	float targetPitch = 0.0f;
-	float targetYaw = 0.0f;
+	float targetRoll = 0.0;
+	float targetPitch = 0.0;
+	float targetYaw = 0.0;
 
 	// Get the target quaternion from the target Euler angles
-	IMU_EKF::Quaternion<float> _qTarget = IMU_EKF::Quaternion<float>::fromEuler(
+	IMU_EKF::Quaternion<double> _qTarget = IMU_EKF::Quaternion<double>::fromEuler(
 		targetRoll * DEGREE_TO_RAD,
 		targetPitch * DEGREE_TO_RAD,
 		targetYaw * DEGREE_TO_RAD
     	);
 
-	Eigen::Quaternionf qTarget; // TODO: Convert _qTarget to Eigen
+	Eigen::Quaterniond qTarget; // TODO: Convert _qTarget to Eigen
 
 	// Compute angular errors in the Quaternion space
 	// This give the rotation error in the bodyframe
-	Eigen::Quaternionf qError;// = PID::getError(g_calibratedAttitude, qTarget);
+	Eigen::Quaterniond qError;// = PID::getError(g_calibratedAttitude, qTarget);
 
 	// Use directly the vector part of the error quaternion as inputs of the PIDs
 	/*The vector part of the error quaternion (qError.m_x, qError.m_y, qError.m_z)
@@ -184,6 +184,37 @@ void motorsControl(const float& dt)
 	float error_yaw = qError.z() * scale;
 
 	// Compute PIDs
+}
+
+
+void DroneController::gyroAccelCalibration()
+{
+	Eigen::Vector3f gyro = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Eigen::Vector3f accel = Eigen::Vector3f(0.0, 0.0, 0.0);
+
+	const int nbIteration = 200;
+
+	for (int i = 0; i < nbIteration; ++i)
+	{
+		// Read IMU
+		icm20948_gyro_read_dps(&m_gyro);
+		icm20948_accel_read_g(&m_accel);
+
+		gyro += Eigen::Vector3f(m_gyro.x, m_gyro.y, m_gyro.z);
+		accel += Eigen::Vector3f(m_accel.x, m_accel.y, m_accel.z);
+
+		HAL_Delay(10);
+	}
+
+	m_gyroOffset = gyro / (float)nbIteration;
+	accel /= (float)nbIteration;
+
+	// Find the g vector and normalize it
+	float norm = accel.norm();
+	Eigen::Vector3f g = accel / norm;
+
+	// Remove the gravity vector from the offset
+	m_accelOffset = accel - g;
 }
 
 
@@ -215,12 +246,13 @@ void magnetometerCalibration()
 
 		// Compute of the center of the sphere
 		Eigen::Vector3f bias = (magMax + magMin) * 0.5f;
+		float B = (magMax - magMin).norm() * 0.5f;
 
 		// Print result
 		char pBuffer[256];
 		sprintf(pBuffer,
-			"%4.4f, %4.4f, %4.4f\r\n",
-			bias.x(), bias.y(), bias.z());
+			"%4.4f, %4.4f, %4.4f, %4.4f\r\n",
+			bias.x(), bias.y(), bias.z(), B);
 		LogManager::getInstance().serialPrint(pBuffer);
 	}
 }

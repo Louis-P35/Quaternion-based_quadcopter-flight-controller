@@ -49,7 +49,8 @@ void icm20948_init()
 	icm20948_accel_sample_rate_divider(0);
 
 	icm20948_gyro_calibration();
-	icm20948_accel_calibration();
+	// LP: Remove accel calibration because it assume the IMU is perfectly level...
+	//icm20948_accel_calibration();
 
 	icm20948_gyro_full_scale_select(_2000dps);
 	icm20948_accel_full_scale_select(_16g);
@@ -82,7 +83,7 @@ void icm20948_accel_read(axises* data)
 
 	data->x = (int16_t)(temp[0] << 8 | temp[1]);
 	data->y = (int16_t)(temp[2] << 8 | temp[3]);
-	data->z = (int16_t)(temp[4] << 8 | temp[5]) - accel_scale_factor; // XXX - instead of + ?
+	data->z = (int16_t)(temp[4] << 8 | temp[5]);// - accel_scale_factor; // XXX - instead of + ?
 	// Add scale factor because calibraiton function offset gravity acceleration.
 }
 

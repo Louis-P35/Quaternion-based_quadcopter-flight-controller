@@ -34,7 +34,7 @@ public:
 	axises m_mag;
 
 	// AHRS (EKF)
-	IMU_EKF::ESKF<float> m_EKF;
+	IMU_EKF::ESKF<double> m_EKF;
 	// Magnetometer calibration
 	Eigen::Matrix<float, 3, 3> m_W; // Soft-iron
 	Eigen::Matrix<float, 3, 1> m_V; // Hard-iron
@@ -46,7 +46,11 @@ public:
 	Telemetry m_targetState;
 
 private:
-	Eigen::Vector3f m_magBias = Eigen::Vector3f(-38.4f, 4.575f, 24.675f);
+	//Eigen::Vector3f m_magBias = Eigen::Vector3f(-38.4f, 4.575f, 24.675f);
+	Eigen::Vector3f m_magBias = Eigen::Vector3f(-40.05, 12.15, 29.025);
+
+	Eigen::Vector3f m_accelOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Eigen::Vector3f m_gyroOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 
 
 public:
@@ -57,10 +61,13 @@ public:
 			UART_HandleTypeDef uart_ext
 			);
 	void mainSetup();
-	void mainLoop(const float dt);
+	void mainLoop(const double dt);
 
 	void print(int val);
 	void print(float val);
+
+private:
+	void gyroAccelCalibration();
 };
 
 
