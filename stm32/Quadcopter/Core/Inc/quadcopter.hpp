@@ -36,8 +36,8 @@ public:
 	// AHRS (EKF)
 	IMU_EKF::ESKF<double> m_EKF;
 	// Magnetometer calibration
-	Eigen::Matrix<float, 3, 3> m_W; // Soft-iron
-	Eigen::Matrix<float, 3, 1> m_V; // Hard-iron
+	Eigen::Matrix<double, 3, 3> m_W; // Soft-iron
+	Eigen::Matrix<double, 3, 1> m_V; // Hard-iron
 	float m_incl; // Inclination
 	float m_B; // Geomagnetic field strength
 

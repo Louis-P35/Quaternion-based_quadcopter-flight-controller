@@ -52,7 +52,7 @@ uint32_t getEllapsedTime_us(const uint32_t start)
     // Get the end cycle count
     uint32_t end = timerCounterGetCycles();
 
-    // Calculate the number of cycles elapsed
+    // Calculate the number of cycles elapsed (unsigned handle one overflow natively)
     uint32_t cycles_elapsed = end - start;
 
     // Calculate the time in microseconds
@@ -60,7 +60,7 @@ uint32_t getEllapsedTime_us(const uint32_t start)
 }
 
 /*
- * Get the ellapsed time is second between
+ * Get the ellapsed time in second between
  * start and now.
  */
 double getEllapsedTime_s(const uint32_t start)

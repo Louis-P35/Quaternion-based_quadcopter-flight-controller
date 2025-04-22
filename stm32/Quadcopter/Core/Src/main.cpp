@@ -152,11 +152,6 @@ void SystemClock_Config(void)
 
   /** Configure the main internal regulator output voltage
   */
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
-
-  while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
-
-  __HAL_RCC_SYSCFG_CLK_ENABLE();
   __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE0);
 
   while(!__HAL_PWR_GET_FLAG(PWR_FLAG_VOSRDY)) {}
@@ -310,6 +305,7 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI_CS_GPIO_Port, SPI_CS_Pin, GPIO_PIN_RESET);
@@ -320,6 +316,25 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(SPI_CS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : Radio_1_Pin Radio_2_Pin Radio_3_Pin Radio_4_Pin */
+  GPIO_InitStruct.Pin = Radio_1_Pin|Radio_2_Pin|Radio_3_Pin|Radio_4_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(Radio_1_EXTI_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(Radio_1_EXTI_IRQn);
+
+  HAL_NVIC_SetPriority(Radio_2_EXTI_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(Radio_2_EXTI_IRQn);
+
+  HAL_NVIC_SetPriority(Radio_3_EXTI_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(Radio_3_EXTI_IRQn);
+
+  HAL_NVIC_SetPriority(Radio_4_EXTI_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(Radio_4_EXTI_IRQn);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

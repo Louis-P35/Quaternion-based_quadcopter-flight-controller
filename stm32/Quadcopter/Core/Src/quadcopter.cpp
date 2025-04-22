@@ -45,9 +45,9 @@ void DroneController::mainSetup()
 
 	// fill magnetometer calibration stuff
 	m_incl = 63.0 * DEG_TO_RAD; // ~63° inclination in radians (france)
-	m_B    = 72.0;// * 1e-6; //48.0f * 1e-6f;                 // T (France averages around 47–50 μT)
-	m_W    = Eigen::Matrix3f::Identity() * 1e-4;	// EKF magnetometer process noise
-	m_V    = Eigen::Vector3f::Zero(); //Eigen::Vector3f::Ones() * 1.0f;		// EKF magnetometer measurement noise
+	m_B    = 48.0f * 1e-6f;                 // T (France averages around 47–50 μT)
+	m_W    = Eigen::Matrix3d::Identity() * 1e-4;	// EKF magnetometer process noise
+	m_V    = Eigen::Vector3d::Zero(); //Eigen::Vector3f::Ones() * 1.0f;		// EKF magnetometer measurement noise
 
 	// Read accelerometer
 	//icm20948_accel_read_g(&m_accel);
@@ -66,23 +66,23 @@ void DroneController::mainLoop(const double dt)
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
 	icm20948_accel_read_g(&m_accel);
-	bool readMag = ak09916_mag_read_uT(&m_mag);
-	//Eigen::Vector3d calibratedMag;
+	//bool readMag = ak09916_mag_read_uT(&m_mag);
+	//Eigen::Vector3f calibratedMag;
 
 	// Magnetometer calibration correction
 	/*if (readMag)
 	{
-		Eigen::Vector3d magRaw = Eigen::Vector3d((double)m_mag.x, (double)m_mag.y, (double)m_mag.z);
+		Eigen::Vector3f magRaw = Eigen::Vector3f(m_mag.x, m_mag.y, m_mag.z);
 		// Correct bias to raw data
 		calibratedMag = magRaw - m_magBias;
 		// Then reflect Y and Z axes to remap them aligned to the accelerometer of the Sparkfun board
 		calibratedMag << calibratedMag.x(), -calibratedMag.y(), -calibratedMag.z();
 
-		double norm = calibratedMag.norm();
+		float norm = calibratedMag.norm();
 		// TODO: The bigger std::abs(norm - m_B) the less impact it should have on the EKF (20 - 70)
-		if (norm != 0.0)//norm > 0.1f && std::abs(norm - m_B) < 10.0f) // Reasonable bounds
+		if (norm != 0.0f)//norm > 0.1f && std::abs(norm - m_B) < 10.0f) // Reasonable bounds
 		{
-			calibratedMag *= 1e-6;
+			calibratedMag *= 1e-6f;
 		}
 		else
 		{
@@ -117,9 +117,9 @@ void DroneController::mainLoop(const double dt)
 		"%7.2f, %7.2f, %7.2f, "
 		"%7.2f, %7.2f, %7.2f, "
 		"%7.2f, %7.2f, %7.2f\r\n",
-		m_accel.x, m_accel.y, m_accel.z,
-		m_gyro.x,  m_gyro.y,  m_gyro.z,
-		m_mag.x,   m_mag.y,   m_mag.z);
+		acc.x(), acc.y(), acc.z(),
+		gyro.x(),  gyro.y(),  gyro.z(),
+		calibratedMag.x(),   calibratedMag.y(),   calibratedMag.z());
 	LogManager::getInstance().serialPrint(pBuffer3);
 	return;*/
 
@@ -128,10 +128,10 @@ void DroneController::mainLoop(const double dt)
 	m_EKF.predict(dt);
 	m_EKF.correctGyr(gyro.x(), gyro.y(), gyro.z());
 	m_EKF.correctAcc(acc.x(), acc.y(), acc.z());
-	/*if (readMag)
-	{
-		m_EKF.correctMag(calibratedMag.x(), calibratedMag.y(), calibratedMag.z(), m_incl, m_B, m_W, m_V);
-	}*/
+	//if (readMag)
+	//{
+	//	m_EKF.correctMag(calibratedMag.x(), calibratedMag.y(), calibratedMag.z(), m_incl, m_B, m_W, m_V);
+	//}
 	m_EKF.reset();
 
 	// get attitude as roll, pitch, yaw
