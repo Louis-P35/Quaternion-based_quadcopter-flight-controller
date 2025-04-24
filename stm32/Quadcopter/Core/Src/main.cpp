@@ -20,6 +20,7 @@
 #include <main.hpp>
 #include "quadcopter.hpp"
 #include "Utils/utilsTimer.hpp"
+#include "stateMachine.hpp"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
