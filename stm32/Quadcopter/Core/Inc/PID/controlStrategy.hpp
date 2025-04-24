@@ -13,7 +13,7 @@
 // External lib
 #include "Utils/Eigen/Dense"
 
-// Composite design pattern
+// Strategy design pattern
 
 
 
@@ -40,48 +40,15 @@ public:
 
 
 /*
- * This class is the base abstract class for the
- * composite design used to combine flight control
- * strategy.
+ * This class is the base abstract class for the control strategy.
  */
-class Control
+class ControlStrategy
 {
 public:
+	virtual ~ControlStrategy() = default;
+
 	// This method execute the control task
-	virtual void execute(const float errors[3]) = 0;
-
-	// This method compute the error to be corrected
-	virtual void getError(const Telemetry& actualState, Telemetry& targetState) = 0;
-};
-
-
-/*
- *	This class handle the control strategy.
- *	It handle chained PID loops.
- */
-class CompositeControl : public Control
-{
-private:
-	// Up to 3 PID can be chained
-	// Max being position -> PID -> attitude -> PID -> angular rate -> PID -> motor power
-	Control* m_pControls[3] = {nullptr};
-
-	/*
-	 * This method add a PID to the chained control strategy
-	 */
-	bool addControl(Control* pControl)
-	{
-		for (auto& ctrl : m_pControls)
-		{
-			if (ctrl == nullptr)
-			{
-				ctrl = pControl;
-				return true;
-			}
-		}
-
-		return false;
-	}
+	virtual void execute(const Telemetry& currentState, const Telemetry& targetState) = 0;
 };
 
 
@@ -90,7 +57,7 @@ private:
  * strategy with a single PID loop.
  * Attitude error -> PID -> motor power
  */
-class AttitudeToMotors : public Control
+class AttitudeControlStrategy : public ControlStrategy
 {
 public:
 	// PID instances for each axis
@@ -98,10 +65,7 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const float errors[3]) override;
-
-	// This method compute the error to be corrected
-	void getError(const Telemetry& actualState, Telemetry& targetState) override;
+	void execute(const Telemetry& currentState, const Telemetry& targetState) override;
 };
 
 
@@ -110,7 +74,7 @@ public:
  * strategy with a single PID loop.
  * Angular velocity error -> PID -> motor power
  */
-class AngularRateToMotors : public Control
+class RateControlStrategy : public ControlStrategy
 {
 public:
 	// PID instances for each axis
@@ -118,61 +82,28 @@ public:
 
 public:
 	// This method execute the control task
-	void execute(const float errors[3]) override;
-
-	// This method compute the error to be corrected
-	void getError(const Telemetry& actualState, Telemetry& targetState) override;
+	void execute(const Telemetry& currentState, const Telemetry& targetState) override;
 };
 
 
 /*
  * This class implement the attitude control
  * strategy with a dual PID loop.
- * Attitude error -> PID -> angular rate (get error) -> PID -> motor power
+ * Position error -> PID -> Attitude (get error) -> PID -> motor power
  */
-class AttitudeToRate : public Control
+class PositionControlStrategy : public ControlStrategy
 {
 public:
 	// PID instances for each axis
-	PID m_pid[3];
+	PID m_pidPosToAtt[3];
+	PID m_pidAttToMotor[3];
 
 public:
 	// This method execute the control task
-	void execute(const float errors[3]) override;
-
-	// This method compute the error to be corrected
-	void getError(const Telemetry& actualState, Telemetry& targetState) override;
+	void execute(const Telemetry& currentState, const Telemetry& targetState) override;
 };
 
 
-class PositionToRate : public Control
-{
-public:
-	// PID instances for each axis
-	PID m_pid[3];
-
-public:
-	// This method execute the control task
-	void execute(const float errors[3]) override;
-
-	// This method compute the error to be corrected
-	void getError(const Telemetry& actualState, Telemetry& targetState) override;
-};
-
-
-class PositionToAttitude : public Control
-{
-public:
-	// PID instances for each axis
-	PID m_pid[3];
-
-public:
-	// This method execute the control task
-	void execute(const float errors[3]) override;
-
-	// This method compute the error to be corrected
-	void getError(const Telemetry& actualState, Telemetry& targetState) override;
-};
 
 
 
