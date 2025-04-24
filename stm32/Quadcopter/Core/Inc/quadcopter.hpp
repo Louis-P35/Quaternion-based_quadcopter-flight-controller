@@ -46,12 +46,12 @@ public:
 	Telemetry m_targetState;
 
 private:
-	//Eigen::Vector3f m_magBias = Eigen::Vector3f(-38.4f, 4.575f, 24.675f);
 	Eigen::Vector3f m_magBias = Eigen::Vector3f(-40.05, 12.15, 29.025);
 
 	Eigen::Vector3f m_accelOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 	Eigen::Vector3f m_gyroOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 
+	AttitudeControlStrategy m_controlStrategy; // Attitude control for now
 
 public:
 	DroneController(

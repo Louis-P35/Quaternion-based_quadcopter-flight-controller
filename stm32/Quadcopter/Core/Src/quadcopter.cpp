@@ -18,13 +18,29 @@
 
 // screen /dev/tty.usbserial-14220 115200
 
+#define ROLLPITCH_ATT_KP 1.0f
+#define ROLLPITCH_ATT_KI 1.0f
+#define ROLLPITCH_ATT_KD 1.0f
+
+#define YAW_ATT_KP 1.0f
+#define YAW_ATT_KI 1.0f
+#define YAW_ATT_KD 1.0f
+
 DroneController::DroneController(
 		SPI_HandleTypeDef hspi,
 		uint16_t spi_cs_pin,
 		GPIO_TypeDef* spi_cs_gpio_port,
 		UART_HandleTypeDef uart_ext
-		)
-: m_huart_ext(uart_ext)
+		) :
+		m_huart_ext(uart_ext),
+		m_controlStrategy(
+				ROLLPITCH_ATT_KP,
+				ROLLPITCH_ATT_KI,
+				ROLLPITCH_ATT_KD,
+				YAW_ATT_KP,
+				YAW_ATT_KI,
+				YAW_ATT_KD
+				)
 {
 
 }
@@ -147,6 +163,9 @@ void DroneController::mainLoop(const double dt)
 		"%4.7f, %4.7f, %4.7f, %4.7f\r\n",
 		q[IMU_EKF::QuaternionIndex::w], q[IMU_EKF::QuaternionIndex::v1], q[IMU_EKF::QuaternionIndex::v2], q[IMU_EKF::QuaternionIndex::v3]);
 	LogManager::getInstance().serialPrint(pBuffer);
+
+	// PIDs
+	m_controlStrategy.execute(m_currentState, m_targetState);
 }
 
 
