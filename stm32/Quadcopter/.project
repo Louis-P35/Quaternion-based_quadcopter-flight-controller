@@ -102,26 +102,6 @@
 			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Src/quadcopter.cpp</location>
 		</link>
 		<link>
-			<name>Core/Inc/AHRS/ESKF.h</name>
-			<type>1</type>
-			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Inc/AHRS/ESKF.h</location>
-		</link>
-		<link>
-			<name>Core/Inc/AHRS/Quaternion.h</name>
-			<type>1</type>
-			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Inc/AHRS/Quaternion.h</location>
-		</link>
-		<link>
-			<name>Core/Inc/AHRS/utilities.h</name>
-			<type>1</type>
-			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Inc/AHRS/utilities.h</location>
-		</link>
-		<link>
-			<name>Core/Src/AHRS/ESKF.cpp</name>
-			<type>1</type>
-			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Src/AHRS/ESKF.cpp</location>
-		</link>
-		<link>
 			<name>Core/Src/Sensors/icm20948.cpp</name>
 			<type>1</type>
 			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Src/Sensors/icm20948.cpp</location>

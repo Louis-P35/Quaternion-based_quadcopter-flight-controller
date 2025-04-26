@@ -13,9 +13,10 @@
 // Includes from project
 #include "Sensors/icm20948.h"
 #include "PID/controlStrategy.hpp"
+#include "AHRS/madgwick.hpp"
 
 // Includes from 3rd party
-#include <AHRS/ESKF.h>
+//#include <AHRS/ESKF.h>
 
 
 /*
@@ -33,25 +34,24 @@ public:
 	axises m_accel;
 	axises m_mag;
 
+	// ARHR (Madgwick)
+	MadgwickFilter m_madgwickFilter;
+
 	// AHRS (EKF)
-	IMU_EKF::ESKF<double> m_EKF;
+	//IMU_EKF::ESKF<double> m_EKF;
 	// Magnetometer calibration
-	Eigen::Matrix<double, 3, 3> m_W; // Soft-iron
-	Eigen::Matrix<double, 3, 1> m_V; // Hard-iron
-	float m_incl; // Inclination
-	float m_B; // Geomagnetic field strength
+	//Eigen::Matrix<double, 3, 3> m_W; // Soft-iron
+	//Eigen::Matrix<double, 3, 1> m_V; // Hard-iron
+	//float m_incl; // Inclination
+	//float m_B; // Geomagnetic field strength
 
-
-	Telemetry m_currentState;
-	Telemetry m_targetState;
+	ControlStrategy m_ctrlStrat;
 
 private:
 	Eigen::Vector3f m_magBias = Eigen::Vector3f(-40.05, 12.15, 29.025);
 
 	Eigen::Vector3f m_accelOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 	Eigen::Vector3f m_gyroOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
-
-	AttitudeControlStrategy m_controlStrategy; // Attitude control for now
 
 public:
 	DroneController(

@@ -1,11 +1,13 @@
 *.mp4
 
+stm32/Quadcopter/Debug/
+stm32/Quadcopter/Release/
+
 # But not these file types
 !*.c
 !*.cpp
 !*.h
 !*.hpp
-!*/
 !.gitignore
 
 # stm32/Quadcopter/Drivers/

@@ -13,6 +13,17 @@
 #include "Utils/Eigen/Dense"
 
 
+struct PIDConf
+{
+	float m_kp = 0.0f;
+	float m_ki = 0.0f;
+	float m_kd = 0.0f;
+	float m_saturation = 0.0f;
+	float m_outMin = 0.0f;
+	float m_outMax = 0.0f;
+};
+
+
 /*
  * PID class
  */
@@ -20,20 +31,14 @@ class PID
 {
 private:
 	// PID coefficients
-	float m_kp = 0.0f;
-	float m_ki = 0.0f;
-	float m_kd = 0.0f;
-
-	// Max integrated value
-	float m_saturation = 100.0f;
+	PIDConf m_conf;
 
 	float m_previousError = 0.0f;
 	float m_sommeError = 0.0f;
 
 public:
 	// Constructor to initialize PID gains
-	PID(float kp, float ki, float kd, float sat) :
-		m_kp(kp), m_ki(ki), m_kd(kd), m_saturation(sat)
+	PID()
 	{
 		m_previousError = 0.0;
 		m_sommeError = 0.0;
@@ -49,6 +54,19 @@ public:
 			);
 
 	float computePID(const float& error, const float& dt, const bool& integrate);
+};
+
+
+class PIDBlock : public PID
+{
+public:
+	float m_measure = 0.0f;
+	float m_target = 0.0f;
+	float m_output = 0.0f;
+
+	PIDBlock() : PID() {}
+
+	inline void run(float dt);
 };
 
 

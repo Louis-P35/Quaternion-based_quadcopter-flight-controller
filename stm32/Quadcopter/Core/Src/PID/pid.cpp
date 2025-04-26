@@ -60,11 +60,11 @@ Eigen::Quaternionf PID::getError(
 float PID::computePID(const float& error, const float& dt, const bool& integrate)
 {
 	// Proportionnal gain
-	float p = error * m_kp;
+	float p = error * m_conf.m_kp;
 
 	// Derivative gain
 	float derivedError = (error - m_previousError) / dt;
-	float d = derivedError * m_kd;
+	float d = derivedError * m_conf.m_kd;
 	m_previousError = error;
 
 	// Integral gain
@@ -73,19 +73,27 @@ float PID::computePID(const float& error, const float& dt, const bool& integrate
 		m_sommeError += error * dt;
 
 		// Prevent windup
-		if (m_sommeError > m_saturation)
+		if (m_sommeError > m_conf.m_saturation)
 		{
-			m_sommeError = m_saturation;
+			m_sommeError = m_conf.m_saturation;
 		}
-		else if (m_sommeError < -m_saturation)
+		else if (m_sommeError < -m_conf.m_saturation)
 		{
-			m_sommeError = -m_saturation;
+			m_sommeError = -m_conf.m_saturation;
 		}
 	}
 
-	float i = m_sommeError * m_ki;
+	float i = m_sommeError * m_conf.m_ki;
 
 	return p + i + d;
+}
+
+
+
+void PIDBlock::run(float dt)
+{
+	const float error = m_target - m_measure;
+	m_output = computePID(error, dt, true);
 }
 
 

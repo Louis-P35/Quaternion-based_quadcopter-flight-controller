@@ -13,7 +13,6 @@
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
 #include "Utils/utilsAlgebra.hpp"
-#include "AHRS/Quaternion.h"
 //#include "Utils/matrix.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
@@ -32,15 +31,7 @@ DroneController::DroneController(
 		GPIO_TypeDef* spi_cs_gpio_port,
 		UART_HandleTypeDef uart_ext
 		) :
-		m_huart_ext(uart_ext),
-		m_controlStrategy(
-				ROLLPITCH_ATT_KP,
-				ROLLPITCH_ATT_KI,
-				ROLLPITCH_ATT_KD,
-				YAW_ATT_KP,
-				YAW_ATT_KI,
-				YAW_ATT_KD
-				)
+		m_huart_ext(uart_ext)
 {
 
 }
@@ -57,13 +48,16 @@ void DroneController::mainSetup()
 
 	// Setup the IMU (ICM20948)
 	icm20948_init(); // Accelerometer & gyroscope
-	ak09916_init();  // Magnetometer
+	//ak09916_init();  // Magnetometer
+
+	// Init AHRS
+	m_madgwickFilter = MadgwickFilter();
 
 	// fill magnetometer calibration stuff
-	m_incl = 63.0 * DEG_TO_RAD; // ~63° inclination in radians (france)
-	m_B    = 48.0f * 1e-6f;                 // T (France averages around 47–50 μT)
-	m_W    = Eigen::Matrix3d::Identity() * 1e-4;	// EKF magnetometer process noise
-	m_V    = Eigen::Vector3d::Zero(); //Eigen::Vector3f::Ones() * 1.0f;		// EKF magnetometer measurement noise
+	//m_incl = 63.0 * DEG_TO_RAD; // ~63° inclination in radians (france)
+	//m_B    = 48.0f * 1e-6f;                 // T (France averages around 47–50 μT)
+	//m_W    = Eigen::Matrix3d::Identity() * 1e-4;	// EKF magnetometer process noise
+	//m_V    = Eigen::Vector3d::Zero(); //Eigen::Vector3f::Ones() * 1.0f;		// EKF magnetometer measurement noise
 
 	// Read accelerometer
 	//icm20948_accel_read_g(&m_accel);
@@ -78,6 +72,11 @@ void DroneController::mainSetup()
 void DroneController::mainLoop(const double dt)
 {
 	static bool initialized = false;
+	static int ggg = 0;
+	static double rrr = 0.0;
+
+	ggg++;
+	rrr += dt;
 
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
@@ -106,12 +105,10 @@ void DroneController::mainLoop(const double dt)
 		}
 	}*/
 
-	if (!initialized /*&& readMag*/)
+	if (!initialized)
 	{
 		gyroAccelCalibration();
 
-		m_EKF.initWithAcc(m_accel.x, m_accel.y, m_accel.z);
-		//m_EKF.initWithAccAndMag((double)m_accel.x, (double)m_accel.y, (double)m_accel.z, calibratedMag.x(), calibratedMag.y(), calibratedMag.z(), m_W, m_V);
 		initialized = true;
 		return;
 	}
@@ -140,32 +137,34 @@ void DroneController::mainLoop(const double dt)
 	return;*/
 
 
-	// AHRS
-	m_EKF.predict(dt);
-	m_EKF.correctGyr(gyro.x(), gyro.y(), gyro.z());
-	m_EKF.correctAcc(acc.x(), acc.y(), acc.z());
-	//if (readMag)
-	//{
-	//	m_EKF.correctMag(calibratedMag.x(), calibratedMag.y(), calibratedMag.z(), m_incl, m_B, m_W, m_V);
-	//}
-	m_EKF.reset();
+	// AHRS, Madgwick filter
+	m_madgwickFilter.compute(
+			acc.x(), // Acceleration vector will be normalized
+			acc.y(),
+			acc.z(),
+			gyro.x() * DEGREE_TO_RAD,
+			gyro.y() * DEGREE_TO_RAD,
+			gyro.z() * DEGREE_TO_RAD,
+			dt
+			);
 
-	// get attitude as roll, pitch, yaw
-	//float roll, pitch, yaw;
-	//m_EKF.getAttitude(roll, pitch, yaw);
 
-	// or quaternion
-	IMU_EKF::Quaternion<double> q = m_EKF.getAttitude();
+	/*if (ggg >= 100)
+	{
+		ggg = 0;
+		double f = 1.0/(rrr/100.0);
+		char pBuffer[256];
+		sprintf(pBuffer,"%4.7f\n\r", (float)f);
+		LogManager::getInstance().serialPrint(pBuffer);
+		rrr = 0.0;
+	}*/
 
 	// Debug print AHRS result
 	char pBuffer[256];
 	sprintf(pBuffer,
 		"%4.7f, %4.7f, %4.7f, %4.7f\r\n",
-		q[IMU_EKF::QuaternionIndex::w], q[IMU_EKF::QuaternionIndex::v1], q[IMU_EKF::QuaternionIndex::v2], q[IMU_EKF::QuaternionIndex::v3]);
+		m_madgwickFilter.m_qEst.m_w, m_madgwickFilter.m_qEst.m_x, m_madgwickFilter.m_qEst.m_y, m_madgwickFilter.m_qEst.m_z);
 	LogManager::getInstance().serialPrint(pBuffer);
-
-	// PIDs
-	m_controlStrategy.execute(m_currentState, m_targetState);
 }
 
 
@@ -176,12 +175,6 @@ void motorsControl(const float& dt)
 	float targetYaw = 0.0;
 
 	// Get the target quaternion from the target Euler angles
-	IMU_EKF::Quaternion<double> _qTarget = IMU_EKF::Quaternion<double>::fromEuler(
-		targetRoll * DEGREE_TO_RAD,
-		targetPitch * DEGREE_TO_RAD,
-		targetYaw * DEGREE_TO_RAD
-    	);
-
 	Eigen::Quaterniond qTarget; // TODO: Convert _qTarget to Eigen
 
 	// Compute angular errors in the Quaternion space
