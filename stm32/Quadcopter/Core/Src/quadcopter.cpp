@@ -17,6 +17,17 @@
 
 // screen /dev/tty.usbserial-14220 115200
 
+
+// Loops' frequency definitions
+#define HIGH_FREQUENCY_LOOP 6000.0
+#define HIGH_FREQUENCY_LOOP_PERIODE (1.0/HIGH_FREQUENCY_LOOP)
+#define MEDIUM_FREQUENCY_LOOP 2000.0
+#define MEDIUM_FREQUENCY_LOOP_PERIODE (1.0/MEDIUM_FREQUENCY_LOOP)
+#define LOW_FREQUENCY_LOOP 500.0
+#define LOW_FREQUENCY_LOOP_PERIODE (1.0/LOW_FREQUENCY_LOOP)
+#define VERY_LOW_FREQUENCY_LOOP 50.0
+#define VERY_LOW_FREQUENCY_LOOP_PERIODE (1.0/VERY_LOW_FREQUENCY_LOOP)
+
 #define ROLLPITCH_ATT_KP 1.0f
 #define ROLLPITCH_ATT_KI 1.0f
 #define ROLLPITCH_ATT_KD 1.0f
@@ -53,15 +64,11 @@ void DroneController::mainSetup()
 	// Init AHRS
 	m_madgwickFilter = MadgwickFilter();
 
-	// fill magnetometer calibration stuff
-	//m_incl = 63.0 * DEG_TO_RAD; // ~63° inclination in radians (france)
-	//m_B    = 48.0f * 1e-6f;                 // T (France averages around 47–50 μT)
-	//m_W    = Eigen::Matrix3d::Identity() * 1e-4;	// EKF magnetometer process noise
-	//m_V    = Eigen::Vector3d::Zero(); //Eigen::Vector3f::Ones() * 1.0f;		// EKF magnetometer measurement noise
+	// Calibrate IMU
+	gyroAccelCalibration();
 
-	// Read accelerometer
-	//icm20948_accel_read_g(&m_accel);
-	//m_EKF.initWithAcc(m_accel.x, m_accel.y, m_accel.z);
+	// Set Idle state
+	StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
 }
 
 
@@ -71,51 +78,20 @@ void DroneController::mainSetup()
  */
 void DroneController::mainLoop(const double dt)
 {
-	static bool initialized = false;
-	static int ggg = 0;
-	static double rrr = 0.0;
+	// Highest frequency loop (~6khz): IMU read & AHRS quaternion update (Madgwick)
+	// Medium frequency loop (~2khz): Rate or attitude PID
+	// Low frequency loop (~500hz): PWM motor update
+	// Very low frequency loop: (~50hz): Position hold PID
 
-	ggg++;
-	rrr += dt;
+	static double mediumLoopDt = 0.0;
+	static double lowFrequencyLoopDt = 0.0;
+	mediumLoopDt += dt;
+	lowFrequencyLoopDt += dt;
 
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
 	icm20948_accel_read_g(&m_accel);
 	//bool readMag = ak09916_mag_read_uT(&m_mag);
-	//Eigen::Vector3f calibratedMag;
-
-	// Magnetometer calibration correction
-	/*if (readMag)
-	{
-		Eigen::Vector3f magRaw = Eigen::Vector3f(m_mag.x, m_mag.y, m_mag.z);
-		// Correct bias to raw data
-		calibratedMag = magRaw - m_magBias;
-		// Then reflect Y and Z axes to remap them aligned to the accelerometer of the Sparkfun board
-		calibratedMag << calibratedMag.x(), -calibratedMag.y(), -calibratedMag.z();
-
-		float norm = calibratedMag.norm();
-		// TODO: The bigger std::abs(norm - m_B) the less impact it should have on the EKF (20 - 70)
-		if (norm != 0.0f)//norm > 0.1f && std::abs(norm - m_B) < 10.0f) // Reasonable bounds
-		{
-			calibratedMag *= 1e-6f;
-		}
-		else
-		{
-			readMag = false;
-		}
-	}*/
-
-	if (!initialized)
-	{
-		gyroAccelCalibration();
-
-		initialized = true;
-		return;
-	}
-	if (!initialized)
-	{
-		return;
-	}
 
 	Eigen::Vector3f gyro;
 	Eigen::Vector3f acc;
@@ -136,28 +112,30 @@ void DroneController::mainLoop(const double dt)
 	LogManager::getInstance().serialPrint(pBuffer3);
 	return;*/
 
-
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
-			acc.x(), // Acceleration vector will be normalized
-			acc.y(),
-			acc.z(),
-			gyro.x() * DEGREE_TO_RAD,
-			gyro.y() * DEGREE_TO_RAD,
-			gyro.z() * DEGREE_TO_RAD,
-			dt
-			);
+		acc.x(), // Acceleration vector will be normalized
+		acc.y(),
+		acc.z(),
+		gyro.x() * DEGREE_TO_RAD,
+		gyro.y() * DEGREE_TO_RAD,
+		gyro.z() * DEGREE_TO_RAD,
+		dt
+		);
 
-
-	/*if (ggg >= 100)
+	// Handle drone behaviour according to the current state
+	if (mediumLoopDt > MEDIUM_FREQUENCY_LOOP_PERIODE)
 	{
-		ggg = 0;
-		double f = 1.0/(rrr/100.0);
-		char pBuffer[256];
-		sprintf(pBuffer,"%4.7f\n\r", (float)f);
-		LogManager::getInstance().serialPrint(pBuffer);
-		rrr = 0.0;
-	}*/
+		StateMachine::getInstance().run(mediumLoopDt);
+		mediumLoopDt = 0.0;
+	}
+
+	// Motors update
+	if (lowFrequencyLoopDt > LOW_FREQUENCY_LOOP_PERIODE)
+	{
+		// TODO: PWM update
+		lowFrequencyLoopDt = 0.0;
+	}
 
 	// Debug print AHRS result
 	char pBuffer[256];

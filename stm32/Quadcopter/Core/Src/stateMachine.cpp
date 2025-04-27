@@ -8,7 +8,7 @@
 #include "stateMachine.hpp"
 
 
-void IdleState::handleState()
+void IdleState::handleState(const double dt)
 {
 	// TODO: Wait for throttle all the way down from the controller
 
@@ -17,7 +17,7 @@ void IdleState::handleState()
 }
 
 
-void ReadyToTakeOffState::handleState()
+void ReadyToTakeOffState::handleState(const double dt)
 {
 	// TODO: Wait for throttle little increase from the controller
 
@@ -26,7 +26,7 @@ void ReadyToTakeOffState::handleState()
 }
 
 
-void TakeOffState::handleState()
+void TakeOffState::handleState(const double dt)
 {
 	// TODO: Handle take off autonomously
 
@@ -35,7 +35,7 @@ void TakeOffState::handleState()
 }
 
 
-void FlyingState::handleState()
+void FlyingState::handleState(const double dt)
 {
 	// TODO: Handle flying
 

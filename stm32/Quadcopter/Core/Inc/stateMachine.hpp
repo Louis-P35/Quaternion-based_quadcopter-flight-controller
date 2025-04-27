@@ -17,7 +17,7 @@ class State
 {
 public:
 	virtual ~State() = default;
-	virtual void handleState() = 0;
+	virtual void handleState(const double dt) = 0;
 };
 
 
@@ -28,7 +28,7 @@ class IdleState : public State
 {
 public:
 	~IdleState() override = default;
-	virtual void handleState() override;
+	virtual void handleState(const double dt) override;
 };
 
 
@@ -41,7 +41,7 @@ class ReadyToTakeOffState : public State
 {
 public:
 	~ReadyToTakeOffState() override = default;
-	virtual void handleState() override;
+	virtual void handleState(const double dt) override;
 };
 
 
@@ -52,7 +52,7 @@ class TakeOffState : public State
 {
 public:
 	~TakeOffState() override = default;
-	virtual void handleState() override;
+	virtual void handleState(const double dt) override;
 };
 
 
@@ -63,7 +63,7 @@ class FlyingState : public State
 {
 public:
 	~FlyingState() override = default;
-	virtual void handleState() override;
+	virtual void handleState(const double dt) override;
 };
 
 
@@ -74,7 +74,7 @@ class LandingtState : public State
 {
 public:
 	~LandingtState() override = default;
-	virtual void handleState() override;
+	virtual void handleState(const double dt) override;
 };
 
 
@@ -113,11 +113,11 @@ public:
 		m_pState = &nextState;
 	};
 
-	void run()
+	void run(const double dt)
 	{
 		if (m_pState)
 		{
-			m_pState->handleState();
+			m_pState->handleState(dt);
 		}
 	};
 
