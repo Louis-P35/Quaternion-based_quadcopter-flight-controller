@@ -13,6 +13,7 @@
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
 #include "Utils/utilsAlgebra.hpp"
+#include "PWM/readRadio.hpp"
 //#include "Utils/matrix.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
@@ -67,6 +68,9 @@ void DroneController::mainSetup()
 	// Calibrate IMU
 	gyroAccelCalibration();
 
+	// Setup PWM reading for radio receiver
+	setupRadio();
+
 	// Set Idle state
 	StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
 }
@@ -83,10 +87,13 @@ void DroneController::mainLoop(const double dt)
 	// Low frequency loop (~500hz): PWM motor update
 	// Very low frequency loop: (~50hz): Position hold PID
 
+	bool posHoldLoop = false;
 	static double mediumLoopDt = 0.0;
 	static double lowFrequencyLoopDt = 0.0;
+	static double veryLowFrequencyLoopDt = 0.0;
 	mediumLoopDt += dt;
 	lowFrequencyLoopDt += dt;
+	veryLowFrequencyLoopDt += dt;
 
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
@@ -101,16 +108,12 @@ void DroneController::mainLoop(const double dt)
 	acc -= m_accelOffset;
 
 	// Debug print IMU data
-	/*char pBuffer3[256];
-	sprintf(pBuffer3,
-		"%7.2f, %7.2f, %7.2f, "
-		"%7.2f, %7.2f, %7.2f, "
-		"%7.2f, %7.2f, %7.2f\r\n",
+	/*LogManager::getInstance().serialPrint(
 		acc.x(), acc.y(), acc.z(),
-		gyro.x(),  gyro.y(),  gyro.z(),
-		calibratedMag.x(),   calibratedMag.y(),   calibratedMag.z());
-	LogManager::getInstance().serialPrint(pBuffer3);
-	return;*/
+		gyro.x(), gyro.y(), gyro.z(),
+		0.0, 0.0, 0.0
+		//calibratedMag.x(), calibratedMag.y(), calibratedMag.z()
+		);*/
 
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
@@ -122,6 +125,21 @@ void DroneController::mainLoop(const double dt)
 		gyro.z() * DEGREE_TO_RAD,
 		dt
 		);
+
+	// Read radio
+	if (veryLowFrequencyLoopDt > VERY_LOW_FREQUENCY_LOOP_PERIODE)
+	{
+		// TODO:
+		posHoldLoop = true;
+		veryLowFrequencyLoopDt = 0.0;
+
+		for (int i = 0; i < 4; ++i)
+		{
+			m_radio[i] = PWM_GetPulse(i);
+		}
+
+		LogManager::getInstance().serialPrint(m_radio[0], m_radio[1], m_radio[2], m_radio[3]);
+	}
 
 	// Handle drone behaviour according to the current state
 	if (mediumLoopDt > MEDIUM_FREQUENCY_LOOP_PERIODE)
@@ -138,11 +156,7 @@ void DroneController::mainLoop(const double dt)
 	}
 
 	// Debug print AHRS result
-	char pBuffer[256];
-	sprintf(pBuffer,
-		"%4.7f, %4.7f, %4.7f, %4.7f\r\n",
-		m_madgwickFilter.m_qEst.m_w, m_madgwickFilter.m_qEst.m_x, m_madgwickFilter.m_qEst.m_y, m_madgwickFilter.m_qEst.m_z);
-	LogManager::getInstance().serialPrint(pBuffer);
+	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst);
 }
 
 

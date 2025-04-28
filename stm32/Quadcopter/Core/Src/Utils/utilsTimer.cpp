@@ -56,7 +56,7 @@ uint32_t getEllapsedTime_us(const uint32_t start)
     uint32_t cycles_elapsed = end - start;
 
     // Calculate the time in microseconds
-    return (cycles_elapsed / (SystemCoreClock / 1000000));
+     return (cycles_elapsed / (SystemCoreClock / 1000000));
 }
 
 /*

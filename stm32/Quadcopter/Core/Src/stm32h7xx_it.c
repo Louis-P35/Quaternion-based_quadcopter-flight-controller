@@ -57,6 +57,13 @@
 /* External variables --------------------------------------------------------*/
 
 /* USER CODE BEGIN EV */
+#include "PWM/readRadio.hpp"
+
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    PWM_EXTI_Callback(GPIO_Pin);
+}
 
 /* USER CODE END EV */
 

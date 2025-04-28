@@ -44,7 +44,7 @@ void FlyingState::handleState(const double dt)
 }
 
 
-void LandingtState::handleState()
+void LandingtState::handleState(const double dt)
 {
 	// TODO: Handle autonomous landing
 

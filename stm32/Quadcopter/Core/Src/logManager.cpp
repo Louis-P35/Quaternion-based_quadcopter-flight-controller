@@ -45,7 +45,7 @@ void LogManager::serialPrint(const int val)
 	char pBuffer[256];
 	int numBytes;
 
-	numBytes = sprintf(pBuffer, "%d\n", val);
+	numBytes = sprintf(pBuffer, "%d\r\n", val);
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
 }
 
@@ -58,100 +58,48 @@ void LogManager::serialPrint(const float val)
 	char pBuffer[256];
 	int numBytes;
 
-	numBytes = sprintf(pBuffer, "%f", val);
+	numBytes = sprintf(pBuffer, "%f\r\n", val);
 	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+}
+
+
+void LogManager::serialPrint(const Quaternion& q)
+{
+	char pBuffer[256];
+	sprintf(pBuffer,
+		"%4.7f, %4.7f, %4.7f, %4.7f\r\n",
+		q.m_w, q.m_x, q.m_y, q.m_z);
+	serialPrint(pBuffer);
+}
+
+void LogManager::serialPrint(const uint32_t ch1, const uint32_t ch2, const uint32_t ch3, const uint32_t ch4)
+{
+	char pBuffer[256];
+	sprintf(pBuffer,
+		"%d, %d, %d, %d\r\n",
+		ch1, ch2, ch3, ch4);
+	serialPrint(pBuffer);
 }
 
 /*
- * Write a vector on the serial port
+ * Print IMU data
  */
-void LogManager::serialPrint(const Eigen::Vector3d& v)
-{
-	char pBuffer[256];
-	int numBytes;
-
-	int x = static_cast<int>(v(0) * 1000.0);
-	int y = static_cast<int>(v(1) * 1000.0);
-	int z = static_cast<int>(v(2) * 1000.0);
-
-
-	numBytes = sprintf(pBuffer, "%d,%d,%d\n", x, y, z);
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
-}
-
-
-void LogManager::serialPrint(const Eigen::Vector3i& v)
-{
-	char pBuffer[256];
-	int numBytes;
-
-
-	numBytes = sprintf(pBuffer, "%d,%d,%d\n", v(0), v(1), v(2));
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
-}
-
 void LogManager::serialPrint(
-		const Eigen::Vector3d& v1,
-		const Eigen::Vector3d& v2,
-		const Eigen::Vector3d& v3
-		)
+			const double ax, const double ay, const double az,
+			const double gx, const double gy, const double gz,
+			const double mx, const double my, const double mz
+			)
 {
 	char pBuffer[256];
-	int numBytes;
-
-
-	numBytes = sprintf(
-			pBuffer,
-			"%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
-			v1(0),
-			v1(1),
-			v1(2),
-			v2(0),
-			v2(1),
-			v2(2),
-			v3(0),
-			v3(1),
-			v3(2)
-			);
-
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
-}
-
-
-
-
-void LogManager::serialPrint(const Eigen::Quaterniond& q)
-{
-	int w = static_cast<int>(q.w()*10000);
-	int x = static_cast<int>(q.x()*10000);
-	int y = static_cast<int>(q.y()*10000);
-	int z = static_cast<int>(q.z()*10000);
-
-	char pBuffer[256];
-	int numBytes;
-
-
-	numBytes = sprintf(pBuffer, "%d,%d,%d,%d\n", w, x, y, z);
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
-}
-
-void LogManager::serialPrint(const Eigen::Quaterniond& q, const Eigen::Vector3d& v)
-{
-	int w = static_cast<int>(q.w()*10000);
-	int x = static_cast<int>(q.x()*10000);
-	int y = static_cast<int>(q.y()*10000);
-	int z = static_cast<int>(q.z()*10000);
-
-	int vx = static_cast<int>(v(0)*10000);
-	int vy = static_cast<int>(v(1)*10000);
-	int vz = static_cast<int>(v(2)*10000);
-
-	char pBuffer[256];
-	int numBytes;
-
-
-	numBytes = sprintf(pBuffer, "%d,%d,%d,%d,%d,%d,%d", w, x, y, z, vx, vy, vz);
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+	sprintf(pBuffer,
+		"%7.2f, %7.2f, %7.2f, "
+		"%7.2f, %7.2f, %7.2f, "
+		"%7.2f, %7.2f, %7.2f\r\n",
+		ax, ay, az,
+		gx, gy, gz,
+		mx, my, mz
+		);
+	LogManager::getInstance().serialPrint(pBuffer);
 }
 
 /*

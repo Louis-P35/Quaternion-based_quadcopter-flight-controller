@@ -124,7 +124,6 @@ int main(void)
 	// Get the delta time in second
 	const double dt = getEllapsedTime_s(start);
 	// Get the start cycle count
-	timerCounterReset();
 	start = timerCounterGetCycles();
 
     /* USER CODE END WHILE */

@@ -11,9 +11,7 @@
 #include "stm32h7xx_hal.h"
 
 // Project
-
-// External lib
-#include "Utils/Eigen/Dense"
+#include "Utils/quaternion.hpp"
 
 
 /*
@@ -51,15 +49,13 @@ public:
 	void serialPrint(const float val);
 	void serialPrint(const double val);
 	void serialPrint(char* pVal);
-	void serialPrint(const Eigen::Vector3d& v);
-	void serialPrint(const Eigen::Vector3i& v);
-	void serialPrint(const Eigen::Quaterniond& q);
-	void serialPrint(const Eigen::Quaterniond& q, const Eigen::Vector3d& v);
+	void serialPrint(const Quaternion& q);
 	void serialPrint(
-			const Eigen::Vector3d& v1,
-			const Eigen::Vector3d& v2,
-			const Eigen::Vector3d& v3
+			const double ax, const double ay, const double az,
+			const double gx, const double gy, const double gz,
+			const double mx, const double my, const double mz
 			);
+	void serialPrint(const uint32_t ch1, const uint32_t ch2, const uint32_t ch3, const uint32_t ch4);
 };
 
 

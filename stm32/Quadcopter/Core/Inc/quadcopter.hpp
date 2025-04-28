@@ -35,6 +35,9 @@ public:
 	axises m_accel;
 	axises m_mag;
 
+	// Radio
+	uint32_t m_radio[4] = {0};
+
 	// ARHR (Madgwick)
 	MadgwickFilter m_madgwickFilter;
 
