@@ -14,7 +14,6 @@
 #include "Sensors/icm20948.h"
 #include "PID/controlStrategy.hpp"
 #include "AHRS/madgwick.hpp"
-#include "stateMachine.hpp"
 #include "radio.hpp"
 
 // Includes from 3rd party

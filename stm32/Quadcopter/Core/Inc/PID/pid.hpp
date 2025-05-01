@@ -7,20 +7,18 @@
 
 #pragma once
 
-// Project
-
-// External lib
-#include "Utils/Eigen/Dense"
+// Include from project
+#include "Utils/quaternion.hpp"
 
 
 struct PIDConf
 {
-	float m_kp = 0.0f;
-	float m_ki = 0.0f;
-	float m_kd = 0.0f;
-	float m_saturation = 0.0f;
-	float m_outMin = 0.0f;
-	float m_outMax = 0.0f;
+	double m_kp = 0.0;
+	double m_ki = 0.0;
+	double m_kd = 0.0;
+	double m_saturation = 0.0;
+	double m_outMin = 0.0;
+	double m_outMax = 0.0;
 };
 
 
@@ -33,8 +31,8 @@ private:
 	// PID coefficients
 	PIDConf m_conf;
 
-	float m_previousError = 0.0f;
-	float m_sommeError = 0.0f;
+	double m_previousError = 0.0;
+	double m_sommeError = 0.0;
 
 public:
 	// Constructor to initialize PID gains
@@ -45,28 +43,25 @@ public:
 	}
 
 	// For Euler-based PID
-	static float getError(const float& current, const float& target);
+	static double getError(const double& current, const double& target);
 
 	// For Quaternion-based PID
-	static Eigen::Quaternionf getError(
-			const Eigen::Quaternionf& current,
-			const Eigen::Quaternionf& target
-			);
+	static Quaternion getError(const Quaternion& current, const Quaternion& target);
 
-	float computePID(const float& error, const float& dt, const bool& integrate);
+	double computePID(const double& error, const double& dt, const bool& integrate);
 };
 
 
 class PIDBlock : public PID
 {
 public:
-	float m_measure = 0.0f;
-	float m_target = 0.0f;
-	float m_output = 0.0f;
+	double m_measure = 0.0f;
+	double m_target = 0.0f;
+	double m_output = 0.0f;
 
 	PIDBlock() : PID() {}
 
-	inline void run(float dt);
+	inline void run(double dt);
 };
 
 

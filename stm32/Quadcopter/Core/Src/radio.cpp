@@ -22,20 +22,20 @@ bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
 	/* Read the radio receiver */
 	m_radioChannel1 = PWM_GetPulse(0); // Roll
 	m_radioChannel2 = PWM_GetPulse(1); // Pitch
-	m_radioChannel3 = PWM_GetPulse(3); // Thrust
-	m_radioChannel4 = PWM_GetPulse(2); // Yaw
+	m_radioChannel3 = PWM_GetPulse(2); // Yaw
+	m_radioChannel4 = PWM_GetPulse(3); // Thrust
 	//LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
 
 	// Handle signal lost
-	if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel3 == 0)
+	if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel4 == 0)
 	{
 		return true;
 	}
 
 	m_targetRoll = msToDegree(m_radioChannel1, m_targetAngleMax, true);
 	m_targetPitch = msToDegree(m_radioChannel2, m_targetAngleMax, false);
-	m_targetYaw = integrateTargetYaw(m_radioChannel4, dt, isFlying);
-	const double rawThrottle = (static_cast<double>(m_radioChannel3) - 1000.0) / 10.0;
+	m_targetYaw = integrateTargetYaw(m_radioChannel3, dt, true, isFlying);
+	const double rawThrottle = (static_cast<double>(m_radioChannel4) - 1000.0) / 10.0;
 	m_targetThrust = getThrottle(rawThrottle);
 
 	return false;
@@ -84,7 +84,7 @@ double Radio::msToDegree(const uint32_t& duration, const double& amplitudeMax, c
 /*
  * Method to integrate yaw command
  */
-double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& isFlying)
+double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& invertAxe, const bool& isFlying)
 {
 	constexpr double deadZone = 0.05;
 	constexpr double speed = 400.0;
@@ -96,6 +96,11 @@ double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, con
 	}
 
 	double tmp = ((static_cast<double>(duration) - 1000.0) / 1000.0) - 0.5;
+
+	if (invertAxe)
+	{
+		tmp = -tmp;
+	}
 
 	// Hysteresis to have a stable zero
 	if (tmp > -deadZone && tmp < deadZone)

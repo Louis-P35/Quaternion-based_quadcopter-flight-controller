@@ -7,8 +7,9 @@
 
 #pragma once
 
-class StateMachine;
+#include "quadcopter.hpp"
 
+class StateMachine;
 
 /*
  * Abstract base class for the drone flying states
@@ -17,7 +18,7 @@ class State
 {
 public:
 	virtual ~State() = default;
-	virtual void handleState(const double dt) = 0;
+	virtual void handleState(const double dt, DroneController& dc) = 0;
 };
 
 
@@ -28,7 +29,7 @@ class IdleState : public State
 {
 public:
 	~IdleState() override = default;
-	virtual void handleState(const double dt) override;
+	virtual void handleState(const double dt, DroneController& dc) override;
 };
 
 
@@ -41,7 +42,7 @@ class ReadyToTakeOffState : public State
 {
 public:
 	~ReadyToTakeOffState() override = default;
-	virtual void handleState(const double dt) override;
+	virtual void handleState(const double dt, DroneController& dc) override;
 };
 
 
@@ -52,7 +53,7 @@ class TakeOffState : public State
 {
 public:
 	~TakeOffState() override = default;
-	virtual void handleState(const double dt) override;
+	virtual void handleState(const double dt, DroneController& dc) override;
 };
 
 
@@ -63,7 +64,7 @@ class FlyingState : public State
 {
 public:
 	~FlyingState() override = default;
-	virtual void handleState(const double dt) override;
+	virtual void handleState(const double dt, DroneController& dc) override;
 };
 
 
@@ -74,7 +75,7 @@ class LandingtState : public State
 {
 public:
 	~LandingtState() override = default;
-	virtual void handleState(const double dt) override;
+	virtual void handleState(const double dt, DroneController& dc) override;
 };
 
 
@@ -113,11 +114,11 @@ public:
 		m_pState = &nextState;
 	};
 
-	void run(const double dt)
+	void run(const double dt, DroneController& dc)
 	{
 		if (m_pState)
 		{
-			m_pState->handleState(dt);
+			m_pState->handleState(dt, dc);
 		}
 	};
 

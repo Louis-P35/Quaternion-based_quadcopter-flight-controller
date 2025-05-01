@@ -14,7 +14,7 @@
 #include "PID/controlStrategy.hpp"
 #include "Utils/utilsAlgebra.hpp"
 #include "PWM/readRadio.hpp"
-//#include "Utils/matrix.hpp"
+#include "stateMachine.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
 
@@ -147,7 +147,7 @@ void DroneController::mainLoop(const double dt)
 			// Compute target quaternion
 			m_targetAttitude = Quaternion::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
 			// Debug print AHRS result
-			LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
+			//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
 		}
 		else
 		{
@@ -158,9 +158,11 @@ void DroneController::mainLoop(const double dt)
 	}
 
 	// Handle drone behaviour according to the current state
+	// PIDs
+	// 2khz
 	if (mediumLoopDt > MEDIUM_FREQUENCY_LOOP_PERIODE)
 	{
-		StateMachine::getInstance().run(mediumLoopDt);
+		StateMachine::getInstance().run(mediumLoopDt, *this);
 		mediumLoopDt = 0.0;
 	}
 

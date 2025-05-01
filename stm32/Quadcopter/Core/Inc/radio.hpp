@@ -40,5 +40,5 @@ public:
 	bool readRadioReceiver(const bool& isFlying, const double& dt);
 	double getThrottle(const double& radioInput) const;
 	double msToDegree(const uint32_t& duration, const double& amplitudeMax, const bool& invertAxe);
-	double integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& isFlying);
+	double integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& invertAxe, const bool& isFlying);
 };
