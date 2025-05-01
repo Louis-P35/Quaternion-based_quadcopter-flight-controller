@@ -72,6 +72,16 @@ void LogManager::serialPrint(const Quaternion& q)
 	serialPrint(pBuffer);
 }
 
+void LogManager::serialPrint(const Quaternion& q1, const Quaternion& q2)
+{
+	char pBuffer[256];
+	sprintf(pBuffer,
+		"%4.7f, %4.7f, %4.7f, %4.7f, %4.7f, %4.7f, %4.7f, %4.7f\r\n",
+		q1.m_w, q1.m_x, q1.m_y, q1.m_z,
+		q2.m_w, q2.m_x, q2.m_y, q2.m_z);
+	serialPrint(pBuffer);
+}
+
 void LogManager::serialPrint(const uint32_t ch1, const uint32_t ch2, const uint32_t ch3, const uint32_t ch4)
 {
 	char pBuffer[256];

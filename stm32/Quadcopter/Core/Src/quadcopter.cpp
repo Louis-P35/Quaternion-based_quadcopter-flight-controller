@@ -138,9 +138,21 @@ void DroneController::mainLoop(const double dt)
 		// TODO:
 		posHoldLoop = true;
 
-		m_radio.readRadioReceiver(true, veryLowFrequencyLoopDt);
+		const bool signalLost = m_radio.readRadioReceiver(true, veryLowFrequencyLoopDt);
 
-		LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
+		if (!signalLost)
+		{
+			//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
+
+			// Compute target quaternion
+			m_targetAttitude = Quaternion::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
+			// Debug print AHRS result
+			LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
+		}
+		else
+		{
+			// Signal lost, target quaternion is horizon
+		}
 
 		veryLowFrequencyLoopDt = 0.0;
 	}

@@ -64,10 +64,14 @@ void PWM_EXTI_Callback(uint16_t GPIO_Pin)
             }
             else
             {
-				uint32_t pusle = getEllapsedTime_us(pulseStart[i]);
-				if (pusle > 850 && pusle < 2300)
+				uint32_t pulse = getEllapsedTime_us(pulseStart[i]);
+				if (pulse > 950 && pulse < 2200)
 				{
-					pulseWidth[i] = pusle;
+					pulseWidth[i] = pulse;
+				}
+				else
+				{
+					pulseWidth[i] = 0; // Signal lost
 				}
             }
 

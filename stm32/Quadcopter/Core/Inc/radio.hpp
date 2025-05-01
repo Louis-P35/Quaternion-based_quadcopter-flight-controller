@@ -37,9 +37,8 @@ public:
 public:
 	Radio(const double& mid, const double& expo, const double& targetAngleMax);
 
-	void readRadioReceiver(const bool& isFlying, const double& dt);
+	bool readRadioReceiver(const bool& isFlying, const double& dt);
 	double getThrottle(const double& radioInput) const;
 	double msToDegree(const uint32_t& duration, const double& amplitudeMax, const bool& invertAxe);
 	double integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& isFlying);
-	Quaternion getTargetQuaternion();
 };

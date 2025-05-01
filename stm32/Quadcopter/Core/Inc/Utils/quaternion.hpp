@@ -29,6 +29,8 @@ public:
 
   }
 
+  Quaternion() {};
+
   // Return the conjugated quaternion (imaginary component with the reverse sign)
   Quaternion conjugate() const
   {
@@ -109,22 +111,22 @@ public:
     yaw *= RAD_TO_DEGREE;
   }
 
-  // Static function to convert Euler angles to Quaternion (in ZXY order)
+  // Static function to convert Euler angles to Quaternion (in XYZ order) (roll, pitch then yaw)
   static Quaternion fromEuler(const double& roll, const double& pitch, const double& yaw)
   {
-      const double cy = cos(yaw * 0.5);
-      const double sy = sin(yaw * 0.5);
-      const double cp = cos(pitch * 0.5);
-      const double sp = sin(pitch * 0.5);
-      const double cr = cos(roll * 0.5);
-      const double sr = sin(roll * 0.5);
+	  const double cr = cos(roll * 0.5);
+	  const double sr = sin(roll * 0.5);
+	  const double cp = cos(pitch * 0.5);
+	  const double sp = sin(pitch * 0.5);
+	  const double cy = cos(yaw * 0.5);
+	  const double sy = sin(yaw * 0.5);
 
-      const double w = cr * cp * cy + sr * sp * sy;
-      const double x = sr * cp * cy - cr * sp * sy;
-      const double y = cr * sp * cy + sr * cp * sy;
-      const double z = cr * cp * sy - sr * sp * cy;
+	  const double w = cr * cp * cy - sr * sp * sy;
+	  const double x = sr * cp * cy + cr * sp * sy;
+	  const double y = cr * sp * cy - sr * cp * sy;
+	  const double z = cr * cp * sy + sr * sp * cy;
 
-      return Quaternion(w, x, y, z);
+	  return Quaternion(w, x, y, z);
   }
 
   /* Operators override */

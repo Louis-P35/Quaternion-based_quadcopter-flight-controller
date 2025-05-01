@@ -17,7 +17,7 @@ Radio::Radio(const double& mid, const double& expo, const double& targetAngleMax
 	m_b = 1.0 - m_a;
 }
 
-void Radio::readRadioReceiver(const bool& isFlying, const double& dt)
+bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
 {
 	/* Read the radio receiver */
 	m_radioChannel1 = PWM_GetPulse(0); // Roll
@@ -26,11 +26,19 @@ void Radio::readRadioReceiver(const bool& isFlying, const double& dt)
 	m_radioChannel4 = PWM_GetPulse(2); // Yaw
 	//LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
 
+	// Handle signal lost
+	if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel3 == 0)
+	{
+		return true;
+	}
+
 	m_targetRoll = msToDegree(m_radioChannel1, m_targetAngleMax, true);
 	m_targetPitch = msToDegree(m_radioChannel2, m_targetAngleMax, false);
 	m_targetYaw = integrateTargetYaw(m_radioChannel4, dt, isFlying);
 	const double rawThrottle = (static_cast<double>(m_radioChannel3) - 1000.0) / 10.0;
 	m_targetThrust = getThrottle(rawThrottle);
+
+	return false;
 }
 
 
@@ -118,4 +126,10 @@ double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, con
 
 	return m_targetYaw;
 }
+
+
+
+
+
+
 
