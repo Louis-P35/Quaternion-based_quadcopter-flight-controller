@@ -46,6 +46,10 @@ void PWM_Init(GPIO_TypeDef* port0, uint16_t pin0,
     channelPins[3] = pin3;
 }
 
+/*
+ * Called by external interrupt on pin PB0, PB1, PB4 & PB5
+ * Read the PWM high time
+ */
 void PWM_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	__disable_irq();

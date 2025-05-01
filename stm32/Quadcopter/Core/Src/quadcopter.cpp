@@ -37,13 +37,19 @@
 #define YAW_ATT_KI 1.0f
 #define YAW_ATT_KD 1.0f
 
+// Radio control
+#define THROTTLE_MID 0.1 // Around hover point
+#define THROTTLE_EXPO 0.75
+#define TARGET_ANGLE_MAX 45.0
+
 DroneController::DroneController(
 		SPI_HandleTypeDef hspi,
 		uint16_t spi_cs_pin,
 		GPIO_TypeDef* spi_cs_gpio_port,
 		UART_HandleTypeDef uart_ext
 		) :
-		m_huart_ext(uart_ext)
+		m_huart_ext(uart_ext),
+		m_radio(THROTTLE_MID, THROTTLE_EXPO, TARGET_ANGLE_MAX)
 {
 
 }
@@ -131,14 +137,12 @@ void DroneController::mainLoop(const double dt)
 	{
 		// TODO:
 		posHoldLoop = true;
+
+		m_radio.readRadioReceiver(true, veryLowFrequencyLoopDt);
+
+		LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
+
 		veryLowFrequencyLoopDt = 0.0;
-
-		for (int i = 0; i < 4; ++i)
-		{
-			m_radio[i] = PWM_GetPulse(i);
-		}
-
-		LogManager::getInstance().serialPrint(m_radio[0], m_radio[1], m_radio[2], m_radio[3]);
 	}
 
 	// Handle drone behaviour according to the current state

@@ -81,6 +81,15 @@ void LogManager::serialPrint(const uint32_t ch1, const uint32_t ch2, const uint3
 	serialPrint(pBuffer);
 }
 
+void LogManager::serialPrint(const double ch1, const double ch2, const double ch3, const double ch4)
+{
+	char pBuffer[256];
+	sprintf(pBuffer,
+		"%4.4f, %4.4f, %4.4f, %4.4f\r\n",
+		ch1, ch2, ch3, ch4);
+	serialPrint(pBuffer);
+}
+
 /*
  * Print IMU data
  */

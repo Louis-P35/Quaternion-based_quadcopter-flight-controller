@@ -56,6 +56,7 @@ public:
 			const double mx, const double my, const double mz
 			);
 	void serialPrint(const uint32_t ch1, const uint32_t ch2, const uint32_t ch3, const uint32_t ch4);
+	void serialPrint(const double ch1, const double ch2, const double ch3, const double ch4);
 };
 
 

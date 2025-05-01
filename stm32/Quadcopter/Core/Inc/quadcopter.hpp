@@ -15,6 +15,7 @@
 #include "PID/controlStrategy.hpp"
 #include "AHRS/madgwick.hpp"
 #include "stateMachine.hpp"
+#include "radio.hpp"
 
 // Includes from 3rd party
 //#include <AHRS/ESKF.h>
@@ -36,7 +37,7 @@ public:
 	axises m_mag;
 
 	// Radio
-	uint32_t m_radio[4] = {0};
+	Radio m_radio;
 
 	// ARHR (Madgwick)
 	MadgwickFilter m_madgwickFilter;
