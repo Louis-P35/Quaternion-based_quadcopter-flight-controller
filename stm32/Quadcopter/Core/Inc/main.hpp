@@ -59,18 +59,6 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define SPI_CS_Pin GPIO_PIN_4
 #define SPI_CS_GPIO_Port GPIOA
-#define Radio_1_Pin GPIO_PIN_0
-#define Radio_1_GPIO_Port GPIOB
-#define Radio_1_EXTI_IRQn EXTI0_IRQn
-#define Radio_2_Pin GPIO_PIN_1
-#define Radio_2_GPIO_Port GPIOB
-#define Radio_2_EXTI_IRQn EXTI1_IRQn
-#define Radio_3_Pin GPIO_PIN_4
-#define Radio_3_GPIO_Port GPIOB
-#define Radio_3_EXTI_IRQn EXTI4_IRQn
-#define Radio_4_Pin GPIO_PIN_5
-#define Radio_4_GPIO_Port GPIOB
-#define Radio_4_EXTI_IRQn EXTI9_5_IRQn
 
 /* USER CODE BEGIN Private defines */
 

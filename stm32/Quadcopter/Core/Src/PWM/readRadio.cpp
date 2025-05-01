@@ -7,6 +7,8 @@
 
 #include "PWM/readRadio.hpp"
 
+#include "stm32h7xx_ll_exti.h"
+
 #define NUM_CHANNELS 4
 
 static GPIO_TypeDef* channelPorts[NUM_CHANNELS];
@@ -14,6 +16,7 @@ static uint16_t channelPins[NUM_CHANNELS];
 
 volatile uint32_t pulseStart[NUM_CHANNELS] = {0};
 volatile uint32_t pulseWidth[NUM_CHANNELS] = {0};
+volatile bool waitingForFallingEdge[NUM_CHANNELS] = {false};
 
 
 void setupRadio()
@@ -45,22 +48,30 @@ void PWM_Init(GPIO_TypeDef* port0, uint16_t pin0,
 
 void PWM_EXTI_Callback(uint16_t GPIO_Pin)
 {
+	__disable_irq();
+
     for (int i = 0; i < NUM_CHANNELS; ++i)
     {
         if (GPIO_Pin == channelPins[i])
         {
             if (HAL_GPIO_ReadPin(channelPorts[i], channelPins[i]) == GPIO_PIN_SET)
             {
-                pulseStart[i] = timerCounterGetCycles();
+            	pulseStart[i] = timerCounterGetCycles();
             }
             else
             {
-                pulseWidth[i] = getEllapsedTime_us(pulseStart[i]);
+				uint32_t pusle = getEllapsedTime_us(pulseStart[i]);
+				if (pusle > 850 && pusle < 2300)
+				{
+					pulseWidth[i] = pusle;
+				}
             }
 
             break;
         }
     }
+
+    __enable_irq();
 }
 
 uint32_t PWM_GetPulse(int channel)
