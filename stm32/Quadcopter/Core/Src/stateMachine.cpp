@@ -11,21 +11,52 @@
 #include "PID/pid.hpp"
 
 
+void StartupSequenceState::handleState(const double dt, DroneController& dc)
+{
+	m_time += dt;
+
+	// All motors at 0% power
+	dc.setMotorPower(Motor::eMotor1, 0.0);
+	dc.setMotorPower(Motor::eMotor2, 0.0);
+	dc.setMotorPower(Motor::eMotor3, 0.0);
+	dc.setMotorPower(Motor::eMotor3, 0.0);
+
+	// Wait 1s
+	if (m_time > 1.0)
+	{
+		m_time = 0.0; // Reset time
+
+		// Goto idle state
+		StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
+	}
+}
+
+
 void IdleState::handleState(const double dt, DroneController& dc)
 {
-	// TODO: Wait for throttle all the way down from the controller
+	// All motors at 0% power
+	dc.setMotorPower(Motor::eMotor1, 0.0);
+	dc.setMotorPower(Motor::eMotor2, 0.0);
+	dc.setMotorPower(Motor::eMotor3, 0.0);
+	dc.setMotorPower(Motor::eMotor3, 0.0);
 
-	// Goto ready to take off state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getReadyToTakeOffState());
+	// Wait for throttle all the way down from the controller
+	if (dc.m_radio.m_targetThrust < 0.05)
+	{
+		// Goto ready to take off state
+		StateMachine::getInstance().setState(StateMachine::getInstance().getReadyToTakeOffState());
+	}
 }
 
 
 void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
 {
-	// TODO: Wait for throttle little increase from the controller
-
-	// Goto ready to flying state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getTakeOffState());
+	// Wait for throttle little increase from the controller
+	if (dc.m_radio.m_targetThrust > 0.06)
+	{
+		// Goto ready to flying state
+		StateMachine::getInstance().setState(StateMachine::getInstance().getTakeOffState());
+	}
 }
 
 

@@ -251,6 +251,50 @@ void DroneController::gyroAccelCalibration()
 
 
 /*
+ * Set PWM's high time to control ESCs.
+ * power = [0.0, 1.0]
+ */
+void DroneController::setMotorPower(const Motor motor, const double power)
+{
+	constexpr double pwmRes = 500.0;
+	constexpr int pwmResMin = static_cast<int>(pwmRes);
+	constexpr int pwmResMax = 2*pwmResMin;
+
+	int high = static_cast<int>(pwmRes + power * pwmRes);
+	if (high < pwmResMin)
+	{
+		high = pwmResMin;
+	}
+	else if (high > pwmResMax)
+	{
+		high = pwmResMax;
+	}
+
+	switch(motor)
+	{
+	case Motor::eMotor1:
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, high);
+		break;
+
+	case Motor::eMotor2:
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, high);
+		break;
+
+	case Motor::eMotor3:
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, high);
+		break;
+
+	case Motor::eMotor4:
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, high);
+		break;
+
+	default:
+		break;
+	}
+}
+
+
+/*
  * Calibrate magnetometer.
  * Print the "center of the sphere" over UART.
  * Run this function and move the IMU in every direction.

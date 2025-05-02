@@ -20,6 +20,9 @@
 //#include <AHRS/ESKF.h>
 
 
+enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
+
+
 /*
  * This class is the main class of this flight controller
  * The 'mainSetup' method is called once by the main function
@@ -70,8 +73,7 @@ public:
 	void mainSetup();
 	void mainLoop(const double dt);
 
-	void print(int val);
-	void print(float val);
+	void setMotorPower(const Motor motor, const double power);
 
 private:
 	void gyroAccelCalibration();

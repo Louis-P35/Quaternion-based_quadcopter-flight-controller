@@ -23,6 +23,20 @@ public:
 
 
 /*
+ * In this state the drone is performing the ESCs' startup sequence.
+ */
+class StartupSequenceState : public State
+{
+private:
+	double m_time = 0.0;
+
+public:
+	~StartupSequenceState() override = default;
+	virtual void handleState(const double dt, DroneController& dc) override;
+};
+
+
+/*
  * In this state the drone is in safe mode, propellers are not spinning.
  */
 class IdleState : public State
@@ -84,13 +98,14 @@ class StateMachine
 {
 private:
 	// States static instances (this class is a singleton)
+	StartupSequenceState m_startupSequenceState;
 	IdleState m_idleState;
 	ReadyToTakeOffState m_readyToTakeOffState;
 	TakeOffState m_takeOffState;
 	FlyingState m_flyingState;
 	LandingtState m_landingState;
 
-	State* m_pState = &m_idleState;
+	State* m_pState = &m_startupSequenceState;
 
 private:
 	StateMachine() = default;
@@ -123,6 +138,7 @@ public:
 	};
 
 	// Getters
+	StartupSequenceState& getStartupSequenceState() {return m_startupSequenceState;};
 	IdleState& getIdleState() {return m_idleState;};
 	ReadyToTakeOffState& getReadyToTakeOffState() {return m_readyToTakeOffState;};
 	TakeOffState& getTakeOffState() {return m_takeOffState;};
