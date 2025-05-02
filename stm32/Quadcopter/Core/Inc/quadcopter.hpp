@@ -29,6 +29,7 @@ class DroneController
 {
 public:
 	UART_HandleTypeDef m_huart_ext;
+	TIM_HandleTypeDef& m_htim1;
 
 	// IMU data
 	axises m_gyro;
@@ -63,7 +64,8 @@ public:
 			SPI_HandleTypeDef hspi,
 			uint16_t spi_cs_pin,
 			GPIO_TypeDef* spi_cs_gpio_port,
-			UART_HandleTypeDef uart_ext
+			UART_HandleTypeDef uart_ext,
+			TIM_HandleTypeDef& htim1
 			);
 	void mainSetup();
 	void mainLoop(const double dt);

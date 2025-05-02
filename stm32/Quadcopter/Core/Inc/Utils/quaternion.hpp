@@ -7,6 +7,10 @@
 
 #pragma once
 
+// Includes from project
+#include "Utils/vector.hpp"
+
+// Includes from STL
 #include <cmath>
 
 #define RAD_TO_DEGREE (180.0 / M_PI)
@@ -146,6 +150,52 @@ public:
 	{
 	    return (q.m_w >= 0.0) ? q : Quaternion(-q.m_w, -q.m_x, -q.m_y, -q.m_z);
 	}
+
+
+	/*
+	 * Get the quaternion's axis of rotation and angle of rotation in radian.
+	 */
+	void toAxisAngle(Vector3& axis, double& angleRad) const
+	{
+	    Quaternion q = *this;
+
+	    // Normalize to ensure it's a unit quaternion
+	    q.normalize();
+
+	    // Clamp w to [-1, 1] to avoid domain errors in acos
+	    double w_clamped = q.m_w;
+	    if (w_clamped > 1.0)
+	    {
+	    	w_clamped = 1.0;
+	    }
+	    if (w_clamped < -1.0)
+	    {
+	    	w_clamped = -1.0;
+	    }
+
+	    // Compute the angle (in radians)
+	    angleRad = 2.0f * static_cast<double>(acos(w_clamped));
+
+	    // Compute the scale factor (norm of the imaginary part)
+	    double s = std::sqrt(1.0 - w_clamped * w_clamped);
+
+	    if (s < 1e-6)
+	    {
+	        // If s is very small, the rotation is near zero; axis is arbitrary
+	        axis.m_x = static_cast<double>(q.m_x);
+	        axis.m_y = static_cast<double>(q.m_y);
+	        axis.m_z = static_cast<double>(q.m_z);
+	    }
+	    else
+	    {
+	        // Normalize the imaginary part to get the rotation axis
+	        axis.m_x = static_cast<double>(q.m_x / s);
+	        axis.m_y = static_cast<double>(q.m_y / s);
+	        axis.m_z = static_cast<double>(q.m_z / s);
+	    }
+	}
+
+
 
   /* Operators override */
 

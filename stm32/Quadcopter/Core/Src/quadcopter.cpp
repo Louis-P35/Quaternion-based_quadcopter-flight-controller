@@ -46,9 +46,11 @@ DroneController::DroneController(
 		SPI_HandleTypeDef hspi,
 		uint16_t spi_cs_pin,
 		GPIO_TypeDef* spi_cs_gpio_port,
-		UART_HandleTypeDef uart_ext
+		UART_HandleTypeDef uart_ext,
+		TIM_HandleTypeDef& htim1
 		) :
 		m_huart_ext(uart_ext),
+		m_htim1(htim1),
 		m_radio(THROTTLE_MID, THROTTLE_EXPO, TARGET_ANGLE_MAX)
 {
 
@@ -153,6 +155,14 @@ void DroneController::mainLoop(const double dt)
 		{
 			// Signal lost, target quaternion is horizon
 		}
+
+		int power = static_cast<int>(500.0 + (m_radio.m_targetThrust / 14000.0) * 500.0);
+		//LogManager::getInstance().serialPrint(power);
+
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, power);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, power);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, power);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, power);
 
 		veryLowFrequencyLoopDt = 0.0;
 	}

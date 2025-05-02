@@ -38,38 +38,38 @@ void TakeOffState::handleState(const double dt, DroneController& dc)
 }
 
 
+/*
+ * Handle flying
+ */
 void FlyingState::handleState(const double dt, DroneController& dc)
 {
-	// TODO: Handle flying
-
 	Quaternion qEst = Quaternion::canonical(dc.m_madgwickFilter.m_qEst);
 	Quaternion qTarget = Quaternion::canonical(dc.m_targetAttitude);
 
 	// Get attitude error
 	Quaternion qError = PID::getError(qEst, qTarget);
 
-	Quaternion qTest = qError * qEst;
-	qTest.normalize();
+	//Quaternion qTest = qError * qEst;
+	//qTest.normalize();
 
-	/*double angle = 2.0 * acos(fabs(qTest.dotProduct(qTarget)));
-	if (angle < 0.01)
-	{
-	    LogManager::getInstance().serialPrint("✓ Quaternions math OK\n\r");
-	}
-	else
-	{
-	    LogManager::getInstance().serialPrint("✗ Quaternion mismatch\n\r");
-	    LogManager::getInstance().serialPrint(angle);
-	    LogManager::getInstance().serialPrint(qEst);
-	    LogManager::getInstance().serialPrint(qEstInv);
-	    LogManager::getInstance().serialPrint(qTarget);
-	    LogManager::getInstance().serialPrint(qError);
-	    LogManager::getInstance().serialPrint(qTest);
-	}*/
+	// Get the angle and axis of rotation
+	Vector3 rotAxis;
+	double angleRad = 0.0;
+	qError.toAxisAngle(rotAxis, angleRad);
+
+	// Projection of the rotation axis onto the 3 axis of the drone
+	// It is NOT Euler angles here, so no singularity
+	double rollError = rotAxis.m_x * angleRad;
+	double pitchError = rotAxis.m_y * angleRad;
+	double yawError = rotAxis.m_z * angleRad;
+
+	//LogManager::getInstance().serialPrint(rollError, pitchError, yawError, 0.0);
+
+
 
 	// Debug print AHRS result
 	//LogManager::getInstance().serialPrint(qEst, qTarget);
-	LogManager::getInstance().serialPrint(qTest, qTarget);
+	//LogManager::getInstance().serialPrint(qTest, qTarget);
 	//LogManager::getInstance().serialPrint(dc.m_madgwickFilter.m_qEst, dc.m_targetAttitude);
 
 	//StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());

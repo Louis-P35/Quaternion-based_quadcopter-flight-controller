@@ -6,8 +6,10 @@
  */
 
 
+// Includes from projects
 #include "radio.hpp"
 #include "PWM/readRadio.hpp"
+#include "logManager.hpp"
 
 Radio::Radio(const double& mid, const double& expo, const double& targetAngleMax)
 : m_throttleMID(mid), m_throttleExpo(expo), m_targetAngleMax(targetAngleMax)
@@ -24,7 +26,7 @@ bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
 	m_radioChannel2 = PWM_GetPulse(1); // Pitch
 	m_radioChannel3 = PWM_GetPulse(2); // Yaw
 	m_radioChannel4 = PWM_GetPulse(3); // Thrust
-	//LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
+	LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
 
 	// Handle signal lost
 	if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel4 == 0)
