@@ -16,10 +16,10 @@ void StartupSequenceState::handleState(const double dt, DroneController& dc)
 	m_time += dt;
 
 	// All motors at 0% power
-	dc.m_motor1Power = 0.0;
-	dc.m_motor2Power = 0.0;
-	dc.m_motor3Power = 0.0;
-	dc.m_motor4Power = 0.0;
+	dc.m_thrust = 0.0;
+	dc.m_torqueX = 0.0;
+	dc.m_torqueY = 0.0;
+	dc.m_torqueZ = 0.0;
 
 	//LogManager::getInstance().serialPrint("StartupSequenceState\n\r");
 	//LogManager::getInstance().serialPrint(m_time);
@@ -38,10 +38,10 @@ void StartupSequenceState::handleState(const double dt, DroneController& dc)
 void IdleState::handleState(const double dt, DroneController& dc)
 {
 	// All motors at 0% power
-	dc.m_motor1Power = 0.0;
-	dc.m_motor2Power = 0.0;
-	dc.m_motor3Power = 0.0;
-	dc.m_motor4Power = 0.0;
+	dc.m_thrust = 0.0;
+	dc.m_torqueX = 0.0;
+	dc.m_torqueY = 0.0;
+	dc.m_torqueZ = 0.0;
 
 	//LogManager::getInstance().serialPrint("IdleState\n\r");
 	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
@@ -60,10 +60,10 @@ void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
 	LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
 	LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
 
-	dc.m_motor1Power = dc.m_radio.m_targetThrust;
-	dc.m_motor2Power = dc.m_radio.m_targetThrust;
-	dc.m_motor3Power = dc.m_radio.m_targetThrust;
-	dc.m_motor4Power = dc.m_radio.m_targetThrust;
+	dc.m_thrust = dc.m_radio.m_targetThrust;
+	dc.m_torqueX = 0.0;
+	dc.m_torqueY = 0.0;
+	dc.m_torqueZ = 0.0;
 
 	// Wait for throttle little increase from the controller
 	if (!dc.m_radio.m_signalLost && dc.m_radio.m_targetThrust > (dc.m_radio.m_throttleHoverOffset + 0.01))
@@ -110,10 +110,10 @@ void FlyingState::handleState(const double dt, DroneController& dc)
 	double pitchError = rotAxis.m_y * angleRad;
 	double yawError = rotAxis.m_z * angleRad;
 
-	dc.m_motor1Power = dc.m_radio.m_targetThrust;
-	dc.m_motor2Power = dc.m_radio.m_targetThrust;
-	dc.m_motor3Power = dc.m_radio.m_targetThrust;
-	dc.m_motor4Power = dc.m_radio.m_targetThrust;
+	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0;
+	dc.m_torqueX = 0.0;
+	dc.m_torqueY = 0.0;
+	dc.m_torqueZ = 0.0;
 
 	//LogManager::getInstance().serialPrint(rollError, pitchError, yawError, 0.0);
 

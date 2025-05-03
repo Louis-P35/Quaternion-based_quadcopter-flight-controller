@@ -42,7 +42,13 @@
 #define THROTTLE_EXPO 0.99
 #define TARGET_ANGLE_MAX 45.0
 
+
+// TODOs:
+// Offset hover quaternion
+// Set hover thrust offset precisely
 // Vector control
+// PIDs & map to motors
+
 
 DroneController::DroneController(
 		SPI_HandleTypeDef hspi,
@@ -182,10 +188,13 @@ void DroneController::mainLoop(const double dt)
 	if (escsFrequencyLoopDt > ESCs_FREQUENCY_LOOP_PERIODE)
 	{
 		// PWM update
-		setMotorPower(Motor::eMotor1, m_motor1Power);
-		setMotorPower(Motor::eMotor2, m_motor2Power);
-		setMotorPower(Motor::eMotor3, m_motor3Power);
-		setMotorPower(Motor::eMotor4, m_motor4Power);
+		m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
+		m_motorMixer.clampRescale();
+
+		setMotorPower(Motor::eMotor1, m_motorMixer.m_powerMotor[0]);
+		setMotorPower(Motor::eMotor2, m_motorMixer.m_powerMotor[1]);
+		setMotorPower(Motor::eMotor3, m_motorMixer.m_powerMotor[2]);
+		setMotorPower(Motor::eMotor4, m_motorMixer.m_powerMotor[3]);
 
 		escsFrequencyLoopDt = 0.0;
 	}

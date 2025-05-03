@@ -15,6 +15,7 @@
 #include "PID/controlStrategy.hpp"
 #include "AHRS/madgwick.hpp"
 #include "radio.hpp"
+#include "Motors/motorMixer.hpp"
 
 // Includes from 3rd party
 //#include <AHRS/ESKF.h>
@@ -46,11 +47,12 @@ public:
 	// ARHR (Madgwick)
 	MadgwickFilter m_madgwickFilter;
 
-	// MotorPower
-	double m_motor1Power = 0.0;
-	double m_motor2Power = 0.0;
-	double m_motor3Power = 0.0;
-	double m_motor4Power = 0.0;
+	// Motors power
+	double m_thrust = 0.0;
+	double m_torqueX = 0.0;
+	double m_torqueY = 0.0;
+	double m_torqueZ = 0.0;
+	XquadMixer m_motorMixer;
 
 	// AHRS (EKF)
 	//IMU_EKF::ESKF<double> m_EKF;
