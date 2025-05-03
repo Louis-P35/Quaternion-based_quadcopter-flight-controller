@@ -16,13 +16,16 @@ void StartupSequenceState::handleState(const double dt, DroneController& dc)
 	m_time += dt;
 
 	// All motors at 0% power
-	dc.setMotorPower(Motor::eMotor1, 0.0);
-	dc.setMotorPower(Motor::eMotor2, 0.0);
-	dc.setMotorPower(Motor::eMotor3, 0.0);
-	dc.setMotorPower(Motor::eMotor3, 0.0);
+	dc.m_motor1Power = 0.0;
+	dc.m_motor2Power = 0.0;
+	dc.m_motor3Power = 0.0;
+	dc.m_motor4Power = 0.0;
 
-	// Wait 1s
-	if (m_time > 1.0)
+	//LogManager::getInstance().serialPrint("StartupSequenceState\n\r");
+	//LogManager::getInstance().serialPrint(m_time);
+
+	// Wait 2s
+	if (m_time > 2.0)
 	{
 		m_time = 0.0; // Reset time
 
@@ -35,13 +38,16 @@ void StartupSequenceState::handleState(const double dt, DroneController& dc)
 void IdleState::handleState(const double dt, DroneController& dc)
 {
 	// All motors at 0% power
-	dc.setMotorPower(Motor::eMotor1, 0.0);
-	dc.setMotorPower(Motor::eMotor2, 0.0);
-	dc.setMotorPower(Motor::eMotor3, 0.0);
-	dc.setMotorPower(Motor::eMotor3, 0.0);
+	dc.m_motor1Power = 0.0;
+	dc.m_motor2Power = 0.0;
+	dc.m_motor3Power = 0.0;
+	dc.m_motor4Power = 0.0;
+
+	//LogManager::getInstance().serialPrint("IdleState\n\r");
+	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
 
 	// Wait for throttle all the way down from the controller
-	if (dc.m_radio.m_targetThrust < 0.05)
+	if (!dc.m_radio.m_signalLost && dc.m_radio.m_targetThrust < (dc.m_radio.m_throttleHoverOffset + 0.01))
 	{
 		// Goto ready to take off state
 		StateMachine::getInstance().setState(StateMachine::getInstance().getReadyToTakeOffState());
@@ -51,8 +57,16 @@ void IdleState::handleState(const double dt, DroneController& dc)
 
 void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
 {
+	LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
+	LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
+
+	dc.m_motor1Power = dc.m_radio.m_targetThrust;
+	dc.m_motor2Power = dc.m_radio.m_targetThrust;
+	dc.m_motor3Power = dc.m_radio.m_targetThrust;
+	dc.m_motor4Power = dc.m_radio.m_targetThrust;
+
 	// Wait for throttle little increase from the controller
-	if (dc.m_radio.m_targetThrust > 0.06)
+	if (!dc.m_radio.m_signalLost && dc.m_radio.m_targetThrust > (dc.m_radio.m_throttleHoverOffset + 0.01))
 	{
 		// Goto ready to flying state
 		StateMachine::getInstance().setState(StateMachine::getInstance().getTakeOffState());
@@ -63,6 +77,8 @@ void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
 void TakeOffState::handleState(const double dt, DroneController& dc)
 {
 	// TODO: Handle take off autonomously
+
+	//LogManager::getInstance().serialPrint("TakeOffState\n\r");
 
 	// Goto to flying state
 	StateMachine::getInstance().setState(StateMachine::getInstance().getFlyingState());
@@ -94,9 +110,14 @@ void FlyingState::handleState(const double dt, DroneController& dc)
 	double pitchError = rotAxis.m_y * angleRad;
 	double yawError = rotAxis.m_z * angleRad;
 
+	dc.m_motor1Power = dc.m_radio.m_targetThrust;
+	dc.m_motor2Power = dc.m_radio.m_targetThrust;
+	dc.m_motor3Power = dc.m_radio.m_targetThrust;
+	dc.m_motor4Power = dc.m_radio.m_targetThrust;
+
 	//LogManager::getInstance().serialPrint(rollError, pitchError, yawError, 0.0);
 
-
+	//LogManager::getInstance().serialPrint("FlyingState\n\r");
 
 	// Debug print AHRS result
 	//LogManager::getInstance().serialPrint(qEst, qTarget);

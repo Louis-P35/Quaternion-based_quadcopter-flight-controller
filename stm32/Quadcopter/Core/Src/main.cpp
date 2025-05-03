@@ -130,8 +130,8 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t start = 0;
-  HAL_Delay(10); // Avoid first dt = 0
+  uint32_t start = timerCounterGetCycles();
+  HAL_Delay(1); // Avoid first dt = 0
   while (1)
   {
 	// Get the delta time in second

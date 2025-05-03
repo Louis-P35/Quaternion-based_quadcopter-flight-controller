@@ -46,6 +46,12 @@ public:
 	// ARHR (Madgwick)
 	MadgwickFilter m_madgwickFilter;
 
+	// MotorPower
+	double m_motor1Power = 0.0;
+	double m_motor2Power = 0.0;
+	double m_motor3Power = 0.0;
+	double m_motor4Power = 0.0;
+
 	// AHRS (EKF)
 	//IMU_EKF::ESKF<double> m_EKF;
 	// Magnetometer calibration

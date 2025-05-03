@@ -11,12 +11,10 @@
 #include "PWM/readRadio.hpp"
 #include "logManager.hpp"
 
-Radio::Radio(const double& mid, const double& expo, const double& targetAngleMax)
-: m_throttleMID(mid), m_throttleExpo(expo), m_targetAngleMax(targetAngleMax)
+Radio::Radio(const double& hoverOffset, const double& expo, const double& targetAngleMax)
+: m_throttleHoverOffset(hoverOffset), m_throttleExpo(expo), m_targetAngleMax(targetAngleMax)
 {
-	// Calculate A and B coefficients for throttle curve
-	m_a = (1.0 - m_throttleMID) / pow(m_throttleMID, m_throttleExpo);
-	m_b = 1.0 - m_a;
+
 }
 
 bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
@@ -26,18 +24,21 @@ bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
 	m_radioChannel2 = PWM_GetPulse(1); // Pitch
 	m_radioChannel3 = PWM_GetPulse(2); // Yaw
 	m_radioChannel4 = PWM_GetPulse(3); // Thrust
-	LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
+	//LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
+	// 1070 - 1941
 
 	// Handle signal lost
 	if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel4 == 0)
 	{
+		m_signalLost = true;
 		return true;
 	}
+	m_signalLost = false;
 
 	m_targetRoll = msToDegree(m_radioChannel1, m_targetAngleMax, true);
 	m_targetPitch = msToDegree(m_radioChannel2, m_targetAngleMax, false);
 	m_targetYaw = integrateTargetYaw(m_radioChannel3, dt, true, isFlying);
-	const double rawThrottle = (static_cast<double>(m_radioChannel4) - 1000.0) / 10.0;
+	const double rawThrottle = (static_cast<double>(m_radioChannel4) - m_rawThrustRadioMin) / (m_rawThrustRadioMax - m_rawThrustRadioMin);
 	m_targetThrust = getThrottle(rawThrottle);
 
 	return false;
@@ -48,9 +49,45 @@ bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
  * Return the throttle value according to the radio receiver input
  * and the defined throttle curve.
  */
-double Radio::getThrottle(const double& radioInput) const
+double Radio::getThrottle(double radioInput) const
 {
-	return radioInput * (m_a * pow(radioInput, m_throttleExpo) + m_b);
+	if (radioInput < 0.0)
+	{
+		radioInput = 0.0;
+	}
+	else if (radioInput > 1.0)
+	{
+		radioInput = 1.0;
+	}
+
+	// The thrust is proportional to the square of the propeller velocity.
+	// So we compute the radio input square root to make the thrust proportional
+	// to the radio stick.
+	double linearized = std::sqrt(radioInput);
+
+	// From there the expo function give more precision close to the ground
+	double expoPart = (1.0 - m_throttleExpo) * linearized + m_throttleExpo * linearized * linearized * linearized;
+	//LogManager::getInstance().serialPrint(expoPart);
+
+	// Hover point
+	double out = m_throttleHoverOffset + expoPart * (1.0 - m_throttleHoverOffset);
+	//LogManager::getInstance().serialPrint(out);
+	if (out < 0.0)
+	{
+		out = 0.0;
+	}
+	else if (out > 1.0)
+	{
+		out = 1.0;
+	}
+
+	// Totally shut down motors if stick is all the way down
+	if (expoPart < 0.01)
+	{
+		out = 0.0;
+	}
+
+	return out;
 }
 
 

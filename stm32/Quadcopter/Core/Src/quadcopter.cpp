@@ -20,14 +20,14 @@
 
 
 // Loops' frequency definitions
-#define HIGH_FREQUENCY_LOOP 6000.0
-#define HIGH_FREQUENCY_LOOP_PERIODE (1.0/HIGH_FREQUENCY_LOOP)
-#define MEDIUM_FREQUENCY_LOOP 2000.0
-#define MEDIUM_FREQUENCY_LOOP_PERIODE (1.0/MEDIUM_FREQUENCY_LOOP)
-#define LOW_FREQUENCY_LOOP 500.0
-#define LOW_FREQUENCY_LOOP_PERIODE (1.0/LOW_FREQUENCY_LOOP)
-#define VERY_LOW_FREQUENCY_LOOP 50.0
-#define VERY_LOW_FREQUENCY_LOOP_PERIODE (1.0/VERY_LOW_FREQUENCY_LOOP)
+#define AHRS_FREQUENCY_LOOP 6000.0
+#define AHRS_FREQUENCY_LOOP_PERIODE (1.0/AHRS_FREQUENCY_LOOP)
+#define PID_FREQUENCY_LOOP 2000.0
+#define PID_FREQUENCY_LOOP_PERIODE (1.0/PID_FREQUENCY_LOOP)
+#define ESCs_FREQUENCY_LOOP 480.0
+#define ESCs_FREQUENCY_LOOP_PERIODE (1.0/ESCs_FREQUENCY_LOOP)
+#define RADIO_FREQUENCY_LOOP 50.0
+#define RADIO_FREQUENCY_LOOP_PERIODE (1.0/RADIO_FREQUENCY_LOOP)
 
 #define ROLLPITCH_ATT_KP 1.0f
 #define ROLLPITCH_ATT_KI 1.0f
@@ -38,9 +38,11 @@
 #define YAW_ATT_KD 1.0f
 
 // Radio control
-#define THROTTLE_MID 0.1 // Around hover point
-#define THROTTLE_EXPO 0.75
+#define THROTTLE_HOVER_OFFSET 0.1 // Around hover point
+#define THROTTLE_EXPO 0.99
 #define TARGET_ANGLE_MAX 45.0
+
+// Vector control
 
 DroneController::DroneController(
 		SPI_HandleTypeDef hspi,
@@ -51,7 +53,7 @@ DroneController::DroneController(
 		) :
 		m_huart_ext(uart_ext),
 		m_htim1(htim1),
-		m_radio(THROTTLE_MID, THROTTLE_EXPO, TARGET_ANGLE_MAX)
+		m_radio(THROTTLE_HOVER_OFFSET, THROTTLE_EXPO, TARGET_ANGLE_MAX)
 {
 
 }
@@ -79,8 +81,8 @@ void DroneController::mainSetup()
 	// Setup PWM reading for radio receiver
 	setupRadio();
 
-	// Set Idle state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
+	// Set Startup state
+	StateMachine::getInstance().setState(StateMachine::getInstance().getStartupSequenceState());
 }
 
 
@@ -96,12 +98,12 @@ void DroneController::mainLoop(const double dt)
 	// Very low frequency loop: (~50hz): Position hold PID
 
 	bool posHoldLoop = false;
-	static double mediumLoopDt = 0.0;
-	static double lowFrequencyLoopDt = 0.0;
-	static double veryLowFrequencyLoopDt = 0.0;
-	mediumLoopDt += dt;
-	lowFrequencyLoopDt += dt;
-	veryLowFrequencyLoopDt += dt;
+	static double pidLoopDt = 0.0;
+	static double escsFrequencyLoopDt = 0.0;
+	static double radioFrequencyLoopDt = 0.0;
+	pidLoopDt += dt;
+	escsFrequencyLoopDt += dt;
+	radioFrequencyLoopDt += dt;
 
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
@@ -135,12 +137,12 @@ void DroneController::mainLoop(const double dt)
 		);
 
 	// Read radio
-	if (veryLowFrequencyLoopDt > VERY_LOW_FREQUENCY_LOOP_PERIODE)
+	if (radioFrequencyLoopDt > RADIO_FREQUENCY_LOOP_PERIODE)
 	{
 		// TODO:
 		posHoldLoop = true;
 
-		const bool signalLost = m_radio.readRadioReceiver(true, veryLowFrequencyLoopDt);
+		const bool signalLost = m_radio.readRadioReceiver(true, radioFrequencyLoopDt);
 
 		if (!signalLost)
 		{
@@ -156,31 +158,36 @@ void DroneController::mainLoop(const double dt)
 			// Signal lost, target quaternion is horizon
 		}
 
-		int power = static_cast<int>(500.0 + (m_radio.m_targetThrust / 14000.0) * 500.0);
+		/*int power = static_cast<int>(500.0 + (m_radio.m_targetThrust / 14000.0) * 500.0);
 		//LogManager::getInstance().serialPrint(power);
 
 		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, power);
 		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, power);
 		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, power);
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, power);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, power);*/
 
-		veryLowFrequencyLoopDt = 0.0;
+		radioFrequencyLoopDt = 0.0;
 	}
 
 	// Handle drone behaviour according to the current state
 	// PIDs
 	// 2khz
-	if (mediumLoopDt > MEDIUM_FREQUENCY_LOOP_PERIODE)
+	if (pidLoopDt > PID_FREQUENCY_LOOP_PERIODE)
 	{
-		StateMachine::getInstance().run(mediumLoopDt, *this);
-		mediumLoopDt = 0.0;
+		StateMachine::getInstance().run(pidLoopDt, *this);
+		pidLoopDt = 0.0;
 	}
 
 	// Motors update
-	if (lowFrequencyLoopDt > LOW_FREQUENCY_LOOP_PERIODE)
+	if (escsFrequencyLoopDt > ESCs_FREQUENCY_LOOP_PERIODE)
 	{
-		// TODO: PWM update
-		lowFrequencyLoopDt = 0.0;
+		// PWM update
+		setMotorPower(Motor::eMotor1, m_motor1Power);
+		setMotorPower(Motor::eMotor2, m_motor2Power);
+		setMotorPower(Motor::eMotor3, m_motor3Power);
+		setMotorPower(Motor::eMotor4, m_motor4Power);
+
+		escsFrequencyLoopDt = 0.0;
 	}
 
 	// Debug print AHRS result
