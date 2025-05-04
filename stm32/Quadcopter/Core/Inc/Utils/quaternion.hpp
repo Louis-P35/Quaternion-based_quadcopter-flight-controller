@@ -174,7 +174,7 @@ public:
 	    }
 
 	    // Compute the angle (in radians)
-	    angleRad = 2.0f * static_cast<double>(acos(w_clamped));
+	    angleRad = 2.0 * static_cast<double>(acos(w_clamped));
 
 	    // Compute the scale factor (norm of the imaginary part)
 	    double s = std::sqrt(1.0 - w_clamped * w_clamped);

@@ -19,15 +19,27 @@
 // screen /dev/tty.usbserial-14220 115200
 
 
+// SCHEDULER
 // Loops' frequency definitions
 #define AHRS_FREQUENCY_LOOP 6000.0
 #define AHRS_FREQUENCY_LOOP_PERIODE (1.0/AHRS_FREQUENCY_LOOP)
-#define PID_FREQUENCY_LOOP 2000.0
-#define PID_FREQUENCY_LOOP_PERIODE (1.0/PID_FREQUENCY_LOOP)
+
+#define PID_RATE_FREQUENCY_LOOP 2000.0
+#define PID_RATE_FREQUENCY_LOOP_PERIODE (1.0/PID_RATE_FREQUENCY_LOOP)
+
+#define PID_ANGLE_FREQUENCY_LOOP 500.0
+#define PID_ANGLE_FREQUENCY_LOOP_PERIODE (1.0/PID_ANGLE_FREQUENCY_LOOP)
+
+#define PID_POS_FREQUENCY_LOOP 50.0
+#define PID_POS_FREQUENCY_LOOP_PERIODE (1.0/PID_POS_FREQUENCY_LOOP)
+
 #define ESCs_FREQUENCY_LOOP 480.0
 #define ESCs_FREQUENCY_LOOP_PERIODE (1.0/ESCs_FREQUENCY_LOOP)
+
 #define RADIO_FREQUENCY_LOOP 50.0
 #define RADIO_FREQUENCY_LOOP_PERIODE (1.0/RADIO_FREQUENCY_LOOP)
+
+
 
 #define ROLLPITCH_ATT_KP 1.0f
 #define ROLLPITCH_ATT_KI 1.0f
@@ -48,6 +60,8 @@
 // Set hover thrust offset precisely
 // Vector control
 // PIDs & map to motors
+// Rename Quadcopter -> Scheduler
+// Remove Eigen
 
 
 DroneController::DroneController(
@@ -103,13 +117,13 @@ void DroneController::mainLoop(const double dt)
 	// Low frequency loop (~500hz): PWM motor update
 	// Very low frequency loop: (~50hz): Position hold PID
 
-	bool posHoldLoop = false;
-	static double pidLoopDt = 0.0;
-	static double escsFrequencyLoopDt = 0.0;
-	static double radioFrequencyLoopDt = 0.0;
-	pidLoopDt += dt;
-	escsFrequencyLoopDt += dt;
-	radioFrequencyLoopDt += dt;
+	m_pidRateLoopDt += dt;
+	m_pidAngleLoopDt += dt;
+	m_pidPosLoopDt += dt;
+	m_escsLoopDt += dt;
+	m_radioLoopDt += dt;
+
+	// Fast loop (6khz)
 
 	// Read IMU
 	icm20948_gyro_read_dps(&m_gyro);
@@ -142,13 +156,13 @@ void DroneController::mainLoop(const double dt)
 		dt
 		);
 
-	// Read radio
-	if (radioFrequencyLoopDt > RADIO_FREQUENCY_LOOP_PERIODE)
-	{
-		// TODO:
-		posHoldLoop = true;
+	// Debug print AHRS result
+	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst);
 
-		const bool signalLost = m_radio.readRadioReceiver(true, radioFrequencyLoopDt);
+	// Read radio
+	if (m_radioLoopDt > RADIO_FREQUENCY_LOOP_PERIODE)
+	{
+		const bool signalLost = m_radio.readRadioReceiver(true, m_radioLoopDt);
 
 		if (!signalLost)
 		{
@@ -164,28 +178,43 @@ void DroneController::mainLoop(const double dt)
 			// Signal lost, target quaternion is horizon
 		}
 
-		/*int power = static_cast<int>(500.0 + (m_radio.m_targetThrust / 14000.0) * 500.0);
-		//LogManager::getInstance().serialPrint(power);
-
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, power);
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, power);
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, power);
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, power);*/
-
-		radioFrequencyLoopDt = 0.0;
+		m_radioLoopDt = 0.0;
 	}
 
-	// Handle drone behaviour according to the current state
-	// PIDs
-	// 2khz
-	if (pidLoopDt > PID_FREQUENCY_LOOP_PERIODE)
+	// Enable angle loop (that will run in the state machine)
+	if (m_pidAngleLoopDt > PID_ANGLE_FREQUENCY_LOOP_PERIODE)
 	{
-		StateMachine::getInstance().run(pidLoopDt, *this);
-		pidLoopDt = 0.0;
+		if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
+				m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+		{
+			m_angleLoop = true;
+		}
+		m_pidAngleLoopDt = 0.0;
+	}
+
+	// Enable position hold loop (that will run in the state machine)
+	if (m_pidPosLoopDt > PID_POS_FREQUENCY_LOOP_PERIODE)
+	{
+		if (m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+		{
+			m_posLoop = true;
+		}
+		m_pidPosLoopDt = 0.0;
+	}
+
+	// Handle drone behavior according to the current state
+	if (m_pidRateLoopDt > PID_RATE_FREQUENCY_LOOP_PERIODE)
+	{
+		StateMachine::getInstance().run(m_pidRateLoopDt, *this);
+		m_pidRateLoopDt = 0.0;
+
+		// Reset angle & position hold flag here because they are executed in the state machine
+		m_angleLoop = false;
+		m_posLoop = false;
 	}
 
 	// Motors update
-	if (escsFrequencyLoopDt > ESCs_FREQUENCY_LOOP_PERIODE)
+	if (m_escsLoopDt > ESCs_FREQUENCY_LOOP_PERIODE)
 	{
 		// PWM update
 		m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
@@ -196,42 +225,8 @@ void DroneController::mainLoop(const double dt)
 		setMotorPower(Motor::eMotor3, m_motorMixer.m_powerMotor[2]);
 		setMotorPower(Motor::eMotor4, m_motorMixer.m_powerMotor[3]);
 
-		escsFrequencyLoopDt = 0.0;
+		m_escsLoopDt = 0.0;
 	}
-
-	// Debug print AHRS result
-	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst);
-}
-
-
-void motorsControl(const float& dt)
-{
-	float targetRoll = 0.0;
-	float targetPitch = 0.0;
-	float targetYaw = 0.0;
-
-	// Get the target quaternion from the target Euler angles
-	Eigen::Quaterniond qTarget; // TODO: Convert _qTarget to Eigen
-
-	// Compute angular errors in the Quaternion space
-	// This give the rotation error in the bodyframe
-	Eigen::Quaterniond qError;// = PID::getError(g_calibratedAttitude, qTarget);
-
-	// Use directly the vector part of the error quaternion as inputs of the PIDs
-	/*The vector part of the error quaternion (qError.m_x, qError.m_y, qError.m_z)
-	is not exactly the angular error in radians for large rotations. It’s an
-	approximation based on the small-angle assumption (where sin(θ/2) ≈ θ/2).
-	For larger errors, this can lead to inaccuracies.
-	Specifically, the vector part is scaled by sin(θ/2), where θ is the rotation angle.
-	To get true angular errors, we’d need to compute θ = 2 * acos(qError.m_w) and
-	normalize the vector part accordingly*/
-	float theta = 2.0f * acos(qError.w()); // Total rotation angle
-	float scale = (theta > 1e-6f) ? (theta / sin(theta / 2.0f)) : 2.0f; // Avoid division by zero
-	float error_roll = qError.x() * scale;
-	float error_pitch = qError.y() * scale;
-	float error_yaw = qError.z() * scale;
-
-	// Compute PIDs
 }
 
 

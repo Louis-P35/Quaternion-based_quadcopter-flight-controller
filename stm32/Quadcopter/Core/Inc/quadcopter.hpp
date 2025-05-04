@@ -54,19 +54,19 @@ public:
 	double m_torqueZ = 0.0;
 	XquadMixer m_motorMixer;
 
-	// AHRS (EKF)
-	//IMU_EKF::ESKF<double> m_EKF;
-	// Magnetometer calibration
-	//Eigen::Matrix<double, 3, 3> m_W; // Soft-iron
-	//Eigen::Matrix<double, 3, 1> m_V; // Hard-iron
-	//float m_incl; // Inclination
-	//float m_B; // Geomagnetic field strength
-
 	ControlStrategy m_ctrlStrat;
+
+	// Scheduler
+	double m_pidRateLoopDt = 0.0;
+	double m_pidAngleLoopDt = 0.0;
+	double m_pidPosLoopDt = 0.0;
+	double m_escsLoopDt = 0.0;
+	double m_radioLoopDt = 0.0;
+	bool m_angleLoop = false;
+	bool m_posLoop = false;
 
 private:
 	Eigen::Vector3f m_magBias = Eigen::Vector3f(-40.05, 12.15, 29.025);
-
 	Eigen::Vector3f m_accelOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 	Eigen::Vector3f m_gyroOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 

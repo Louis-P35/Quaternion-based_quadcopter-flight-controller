@@ -9,6 +9,7 @@
 #include "stateMachine.hpp"
 #include "logManager.hpp"
 #include "PID/pid.hpp"
+#include "PID/controlStrategy.hpp"
 
 
 void StartupSequenceState::handleState(const double dt, DroneController& dc)
@@ -57,8 +58,8 @@ void IdleState::handleState(const double dt, DroneController& dc)
 
 void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
 {
-	LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
-	LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
+	//LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
+	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
 
 	dc.m_thrust = dc.m_radio.m_targetThrust;
 	dc.m_torqueX = 0.0;
@@ -90,25 +91,51 @@ void TakeOffState::handleState(const double dt, DroneController& dc)
  */
 void FlyingState::handleState(const double dt, DroneController& dc)
 {
-	Quaternion qEst = Quaternion::canonical(dc.m_madgwickFilter.m_qEst);
-	Quaternion qTarget = Quaternion::canonical(dc.m_targetAttitude);
+	//static unsigned long int pos = 0;
+	//static unsigned long int angle = 0;
+	//static unsigned long int rate = 0;
 
-	// Get attitude error
-	Quaternion qError = PID::getError(qEst, qTarget);
+	// Angle loop
+	if (dc.m_angleLoop)
+	{
+		Quaternion qEst = Quaternion::canonical(dc.m_madgwickFilter.m_qEst);
+		Quaternion qTarget = Quaternion::canonical(dc.m_targetAttitude);
 
-	//Quaternion qTest = qError * qEst;
-	//qTest.normalize();
+		// Get attitude error
+		Quaternion qError = PID::getError(qEst, qTarget);
 
-	// Get the angle and axis of rotation
-	Vector3 rotAxis;
-	double angleRad = 0.0;
-	qError.toAxisAngle(rotAxis, angleRad);
+		//Quaternion qTest = qError * qEst;
+		//qTest.normalize();
 
-	// Projection of the rotation axis onto the 3 axis of the drone
-	// It is NOT Euler angles here, so no singularity
-	double rollError = rotAxis.m_x * angleRad;
-	double pitchError = rotAxis.m_y * angleRad;
-	double yawError = rotAxis.m_z * angleRad;
+		// Get the angle and axis of rotation
+		Vector3 rotAxis;
+		double angleRad = 0.0;
+		qError.toAxisAngle(rotAxis, angleRad);
+
+		// Projection of the rotation axis onto the 3 axis of the drone
+		// It is NOT Euler angles here, so no singularity
+		double rollError = rotAxis.m_x * angleRad;
+		double pitchError = rotAxis.m_y * angleRad;
+		double yawError = rotAxis.m_z * angleRad;
+
+		// Run angle PID
+		dc.m_ctrlStrat.angleControlLoop(dc.m_pidAngleLoopDt);
+
+		//angle++;
+	}
+
+	// Position hold loop
+	if (dc.m_posLoop)
+	{
+		//pos++;
+	}
+
+	//rate++;
+	//LogManager::getInstance().serialPrint(pos, angle, rate, 0L);
+
+
+	// Run rate PID
+	dc.m_ctrlStrat.rateControlLoop(dt);
 
 	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0;
 	dc.m_torqueX = 0.0;

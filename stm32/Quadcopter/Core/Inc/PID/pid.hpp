@@ -52,16 +52,19 @@ public:
 };
 
 
+/*
+ * PID that can be chained
+ */
 class PIDBlock : public PID
 {
 public:
-	double m_measure = 0.0f;
-	double m_target = 0.0f;
-	double m_output = 0.0f;
+	double m_measure = 0.0;
+	double m_target = 0.0;
+	double m_output = 0.0;
 
 	PIDBlock() : PID() {}
 
-	inline void run(double dt);
+	void run(double dt);
 };
 
 
