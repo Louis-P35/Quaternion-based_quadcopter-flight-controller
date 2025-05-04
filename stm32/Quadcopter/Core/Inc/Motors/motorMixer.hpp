@@ -1,5 +1,5 @@
 /*
- * XquadMixer.hpp
+ * motorMixer.hpp
  *
  *  Created on: May 3, 2025
  *      Author: louis
