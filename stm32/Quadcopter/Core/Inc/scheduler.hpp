@@ -1,5 +1,5 @@
 /*
- * quadcopter.hpp
+ * scheduler.hpp
  *
  *  Created on: Jun 11, 2024
  *      Author: louis
@@ -29,7 +29,7 @@ enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
  * The 'mainSetup' method is called once by the main function
  * The 'mainLoop' is called in an infinite loop by the main function
  */
-class DroneController
+class Scheduler
 {
 public:
 	UART_HandleTypeDef m_huart_ext;
@@ -71,7 +71,7 @@ private:
 	Eigen::Vector3f m_gyroOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
 
 public:
-	DroneController(
+	Scheduler(
 			SPI_HandleTypeDef hspi,
 			uint16_t spi_cs_pin,
 			GPIO_TypeDef* spi_cs_gpio_port,

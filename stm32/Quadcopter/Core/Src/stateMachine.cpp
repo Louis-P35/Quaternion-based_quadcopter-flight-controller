@@ -12,7 +12,7 @@
 #include "PID/controlStrategy.hpp"
 
 
-void StartupSequenceState::handleState(const double dt, DroneController& dc)
+void StartupSequenceState::handleState(const double dt, Scheduler& dc)
 {
 	m_time += dt;
 
@@ -36,7 +36,7 @@ void StartupSequenceState::handleState(const double dt, DroneController& dc)
 }
 
 
-void IdleState::handleState(const double dt, DroneController& dc)
+void IdleState::handleState(const double dt, Scheduler& dc)
 {
 	// All motors at 0% power
 	dc.m_thrust = 0.0;
@@ -56,7 +56,7 @@ void IdleState::handleState(const double dt, DroneController& dc)
 }
 
 
-void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
+void ReadyToTakeOffState::handleState(const double dt, Scheduler& dc)
 {
 	//LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
 	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
@@ -75,7 +75,7 @@ void ReadyToTakeOffState::handleState(const double dt, DroneController& dc)
 }
 
 
-void TakeOffState::handleState(const double dt, DroneController& dc)
+void TakeOffState::handleState(const double dt, Scheduler& dc)
 {
 	// TODO: Handle take off autonomously
 
@@ -89,7 +89,7 @@ void TakeOffState::handleState(const double dt, DroneController& dc)
 /*
  * Handle flying
  */
-void FlyingState::handleState(const double dt, DroneController& dc)
+void FlyingState::handleState(const double dt, Scheduler& dc)
 {
 	//static unsigned long int pos = 0;
 	//static unsigned long int angle = 0;
@@ -156,7 +156,7 @@ void FlyingState::handleState(const double dt, DroneController& dc)
 }
 
 
-void LandingtState::handleState(const double dt, DroneController& dc)
+void LandingtState::handleState(const double dt, Scheduler& dc)
 {
 	// TODO: Handle autonomous landing
 

@@ -62,11 +62,6 @@
 			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Inc/logManager.hpp</location>
 		</link>
 		<link>
-			<name>Core/Inc/quadcopter.hpp</name>
-			<type>1</type>
-			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Inc/quadcopter.hpp</location>
-		</link>
-		<link>
 			<name>Core/Src/AHRS</name>
 			<type>2</type>
 			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Src/AHRS</location>
@@ -95,11 +90,6 @@
 			<name>Core/Src/logManager.cpp</name>
 			<type>1</type>
 			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Src/logManager.cpp</location>
-		</link>
-		<link>
-			<name>Core/Src/quadcopter.cpp</name>
-			<type>1</type>
-			<location>C:/Users/louis/Documents/Repos/Louis-P35/Quaternion-based_quadcopter-flight-controller/stm32/Quadcopter/Core/Src/quadcopter.cpp</location>
 		</link>
 		<link>
 			<name>Core/Src/Sensors/icm20948.cpp</name>

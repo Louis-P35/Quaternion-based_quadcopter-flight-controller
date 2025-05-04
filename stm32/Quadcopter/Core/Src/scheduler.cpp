@@ -1,5 +1,5 @@
 /*
- * quadcopter.cpp
+ * scheduler.cpp
  *
  *  Created on: Jun 11, 2024
  *      Author: louis
@@ -9,7 +9,7 @@
 #include <string.h>  // Include for memcpy
 
 // Includes from Project
-#include "quadcopter.hpp"
+#include "scheduler.hpp"
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
 #include "Utils/utilsAlgebra.hpp"
@@ -64,7 +64,7 @@
 // Remove Eigen
 
 
-DroneController::DroneController(
+Scheduler::Scheduler(
 		SPI_HandleTypeDef hspi,
 		uint16_t spi_cs_pin,
 		GPIO_TypeDef* spi_cs_gpio_port,
@@ -83,7 +83,7 @@ DroneController::DroneController(
 /*
  * Called once at the beginning of the software
  */
-void DroneController::mainSetup()
+void Scheduler::mainSetup()
 {
 	// Setup the serial print
 	LogManager::getInstance().setup(m_huart_ext);
@@ -110,7 +110,7 @@ void DroneController::mainSetup()
  * Called indefinitely in a loop
  * This is the main loop of this software
  */
-void DroneController::mainLoop(const double dt)
+void Scheduler::mainLoop(const double dt)
 {
 	// Highest frequency loop (~6khz): IMU read & AHRS quaternion update (Madgwick)
 	// Medium frequency loop (~2khz): Rate or attitude PID
@@ -230,7 +230,7 @@ void DroneController::mainLoop(const double dt)
 }
 
 
-void DroneController::gyroAccelCalibration()
+void Scheduler::gyroAccelCalibration()
 {
 	Eigen::Vector3f gyro = Eigen::Vector3f(0.0, 0.0, 0.0);
 	Eigen::Vector3f accel = Eigen::Vector3f(0.0, 0.0, 0.0);
@@ -265,7 +265,7 @@ void DroneController::gyroAccelCalibration()
  * Set PWM's high time to control ESCs.
  * power = [0.0, 1.0]
  */
-void DroneController::setMotorPower(const Motor motor, const double power)
+void Scheduler::setMotorPower(const Motor motor, const double power)
 {
 	constexpr double pwmRes = 500.0;
 	constexpr int pwmResMin = static_cast<int>(pwmRes);

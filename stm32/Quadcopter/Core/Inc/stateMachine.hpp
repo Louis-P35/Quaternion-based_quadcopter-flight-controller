@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "quadcopter.hpp"
+#include "scheduler.hpp"
 
 class StateMachine;
 
@@ -18,7 +18,7 @@ class State
 {
 public:
 	virtual ~State() = default;
-	virtual void handleState(const double dt, DroneController& dc) = 0;
+	virtual void handleState(const double dt, Scheduler& dc) = 0;
 };
 
 
@@ -32,7 +32,7 @@ private:
 
 public:
 	~StartupSequenceState() override = default;
-	virtual void handleState(const double dt, DroneController& dc) override;
+	virtual void handleState(const double dt, Scheduler& dc) override;
 };
 
 
@@ -43,7 +43,7 @@ class IdleState : public State
 {
 public:
 	~IdleState() override = default;
-	virtual void handleState(const double dt, DroneController& dc) override;
+	virtual void handleState(const double dt, Scheduler& dc) override;
 };
 
 
@@ -56,7 +56,7 @@ class ReadyToTakeOffState : public State
 {
 public:
 	~ReadyToTakeOffState() override = default;
-	virtual void handleState(const double dt, DroneController& dc) override;
+	virtual void handleState(const double dt, Scheduler& dc) override;
 };
 
 
@@ -67,7 +67,7 @@ class TakeOffState : public State
 {
 public:
 	~TakeOffState() override = default;
-	virtual void handleState(const double dt, DroneController& dc) override;
+	virtual void handleState(const double dt, Scheduler& dc) override;
 };
 
 
@@ -78,7 +78,7 @@ class FlyingState : public State
 {
 public:
 	~FlyingState() override = default;
-	virtual void handleState(const double dt, DroneController& dc) override;
+	virtual void handleState(const double dt, Scheduler& dc) override;
 };
 
 
@@ -89,7 +89,7 @@ class LandingtState : public State
 {
 public:
 	~LandingtState() override = default;
-	virtual void handleState(const double dt, DroneController& dc) override;
+	virtual void handleState(const double dt, Scheduler& dc) override;
 };
 
 
@@ -129,7 +129,7 @@ public:
 		m_pState = &nextState;
 	};
 
-	void run(const double dt, DroneController& dc)
+	void run(const double dt, Scheduler& dc)
 	{
 		if (m_pState)
 		{

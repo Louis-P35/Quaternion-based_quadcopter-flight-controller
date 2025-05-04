@@ -16,7 +16,7 @@
   ******************************************************************************
   */
 #include <main.hpp>
-#include "quadcopter.hpp"
+#include "scheduler.hpp"
 #include "Utils/utilsTimer.hpp"
 #include "stateMachine.hpp"
 /* USER CODE END Header */
@@ -123,8 +123,8 @@ int main(void)
   timerCounterInit();
   timerCounterReset();
 
-  DroneController controller = DroneController(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2, htim1);
-  controller.mainSetup();
+  Scheduler scheduler = Scheduler(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2, htim1);
+  scheduler.mainSetup();
 
   /* USER CODE END 2 */
 
@@ -139,7 +139,7 @@ int main(void)
 	// Get the start cycle count
 	start = timerCounterGetCycles();
 
-	controller.mainLoop(dt);
+	scheduler.mainLoop(dt);
 	//magnetometerCalibration();
 
 	//HAL_Delay(10);
