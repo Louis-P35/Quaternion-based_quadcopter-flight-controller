@@ -49,8 +49,8 @@ public:
 	void serialPrint(const float val);
 	void serialPrint(const double val);
 	void serialPrint(char* pVal);
-	void serialPrint(const Quaternion& q);
-	void serialPrint(const Quaternion& q1, const Quaternion& q2);
+	void serialPrint(const Quaternion<double>& q);
+	void serialPrint(const Quaternion<double>& q1, const Quaternion<double>& q2);
 	void serialPrint(
 			const double ax, const double ay, const double az,
 			const double gx, const double gy, const double gz,

@@ -63,7 +63,7 @@ void LogManager::serialPrint(const float val)
 }
 
 
-void LogManager::serialPrint(const Quaternion& q)
+void LogManager::serialPrint(const Quaternion<double>& q)
 {
 	char pBuffer[256];
 	sprintf(pBuffer,
@@ -72,7 +72,7 @@ void LogManager::serialPrint(const Quaternion& q)
 	serialPrint(pBuffer);
 }
 
-void LogManager::serialPrint(const Quaternion& q1, const Quaternion& q2)
+void LogManager::serialPrint(const Quaternion<double>& q1, const Quaternion<double>& q2)
 {
 	char pBuffer[256];
 	sprintf(pBuffer,

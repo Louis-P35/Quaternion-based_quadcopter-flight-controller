@@ -22,14 +22,14 @@ double PID::getError(const double& current, const double& target)
  * Compute error
  * For Quaternion-based PID
  */
-Quaternion PID::getError(const Quaternion& current, const Quaternion& target)
+Quaternion<double> PID::getError(const Quaternion<double>& current, const Quaternion<double>& target)
 {
 	/*
 	Computes the rotation necessary to go from the current orientation to the target orientation.
 	This operation is from the perspective of the current orientation being the reference frame, and
 	it calculates the relative rotation needed to align exactly with the target.
 	*/
-	Quaternion qError = target * current.inverse();
+	Quaternion<double> qError = target * current.inverse();
 
 	// Ensure it is normalized
 	qError.normalize();

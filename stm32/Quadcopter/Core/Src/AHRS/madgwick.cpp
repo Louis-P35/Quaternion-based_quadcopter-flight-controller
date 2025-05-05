@@ -26,17 +26,17 @@ void MadgwickFilter::compute(
 	)
 {
 	//Variables and constants
-	Quaternion q_est_prev = m_qEst;
-	Quaternion q_est_dot = Quaternion(0.0, 0.0, 0.0, 0.0);
-	Quaternion q_a = Quaternion(0.0, ax, ay, az);    // equation (24) raw acceleration values, needs to be normalized
+	Quaternion<double> q_est_prev = m_qEst;
+	Quaternion<double> q_est_dot = Quaternion<double>(0.0, 0.0, 0.0, 0.0);
+	Quaternion<double> q_a = Quaternion<double>(0.0, ax, ay, az);    // equation (24) raw acceleration values, needs to be normalized
 
 	double F_g [3] = {0.0};		// equation(15/21/25) objective function for gravity
 	double J_g [3][4] = {0.0};	// jacobian matrix for gravity
 
-	Quaternion gradient = Quaternion(0.0, 0.0, 0.0, 0.0);
+	Quaternion<double> gradient = Quaternion<double>(0.0, 0.0, 0.0, 0.0);
 
 	/* Integrate angluar velocity to obtain position in angles. */
-	Quaternion q_w = Quaternion(0.0, gx, gy, gz);	// equation (10), places gyroscope readings in a quaternion
+	Quaternion<double> q_w = Quaternion<double>(0.0, gx, gy, gz);	// equation (10), places gyroscope readings in a quaternion
 	// the real component is zero, which the Madgwick uses to simplfy quat. mult.
 
 

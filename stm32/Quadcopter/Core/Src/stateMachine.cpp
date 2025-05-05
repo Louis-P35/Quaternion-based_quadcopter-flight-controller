@@ -98,11 +98,11 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 	// Angle loop
 	if (dc.m_angleLoop)
 	{
-		Quaternion qEst = Quaternion::canonical(dc.m_madgwickFilter.m_qEst);
-		Quaternion qTarget = Quaternion::canonical(dc.m_targetAttitude);
+		Quaternion<double> qEst = Quaternion<double>::canonical(dc.m_madgwickFilter.m_qEst);
+		Quaternion<double> qTarget = Quaternion<double>::canonical(dc.m_targetAttitude);
 
 		// Get attitude error
-		Quaternion qError = PID::getError(qEst, qTarget);
+		Quaternion<double> qError = PID::getError(qEst, qTarget);
 
 		//Quaternion qTest = qError * qEst;
 		//qTest.normalize();

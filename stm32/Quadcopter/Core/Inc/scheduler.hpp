@@ -43,7 +43,7 @@ public:
 
 	// Radio
 	Radio m_radio;
-	Quaternion m_targetAttitude;
+	Quaternion<double> m_targetAttitude;
 
 	// ARHR (Madgwick)
 	MadgwickFilter m_madgwickFilter;

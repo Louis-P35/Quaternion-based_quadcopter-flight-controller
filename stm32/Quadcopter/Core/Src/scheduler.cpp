@@ -161,7 +161,7 @@ void Scheduler::mainLoop(const double dt)
 			//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
 
 			// Compute target quaternion
-			m_targetAttitude = Quaternion::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
+			m_targetAttitude = Quaternion<double>::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
 			// Debug print AHRS result
 			//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
 		}

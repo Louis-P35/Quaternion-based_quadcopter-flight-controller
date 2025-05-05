@@ -22,12 +22,12 @@ ensures stable and continuous calculations even during full 360-degree rotations
 class MadgwickFilter
 {
 public:
-	Quaternion m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
+	Quaternion<double> m_qEst = Quaternion<double>(1.0, 0.0, 0.0, 0.0);
 
 public:
 	MadgwickFilter()
 	{
-		m_qEst = Quaternion(1.0, 0.0, 0.0, 0.0);
+		m_qEst = Quaternion<double>(1.0, 0.0, 0.0, 0.0);
 	}
 
 	void compute(

@@ -13,52 +13,60 @@
 // Includes from STL
 #include <cmath>
 
-#define RAD_TO_DEGREE (180.0 / M_PI)
+
+namespace quaternionMath
+{
+	template<typename T>
+	inline constexpr T rad_to_deg = T(180) / M_PI;
+	template<typename T>
+	inline constexpr T half_pi    = M_PI / T(2);
+}
 
 
 /*
-Quaternion class
-*/
+ * Quaternion class
+ */
+template<typename T>
 class Quaternion
 {
 public:
 	// Init quaternion as unit vector
-	double m_w = 1.0;
-	double m_x = 0.0;
-	double m_y = 0.0;
-	double m_z = 0.0;
+	T m_w = T(1.0);
+	T m_x = T(0.0);
+	T m_y = T(0.0);
+	T m_z = T(0.0);
 
-	Quaternion(double w, double x, double y, double z) : m_w(w), m_x(x), m_y(y), m_z(z)
+	constexpr Quaternion(T w, T x, T y, T z) noexcept : m_w(w), m_x(x), m_y(y), m_z(z)
 	{
 
-	}
+	};
 
-	Quaternion() {};
+	constexpr Quaternion() noexcept = default;
 
 	// Return the conjugated quaternion (imaginary component with the reverse sign)
-	Quaternion conjugate() const
+	constexpr Quaternion conjugate() const noexcept
 	{
 		return Quaternion(m_w, -m_x, -m_y, -m_z);
-	}
+	};
 
 	// Return the norm of the quaternion
-	double norm() const
+	T norm() const noexcept
 	{
 		return std::sqrt(m_w * m_w + m_x * m_x + m_y * m_y + m_z * m_z);
-	}
+	};
 
 	// Return the norm squared of the quaternion
-	double normSquared() const
+	constexpr T normSquared() const noexcept
 	{
 		return m_w * m_w + m_x * m_x + m_y * m_y + m_z * m_z;
-	}
+	};
 
 	// Normalize the quaternion
-	Quaternion& normalize()
+	Quaternion& normalize() noexcept
 	{
-		double _norm = norm();
+		T _norm = norm();
 
-		if (_norm != 0.0)
+		if (_norm != static_cast<T>(0.0))
 		{
 			m_w /= _norm;
 			m_x /= _norm;
@@ -67,24 +75,29 @@ public:
 		}
 
 		return *this;
-	}
+	};
 
 	// Inverse of the quaternion
-	Quaternion inverse() const
+	Quaternion inverse() const noexcept
 	{
-		double norm_sq = normSquared();
+		T norm_sq = normSquared();
 
 		// Handle zero norm case, though it should ideally never occur
 		if (norm_sq == 0.0)
 		{
-			return Quaternion(0.0, 0.0, 0.0, 0.0);
+			return Quaternion(
+					static_cast<T>(0.0),
+					static_cast<T>(0.0),
+					static_cast<T>(0.0),
+					static_cast<T>(0.0)
+					);
 		}
 
 		Quaternion conj = conjugate();
 
 		// If the quaternion is normalized already (norm_sq ≈ 1),
 		// return it's conjugate
-		if (std::abs(norm_sq - 1.0) < 1e-6)
+		if (std::abs(norm_sq - static_cast<T>(1.0)) < static_cast<T>(1e-6))
 		{
 			return conj;
 		}
@@ -93,7 +106,7 @@ public:
 	}
 
 	// Return the dot product of two quaternion
-	double dotProduct(const Quaternion& b) const
+	constexpr T dotProduct(const Quaternion& b) const noexcept
 	{
 		return m_w * b.m_w + m_x * b.m_x + m_y * b.m_y + m_z * b.m_z;
 	}
@@ -101,61 +114,61 @@ public:
 	// Compute the Euler angle from the quaternion
 	// Assume roll is x, pitch is y and yaw is z
 	// Assume right hand system
-	void toEuler(double& roll, double& pitch, double& yaw) const
+	void toEuler(T& roll, T& pitch, T& yaw) const noexcept
 	{
 		// Roll
-		double sinr_cosp = 2.0 * (m_w * m_x + m_y * m_z);
-		double cosr_cosp = 1.0 - 2.0 * (m_x * m_x + m_y * m_y);
-		roll = atan2(sinr_cosp, cosr_cosp);
-		roll *= RAD_TO_DEGREE;
+		T sinr_cosp = static_cast<T>(2.0) * (m_w * m_x + m_y * m_z);
+		T cosr_cosp = static_cast<T>(1.0) - static_cast<T>(2.0) * (m_x * m_x + m_y * m_y);
+		roll = std::atan2(sinr_cosp, cosr_cosp);
+		roll *= quaternionMath::rad_to_deg<T>;
 
 		// Pitch
-		double sinp = 2.0 * (m_w * m_y - m_z * m_x);
-		if (abs(sinp) >= 1.0)
+		T sinp = static_cast<T>(2.0) * (m_w * m_y - m_z * m_x);
+		if (std::abs(sinp) >= static_cast<T>(1.0))
 		{
-			pitch = copysign(M_PI / 2.0, sinp); // use 90 degrees if out of range
+			pitch = std::copysign(quaternionMath::half_pi<T>, sinp); // use 90 degrees if out of range
 		}
 		else
 		{
-			pitch = asin(sinp);
+			pitch = std::asin(sinp);
 		}
-		pitch  *= RAD_TO_DEGREE;
+		pitch  *= quaternionMath::rad_to_deg<T>;
 
 		// Yaw
-		double siny_cosp = 2.0 * (m_w * m_z + m_x * m_y);
-		double cosy_cosp = 1.0 - 2.0 * (m_y * m_y + m_z * m_z);
-		yaw = atan2(siny_cosp, cosy_cosp);
-		yaw *= RAD_TO_DEGREE;
+		T siny_cosp = 2.0 * (m_w * m_z + m_x * m_y);
+		T cosy_cosp = 1.0 - 2.0 * (m_y * m_y + m_z * m_z);
+		yaw = std::atan2(siny_cosp, cosy_cosp);
+		yaw *= quaternionMath::rad_to_deg<T>;
 	}
 
 	// Static function to convert Euler angles to Quaternion (in XYZ order) (roll, pitch then yaw)
-	static Quaternion fromEuler(const double& roll, const double& pitch, const double& yaw)
+	static Quaternion fromEuler(const T& roll, const T& pitch, const T& yaw) noexcept
 	{
-		const double cr = cos(roll * 0.5);
-		const double sr = sin(roll * 0.5);
-		const double cp = cos(pitch * 0.5);
-		const double sp = sin(pitch * 0.5);
-		const double cy = cos(yaw * 0.5);
-		const double sy = sin(yaw * 0.5);
+		const T cr = std::cos(roll * static_cast<T>(0.5));
+		const T sr = std::sin(roll * static_cast<T>(0.5));
+		const T cp = std::cos(pitch * static_cast<T>(0.5));
+		const T sp = std::sin(pitch * static_cast<T>(0.5));
+		const T cy = std::cos(yaw * static_cast<T>(0.5));
+		const T sy = std::sin(yaw * static_cast<T>(0.5));
 
-		const double w = cr * cp * cy - sr * sp * sy;
-		const double x = sr * cp * cy + cr * sp * sy;
-		const double y = cr * sp * cy - sr * cp * sy;
-		const double z = cr * cp * sy + sr * sp * cy;
+		const T w = cr * cp * cy - sr * sp * sy;
+		const T x = sr * cp * cy + cr * sp * sy;
+		const T y = cr * sp * cy - sr * cp * sy;
+		const T z = cr * cp * sy + sr * sp * cy;
 
 		return Quaternion(w, x, y, z);
 	}
 
-	inline static Quaternion canonical(const Quaternion& q)
+	inline static constexpr  Quaternion canonical(const Quaternion& q) noexcept
 	{
-	    return (q.m_w >= 0.0) ? q : Quaternion(-q.m_w, -q.m_x, -q.m_y, -q.m_z);
+	    return (q.m_w >= static_cast<T>(0.0)) ? q : Quaternion(-q.m_w, -q.m_x, -q.m_y, -q.m_z);
 	}
 
 
 	/*
 	 * Get the quaternion's axis of rotation and angle of rotation in radian.
 	 */
-	void toAxisAngle(Vector3<double>& axis, double& angleRad) const
+	void toAxisAngle(Vector3<T>& axis, T& angleRad) const noexcept
 	{
 	    Quaternion q = *this;
 
@@ -164,34 +177,34 @@ public:
 
 	    // Clamp w to [-1, 1] to avoid domain errors in acos
 	    double w_clamped = q.m_w;
-	    if (w_clamped > 1.0)
+	    if (w_clamped > static_cast<T>(1.0))
 	    {
-	    	w_clamped = 1.0;
+	    	w_clamped = static_cast<T>(1.0);
 	    }
-	    if (w_clamped < -1.0)
+	    if (w_clamped < static_cast<T>(-1.0))
 	    {
-	    	w_clamped = -1.0;
+	    	w_clamped = static_cast<T>(-1.0);
 	    }
 
 	    // Compute the angle (in radians)
-	    angleRad = 2.0 * static_cast<double>(acos(w_clamped));
+	    angleRad = static_cast<T>(2.0) * static_cast<T>(std::acos(w_clamped));
 
 	    // Compute the scale factor (norm of the imaginary part)
-	    double s = std::sqrt(1.0 - w_clamped * w_clamped);
+	    T s = std::sqrt(static_cast<T>(1.0) - w_clamped * w_clamped);
 
 	    if (s < 1e-6)
 	    {
 	        // If s is very small, the rotation is near zero; axis is arbitrary
-	        axis.m_x = static_cast<double>(q.m_x);
-	        axis.m_y = static_cast<double>(q.m_y);
-	        axis.m_z = static_cast<double>(q.m_z);
+	        axis.m_x = q.m_x;
+	        axis.m_y = q.m_y;
+	        axis.m_z = q.m_z;
 	    }
 	    else
 	    {
 	        // Normalize the imaginary part to get the rotation axis
-	        axis.m_x = static_cast<double>(q.m_x / s);
-	        axis.m_y = static_cast<double>(q.m_y / s);
-	        axis.m_z = static_cast<double>(q.m_z / s);
+	        axis.m_x = q.m_x / s;
+	        axis.m_y = q.m_y / s;
+	        axis.m_z = q.m_z / s;
 	    }
 	}
 
@@ -200,7 +213,7 @@ public:
   /* Operators override */
 
 	// Quaternion multiplication override
-	Quaternion operator*(const Quaternion& b) const
+	constexpr Quaternion operator*(const Quaternion& b) const noexcept
 	{
 		return Quaternion(
 		  m_w * b.m_w - m_x * b.m_x - m_y * b.m_y - m_z * b.m_z,  // Real part
@@ -211,7 +224,7 @@ public:
 	}
 
 	// Assignment and Quaternion multiplication override
-	Quaternion& operator*=(const Quaternion& b)
+	constexpr Quaternion& operator*=(const Quaternion& b) noexcept
 	{
 		Quaternion tmp = *this * b;
 
@@ -224,13 +237,13 @@ public:
 	}
 
 	// Scalar multiplictaion override
-	Quaternion operator*(const double& scalar) const
+	constexpr Quaternion operator*(const T& scalar) const noexcept
 	{
 		return Quaternion(m_w * scalar, m_x * scalar, m_y * scalar, m_z * scalar);
 	}
 
 	// Assignment and scalar multiplication override
-	Quaternion& operator*=(const double& scalar)
+	constexpr Quaternion& operator*=(const T& scalar) noexcept
 	{
 		m_w *= scalar;
 		m_x *= scalar;
@@ -241,13 +254,13 @@ public:
 	}
 
 	// Quaternion addition override
-	Quaternion operator+(const Quaternion& b) const
+	constexpr Quaternion operator+(const Quaternion& b) const noexcept
 	{
 		return Quaternion(m_w + b.m_w, m_x + b.m_x, m_y + b.m_y, m_z + b.m_z);
 	}
 
 	// Assignment and quaternion addition override
-	Quaternion& operator+=(const Quaternion& b)
+	constexpr Quaternion& operator+=(const Quaternion& b) noexcept
 	{
 		m_w += b.m_w;
 		m_x += b.m_x;
@@ -258,13 +271,13 @@ public:
 	}
 
 	// Quaternion substraction override
-	Quaternion operator-(const Quaternion& b) const
+	constexpr Quaternion operator-(const Quaternion& b) const noexcept
 	{
 		return Quaternion(m_w - b.m_w, m_x - b.m_x, m_y - b.m_y, m_z - b.m_z);
 	}
 
 	// Assignment and quaternion substraction override
-	Quaternion& operator-=(const Quaternion& b)
+	constexpr Quaternion& operator-=(const Quaternion& b) noexcept
 	{
 		m_w -= b.m_w;
 		m_x -= b.m_x;

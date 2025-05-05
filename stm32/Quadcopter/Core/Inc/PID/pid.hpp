@@ -46,7 +46,7 @@ public:
 	static double getError(const double& current, const double& target);
 
 	// For Quaternion-based PID
-	static Quaternion getError(const Quaternion& current, const Quaternion& target);
+	static Quaternion<double> getError(const Quaternion<double>& current, const Quaternion<double>& target);
 
 	double computePID(const double& error, const double& dt, const bool& integrate);
 };
