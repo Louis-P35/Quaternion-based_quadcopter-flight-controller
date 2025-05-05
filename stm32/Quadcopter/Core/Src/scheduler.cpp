@@ -95,7 +95,7 @@ void Scheduler::mainSetup()
 	//ak09916_init();  // Magnetometer
 
 	// Init AHRS
-	m_madgwickFilter = MadgwickFilter();
+	m_madgwickFilter = MadgwickFilter<double>();
 
 	// Calibrate IMU
 	gyroAccelCalibration();
@@ -142,12 +142,12 @@ void Scheduler::mainLoop(const double dt)
 
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
-			m_accel.x, // Acceleration vector will be normalized
-			m_accel.y,
-			m_accel.z,
-			m_gyro.x * DEGREE_TO_RAD,
-			m_gyro.y * DEGREE_TO_RAD,
-			m_gyro.z * DEGREE_TO_RAD,
+			static_cast<double>(m_accel.x), // Acceleration vector will be normalized
+			static_cast<double>(m_accel.y),
+			static_cast<double>(m_accel.z),
+			static_cast<double>(m_gyro.x) * DEGREE_TO_RAD,
+			static_cast<double>(m_gyro.y) * DEGREE_TO_RAD,
+			static_cast<double>(m_gyro.z) * DEGREE_TO_RAD,
 			dt
 		);
 
@@ -248,6 +248,9 @@ void Scheduler::mainLoop(const double dt)
 }
 
 
+/*
+ * Find the gyroscope and accelerometer offsets for each axis.
+ */
 void Scheduler::gyroAccelCalibration()
 {
 	Vector3<double> gyro = Vector3<double>(0.0, 0.0, 0.0);
@@ -341,6 +344,7 @@ void Scheduler::calibrateHoverOffset()
 	double pitch = 0.0;
 	double yaw = 0.0;
 
+	// Let some time for the AHRS to stabilize
 	nbPass++;
 	if (nbPass < nbPassMinInitAhrs)
 	{

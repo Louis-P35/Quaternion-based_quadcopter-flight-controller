@@ -46,7 +46,7 @@ public:
 	Quaternion<double> m_targetAttitude;
 
 	// ARHR (Madgwick)
-	MadgwickFilter m_madgwickFilter;
+	MadgwickFilter<double> m_madgwickFilter;
 	Quaternion<double> m_qAttitudeCorrected = Quaternion<double>::iddentity();
 	Quaternion<double> m_qHoverOffset = Quaternion<double>(0.9999743, 0.0035298, -0.0062408, 0.0000220);
 

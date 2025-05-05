@@ -18,27 +18,27 @@ happen with Euler angles. Quaternions provide a compact, non-singular representa
 ensures stable and continuous calculations even during full 360-degree rotations.
 */
 
-
+template<typename T>
 class MadgwickFilter
 {
 public:
-	Quaternion<double> m_qEst = Quaternion<double>(1.0, 0.0, 0.0, 0.0);
+	Quaternion<T> m_qEst = Quaternion<T>::iddentity();
 
 public:
 	MadgwickFilter()
 	{
-		m_qEst = Quaternion<double>(1.0, 0.0, 0.0, 0.0);
+		m_qEst = Quaternion<T>::iddentity();
 	}
 
 	void compute(
-		const double& ax,
-		const double& ay,
-		const double& az,
-		const double& gx,
-		const double& gy,
-		const double& gz,
-		const double& dt
+		const T& ax,
+		const T& ay,
+		const T& az,
+		const T& gx,
+		const T& gy,
+		const T& gz,
+		const T& dt
 		);
 
-	void getEulerAngle(double& roll, double& pitch, double& yaw);
+	void getEulerAngle(T& roll, T& pitch, T& yaw);
 };
