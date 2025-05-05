@@ -12,11 +12,12 @@
 #include "scheduler.hpp"
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
-#include "Utils/utilsAlgebra.hpp"
 #include "PWM/readRadio.hpp"
 #include "stateMachine.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
+
+#define DEGREE_TO_RAD (M_PI/180.0)
 
 
 // SCHEDULER
@@ -59,11 +60,10 @@
 
 
 // TODOs:
-// Offset hover quaternion
 // Set hover thrust offset precisely
 // PIDs & map to motors
 // Remove Eigen
-// Remove utilsAlgebre ?
+// Remove utilsAlgebra ?
 
 
 Scheduler::Scheduler(

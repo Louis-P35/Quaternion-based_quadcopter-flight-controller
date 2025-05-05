@@ -43,6 +43,11 @@ public:
 
 	constexpr Quaternion() noexcept = default;
 
+	constexpr static Quaternion iddentity()
+	{
+		return Quaternion(T(1.0), T(0.0), T(0.0), T(0.0));
+	};
+
 	// Return the conjugated quaternion (imaginary component with the reverse sign)
 	constexpr Quaternion conjugate() const noexcept
 	{
