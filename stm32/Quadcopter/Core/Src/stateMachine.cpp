@@ -98,7 +98,13 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 	// Angle loop
 	if (dc.m_angleLoop)
 	{
-		Quaternion<double> qEst = Quaternion<double>::canonical(dc.m_madgwickFilter.m_qEst);
+		// Correct the physical offset IMU -> drone
+		dc.m_qAttitudeCorrected = dc.m_qHoverOffset * dc.m_madgwickFilter.m_qEst;
+		dc.m_qAttitudeCorrected.normalize();
+
+		// A quaternion q and -q represent the same rotation.
+		// Here, canonical() make a sign choice (q.w >= 0).
+		Quaternion<double> qEst = Quaternion<double>::canonical(dc.m_qAttitudeCorrected);
 		Quaternion<double> qTarget = Quaternion<double>::canonical(dc.m_targetAttitude);
 
 		// Get attitude error

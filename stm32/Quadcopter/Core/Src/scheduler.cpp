@@ -55,6 +55,9 @@
 #define TARGET_ANGLE_MAX 45.0
 
 
+//#define COMPUTE_HOVER_OFFSET 1
+
+
 // TODOs:
 // Offset hover quaternion
 // Set hover thrust offset precisely
@@ -149,7 +152,16 @@ void Scheduler::mainLoop(const double dt)
 		);
 
 	// Debug print AHRS result
-	LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
+	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
+	//m_qAttitudeCorrected = m_qHoverOffset * m_madgwickFilter.m_qEst;
+	//m_qAttitudeCorrected.normalize();
+	//LogManager::getInstance().serialPrint(m_qAttitudeCorrected, m_madgwickFilter.m_qEst);
+
+
+#ifdef COMPUTE_HOVER_OFFSET
+	// Compute the hover offset (must be done once after each teardown/build of the drone)
+	calibrateHoverOffset();
+#endif
 
 	// Read radio
 	if (m_radioLoopDt > RADIO_FREQUENCY_LOOP_PERIODE)
@@ -183,7 +195,6 @@ void Scheduler::mainLoop(const double dt)
 		{
 			m_angleLoop = true;
 		}
-		m_pidAngleLoopDt = 0.0;
 	}
 
 	// Enable PID position hold loop (that will run in the state machine)
@@ -194,9 +205,6 @@ void Scheduler::mainLoop(const double dt)
 		{
 			m_posLoop = true;
 		}
-
-		// Reset dt
-		m_pidPosLoopDt -= PID_POS_FREQUENCY_LOOP_PERIODE;
 	}
 
 	// Handle drone behavior according to the current state (state machine)
@@ -208,6 +216,14 @@ void Scheduler::mainLoop(const double dt)
 
 		// Reset dt
 		m_pidRateLoopDt -= PID_RATE_FREQUENCY_LOOP_PERIODE;
+		if (m_posLoop)
+		{
+			m_pidPosLoopDt -= PID_POS_FREQUENCY_LOOP_PERIODE;
+		}
+		if (m_angleLoop)
+		{
+			m_pidAngleLoopDt -= PID_ANGLE_FREQUENCY_LOOP_PERIODE;
+		}
 
 		// Reset angle & position hold flag here because they are executed in the state machine
 		m_angleLoop = false;
@@ -303,6 +319,65 @@ void Scheduler::setMotorPower(const Motor motor, const double power)
 
 	default:
 		break;
+	}
+}
+
+/*
+ * Calibrate the IMU orientation.
+ * Because the IMU is never solder and mounted perfectly flat on the drone.
+ * Just print out the result over UART.
+ */
+void Scheduler::calibrateHoverOffset()
+{
+	static constexpr int nbPassMinInitAhrs = 30000;
+	static constexpr int nbIterMax = 500;
+	static bool computeDone = false;
+	static bool print = true;
+	static double sumRoll = 0.0;
+	static double sumPitch = 0.0;
+	static int nbIter = 0;
+	static int nbPass = 0;
+	double roll = 0.0;
+	double pitch = 0.0;
+	double yaw = 0.0;
+
+	nbPass++;
+	if (nbPass < nbPassMinInitAhrs)
+	{
+		return;
+	}
+
+	if (nbIter < nbIterMax)
+	{
+		m_madgwickFilter.m_qEst.toEuler(roll, pitch, yaw);
+		sumRoll += roll;
+		sumPitch += pitch;
+		nbIter++;
+	}
+	else if (!computeDone)
+	{
+		double avgRoll = sumRoll / static_cast<double>(nbIter);
+		double avgPicth = sumPitch / static_cast<double>(nbIter);
+		LogManager::getInstance().serialPrint("Roll, Pitch (degree):\n\r");
+		LogManager::getInstance().serialPrint(avgRoll, avgPicth, 0.0, 0.0);
+		Quaternion<double> qAverage;
+		qAverage = Quaternion<double>::fromEuler(
+				avgRoll * DEGREE_TO_RAD,
+				avgPicth * DEGREE_TO_RAD,
+				0.0
+				);
+
+		// Compute the offset to add to m_madgwickFilter.m_qEst
+		m_qHoverOffset = qAverage.inverse();
+		m_qHoverOffset.normalize();
+
+		computeDone = true;
+	}
+	else if (print)
+	{
+		LogManager::getInstance().serialPrint("m_qHoverOffset:\n\r");
+		LogManager::getInstance().serialPrint(m_qHoverOffset);
+		print = false;
 	}
 }
 

@@ -47,6 +47,8 @@ public:
 
 	// ARHR (Madgwick)
 	MadgwickFilter m_madgwickFilter;
+	Quaternion<double> m_qAttitudeCorrected = Quaternion<double>(1.0, 0.0, 0.0, 0.0);
+	Quaternion<double> m_qHoverOffset = Quaternion<double>(0.9999743, 0.0035298, -0.0062408, 0.0000220);
 
 	// Motors power
 	double m_thrust = 0.0;
@@ -86,6 +88,7 @@ public:
 
 private:
 	void gyroAccelCalibration();
+	void calibrateHoverOffset();
 };
 
 
