@@ -41,13 +41,13 @@
 
 
 
-#define ROLLPITCH_ATT_KP 1.0f
-#define ROLLPITCH_ATT_KI 1.0f
-#define ROLLPITCH_ATT_KD 1.0f
+#define ROLLPITCH_ATT_KP 1.0
+#define ROLLPITCH_ATT_KI 1.0
+#define ROLLPITCH_ATT_KD 1.0
 
-#define YAW_ATT_KP 1.0f
-#define YAW_ATT_KI 1.0f
-#define YAW_ATT_KD 1.0f
+#define YAW_ATT_KP 1.0
+#define YAW_ATT_KI 1.0
+#define YAW_ATT_KD 1.0
 
 // Radio control
 #define THROTTLE_HOVER_OFFSET 0.1 // Around hover point
@@ -58,10 +58,9 @@
 // TODOs:
 // Offset hover quaternion
 // Set hover thrust offset precisely
-// Vector control
 // PIDs & map to motors
-// Rename Quadcopter -> Scheduler
 // Remove Eigen
+// Remove utilsAlgebre ?
 
 
 Scheduler::Scheduler(
@@ -113,9 +112,9 @@ void Scheduler::mainSetup()
 void Scheduler::mainLoop(const double dt)
 {
 	// Highest frequency loop (~6khz): IMU read & AHRS quaternion update (Madgwick)
-	// Medium frequency loop (~2khz): Rate or attitude PID
+	// Medium frequency loop (~2khz): Rate PID (att PID at 500 hz)
 	// Low frequency loop (~500hz): PWM motor update
-	// Very low frequency loop: (~50hz): Position hold PID
+	// Very low frequency loop: (~50hz): Position hold PID & read radio
 
 	m_pidRateLoopDt += dt;
 	m_pidAngleLoopDt += dt;
@@ -130,34 +129,27 @@ void Scheduler::mainLoop(const double dt)
 	icm20948_accel_read_g(&m_accel);
 	//bool readMag = ak09916_mag_read_uT(&m_mag);
 
-	Eigen::Vector3f gyro;
-	Eigen::Vector3f acc;
-	gyro << m_gyro.x, m_gyro.y, m_gyro.z;
-	acc << m_accel.x, m_accel.y, m_accel.z;
-	gyro -= m_gyroOffset;
-	acc -= m_accelOffset;
-
-	// Debug print IMU data
-	/*LogManager::getInstance().serialPrint(
-		acc.x(), acc.y(), acc.z(),
-		gyro.x(), gyro.y(), gyro.z(),
-		0.0, 0.0, 0.0
-		//calibratedMag.x(), calibratedMag.y(), calibratedMag.z()
-		);*/
+	// Remove accel & gyro's offset
+	 m_gyro.x -= m_gyroOffset.m_x;
+	 m_gyro.y -= m_gyroOffset.m_y;
+	 m_gyro.z -= m_gyroOffset.m_z;
+	 m_accel.x -= m_accelOffset.m_x;
+	 m_accel.y -= m_accelOffset.m_y;
+	 m_accel.z -= m_accelOffset.m_z;
 
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
-		acc.x(), // Acceleration vector will be normalized
-		acc.y(),
-		acc.z(),
-		gyro.x() * DEGREE_TO_RAD,
-		gyro.y() * DEGREE_TO_RAD,
-		gyro.z() * DEGREE_TO_RAD,
-		dt
+			m_accel.x, // Acceleration vector will be normalized
+			m_accel.y,
+			m_accel.z,
+			m_gyro.x * DEGREE_TO_RAD,
+			m_gyro.y * DEGREE_TO_RAD,
+			m_gyro.z * DEGREE_TO_RAD,
+			dt
 		);
 
 	// Debug print AHRS result
-	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst);
+	LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
 
 	// Read radio
 	if (m_radioLoopDt > RADIO_FREQUENCY_LOOP_PERIODE)
@@ -178,12 +170,14 @@ void Scheduler::mainLoop(const double dt)
 			// Signal lost, target quaternion is horizon
 		}
 
-		m_radioLoopDt = 0.0;
+		// Reset dt
+		m_radioLoopDt -= RADIO_FREQUENCY_LOOP_PERIODE;
 	}
 
-	// Enable angle loop (that will run in the state machine)
+	// Enable PID angle loop (that will run in the state machine)
 	if (m_pidAngleLoopDt > PID_ANGLE_FREQUENCY_LOOP_PERIODE)
 	{
+		// Enable it only in certain flight mode
 		if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
 				m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
 		{
@@ -192,21 +186,28 @@ void Scheduler::mainLoop(const double dt)
 		m_pidAngleLoopDt = 0.0;
 	}
 
-	// Enable position hold loop (that will run in the state machine)
+	// Enable PID position hold loop (that will run in the state machine)
 	if (m_pidPosLoopDt > PID_POS_FREQUENCY_LOOP_PERIODE)
 	{
+		// Enable it only in certain flight mode
 		if (m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
 		{
 			m_posLoop = true;
 		}
-		m_pidPosLoopDt = 0.0;
+
+		// Reset dt
+		m_pidPosLoopDt -= PID_POS_FREQUENCY_LOOP_PERIODE;
 	}
 
-	// Handle drone behavior according to the current state
+	// Handle drone behavior according to the current state (state machine)
+	// Run all the PID loops
 	if (m_pidRateLoopDt > PID_RATE_FREQUENCY_LOOP_PERIODE)
 	{
+		// Run the state machine
 		StateMachine::getInstance().run(m_pidRateLoopDt, *this);
-		m_pidRateLoopDt = 0.0;
+
+		// Reset dt
+		m_pidRateLoopDt -= PID_RATE_FREQUENCY_LOOP_PERIODE;
 
 		// Reset angle & position hold flag here because they are executed in the state machine
 		m_angleLoop = false;
@@ -225,15 +226,16 @@ void Scheduler::mainLoop(const double dt)
 		setMotorPower(Motor::eMotor3, m_motorMixer.m_powerMotor[2]);
 		setMotorPower(Motor::eMotor4, m_motorMixer.m_powerMotor[3]);
 
-		m_escsLoopDt = 0.0;
+		// Reset dt
+		m_escsLoopDt -= ESCs_FREQUENCY_LOOP_PERIODE;
 	}
 }
 
 
 void Scheduler::gyroAccelCalibration()
 {
-	Eigen::Vector3f gyro = Eigen::Vector3f(0.0, 0.0, 0.0);
-	Eigen::Vector3f accel = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Vector3<double> gyro = Vector3<double>(0.0, 0.0, 0.0);
+	Vector3<double> accel = Vector3<double>(0.0, 0.0, 0.0);
 
 	const int nbIteration = 200;
 
@@ -243,18 +245,18 @@ void Scheduler::gyroAccelCalibration()
 		icm20948_gyro_read_dps(&m_gyro);
 		icm20948_accel_read_g(&m_accel);
 
-		gyro += Eigen::Vector3f(m_gyro.x, m_gyro.y, m_gyro.z);
-		accel += Eigen::Vector3f(m_accel.x, m_accel.y, m_accel.z);
+		gyro += Vector3<double>(m_gyro.x, m_gyro.y, m_gyro.z);
+		accel += Vector3<double>(m_accel.x, m_accel.y, m_accel.z);
 
 		HAL_Delay(10);
 	}
 
-	m_gyroOffset = gyro / (float)nbIteration;
-	accel /= (float)nbIteration;
+	m_gyroOffset = gyro / static_cast<double>(nbIteration);
+	accel /= static_cast<double>(nbIteration);
 
 	// Find the g vector and normalize it
-	float norm = accel.norm();
-	Eigen::Vector3f g = accel / norm;
+	double norm = accel.norm();
+	Vector3<double> g = accel / norm;
 
 	// Remove the gravity vector from the offset
 	m_accelOffset = accel - g;

@@ -16,6 +16,7 @@
 #include "AHRS/madgwick.hpp"
 #include "radio.hpp"
 #include "Motors/motorMixer.hpp"
+#include "Utils/vector.hpp"
 
 // Includes from 3rd party
 //#include <AHRS/ESKF.h>
@@ -66,9 +67,9 @@ public:
 	bool m_posLoop = false;
 
 private:
-	Eigen::Vector3f m_magBias = Eigen::Vector3f(-40.05, 12.15, 29.025);
-	Eigen::Vector3f m_accelOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
-	Eigen::Vector3f m_gyroOffset = Eigen::Vector3f(0.0, 0.0, 0.0);
+	Vector3<double> m_magBias = Vector3<double>(-40.05, 12.15, 29.025);
+	Vector3<double> m_accelOffset = Vector3<double>(0.0, 0.0, 0.0);
+	Vector3<double> m_gyroOffset = Vector3<double>(0.0, 0.0, 0.0);
 
 public:
 	Scheduler(

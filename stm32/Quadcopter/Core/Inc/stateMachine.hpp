@@ -72,6 +72,17 @@ public:
 
 
 /*
+ * This state handle the "take off / recovery" during free fall detection
+ */
+class TakeOffOnFreeFallState : public State
+{
+public:
+	~TakeOffOnFreeFallState() override = default;
+	virtual void handleState(const double dt, Scheduler& dc) override;
+};
+
+
+/*
  * Flying state
  */
 class FlyingState : public State

@@ -155,7 +155,7 @@ public:
 	/*
 	 * Get the quaternion's axis of rotation and angle of rotation in radian.
 	 */
-	void toAxisAngle(Vector3& axis, double& angleRad) const
+	void toAxisAngle(Vector3<double>& axis, double& angleRad) const
 	{
 	    Quaternion q = *this;
 

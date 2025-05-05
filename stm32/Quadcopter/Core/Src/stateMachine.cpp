@@ -108,7 +108,7 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 		//qTest.normalize();
 
 		// Get the angle and axis of rotation
-		Vector3 rotAxis;
+		Vector3<double> rotAxis;
 		double angleRad = 0.0;
 		qError.toAxisAngle(rotAxis, angleRad);
 
