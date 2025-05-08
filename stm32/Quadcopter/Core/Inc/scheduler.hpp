@@ -49,6 +49,11 @@ public:
 	MadgwickFilter<double> m_madgwickFilter;
 	Quaternion<double> m_qAttitudeCorrected = Quaternion<double>::iddentity();
 	Quaternion<double> m_qHoverOffset = Quaternion<double>(0.9999743, 0.0035298, -0.0062408, 0.0000220);
+	Vector3<double> m_calibratedGyro{0.0};
+	Vector3<double> m_averagedGyro{0.0};
+	Vector3<double> m_sumGyro{0.0};
+	int m_nbSumGyro = 0;
+	Vector3<double> m_calibratedAccel{0.0};
 
 	// Motors power
 	double m_thrust = 0.0;

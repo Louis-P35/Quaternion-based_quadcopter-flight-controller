@@ -11,26 +11,41 @@
 #include "Utils/quaternion.hpp"
 
 
-struct PIDConf
+class PIDConf
 {
+protected:
 	double m_kp = 0.0;
 	double m_ki = 0.0;
 	double m_kd = 0.0;
-	double m_saturation = 0.0;
-	double m_outMin = 0.0;
-	double m_outMax = 0.0;
+	double m_saturation = 1000000.0;	// Inf
+	double m_outMin = -1000000.0;		// Inf
+	double m_outMax = 1000000.0;		// Inf
+
+public:
+	PIDConf() = default;
+
+	void setPIDcoeffs(const double kp, const double ki, const double kd)
+	{
+		m_kp = kp;
+		m_ki = ki;
+		m_kd = kd;
+	};
+
+	void setBoundcoeffs(const double sat, const double outMin, const double outMax)
+	{
+		m_saturation = sat;
+		m_outMin = outMin;
+		m_outMax = outMax;
+	};
 };
 
 
 /*
  * PID class
  */
-class PID
+class PID : public PIDConf
 {
 private:
-	// PID coefficients
-	PIDConf m_conf;
-
 	double m_previousError = 0.0;
 	double m_sommeError = 0.0;
 

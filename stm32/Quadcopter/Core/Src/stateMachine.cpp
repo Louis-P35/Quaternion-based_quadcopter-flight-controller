@@ -128,6 +128,8 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 		dc.m_ctrlStrat.angleControlLoop(dc.m_pidAngleLoopDt);
 
 		//angle++;
+
+		//LogManager::getInstance().serialPrint(qEst, qTarget);
 	}
 
 	// Position hold loop
@@ -141,21 +143,25 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 
 
 	// Run rate PID
-	dc.m_ctrlStrat.rateControlLoop(dt);
+	dc.m_ctrlStrat.rateControlLoop(dt, dc.m_averagedGyro, dc.m_radio);
 
 	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0;
-	dc.m_torqueX = 0.0;
-	dc.m_torqueY = 0.0;
-	dc.m_torqueZ = 0.0;
+	dc.m_torqueX = dc.m_ctrlStrat.m_rateLoop[0].m_output;
+	dc.m_torqueY = dc.m_ctrlStrat.m_rateLoop[1].m_output;
+	dc.m_torqueZ = dc.m_ctrlStrat.m_rateLoop[2].m_output;
 
-	//LogManager::getInstance().serialPrint(rollError, pitchError, yawError, 0.0);
+	//LogManager::getInstance().serialPrint(dc.m_torqueX, dc.m_torqueY, dc.m_torqueZ, 0.0);
+
+	//LogManager::getInstance().serialPrint(dc.m_averagedGyro.m_x, dc.m_averagedGyro.m_y, dc.m_averagedGyro.m_z, 0.0);
+	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetRateRoll, dc.m_radio.m_targetRatePitch, dc.m_radio.m_targetRateYaw, 0.0);
+	//LogManager::getInstance().serialPrint("\n\r");
 
 	//LogManager::getInstance().serialPrint("FlyingState\n\r");
 
 	// Debug print AHRS result
 	//LogManager::getInstance().serialPrint(qEst, qTarget);
 	//LogManager::getInstance().serialPrint(qTest, qTarget);
-	//LogManager::getInstance().serialPrint(dc.m_madgwickFilter.m_qEst, dc.m_targetAttitude);
+
 
 	//StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
 	//StateMachine::getInstance().setState(StateMachine::getInstance().getLandingState());

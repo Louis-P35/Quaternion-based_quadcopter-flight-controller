@@ -29,8 +29,27 @@ void Mixer<N>::clampRescale()
 		}
 	}
 
+	// If minVal < 0, shift everything
+	if (minVal < 0.0)
+	{
+		for (std::size_t i = 0; i < N; ++i)
+		{
+			m_powerMotor[i] -= minVal;
+			if (m_powerMotor[i] < 0.0) // To be sure, because of floating precision
+			{
+				m_powerMotor[i] = 0.0;
+			}
+			if (m_powerMotor[i] > maxVal) // update maxVal
+			{
+				maxVal = m_powerMotor[i];
+			}
+		}
+	}
+
+	// At this point there is no negative values
+
 	// Nothing to do if all values are in range [0, 1]
-	if (minVal >= 0.0 && maxVal <= 1.0)
+	if (maxVal <= 1.0)
 	{
 		return;
 	}
@@ -58,6 +77,16 @@ void Mixer<N>::clampRescale()
 	for (std::size_t i = 0; i < N; ++i)
 	{
 		m_powerMotor[i] = (m_powerMotor[i] - minVal) * scale;
+
+		// Clamp because of floating precision
+		if (m_powerMotor[i] > 1.0)
+		{
+			m_powerMotor[i] = 1.0;
+		}
+		else if (m_powerMotor[i] < 0.0)
+		{
+			m_powerMotor[i] = 0.0;
+		}
 	}
 }
 

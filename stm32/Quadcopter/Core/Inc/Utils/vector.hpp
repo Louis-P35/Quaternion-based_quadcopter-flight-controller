@@ -23,6 +23,8 @@ public:
 	constexpr Vector3() noexcept = default;
 	constexpr Vector3(const T& x, const T& y, const T& z) noexcept :
 		m_x(x), m_y(y), m_z(z) {};
+	constexpr Vector3(const T& a) noexcept :
+			m_x(a), m_y(a), m_z(a) {};
 
 	constexpr Vector3& operator+=(const Vector3& b) noexcept
 	{

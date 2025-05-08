@@ -10,6 +10,23 @@
 // Includes from STL
 #include <cstddef>
 
+
+//	    	   FRONT
+//              Y- (Pitch)
+//               |
+//   M2[1] (CW)  | M3[2] (CCW)
+//               |
+//    -----------+----------- X- (Roll)
+//               |
+//   M1[0] (CCW) | M4[3] (CW)
+//               |
+//              Y+
+// 			   BACK
+
+// Yaw+: CCW rotation
+// Yaw-: CW rotation
+
+
 /*
  * Convert a “physic” command vector u = [T, tx, ty, tz]
  * 		T: Total target thrust in Newton (N)
