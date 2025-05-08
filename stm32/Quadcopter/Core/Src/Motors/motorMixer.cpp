@@ -97,8 +97,8 @@ void XquadMixer::mixThrustTorque(
 		const double& ty,
 		const double& tz)
 {
-	m_powerMotor[0] =  m_a*T - m_b*tx - m_b*ty + m_c*tz;   // M1
-	m_powerMotor[1] =  m_a*T - m_b*tx + m_b*ty - m_c*tz;   // M2
-	m_powerMotor[2] =  m_a*T + m_b*tx + m_b*ty + m_c*tz;   // M3
-	m_powerMotor[3] =  m_a*T + m_b*tx - m_b*ty - m_c*tz;   // M4
+	m_powerMotor[0] =  m_a*T - m_b*tx - m_b*ty - m_c*tz;   // M1
+	m_powerMotor[1] =  m_a*T - m_b*tx + m_b*ty + m_c*tz;   // M2
+	m_powerMotor[2] =  m_a*T + m_b*tx + m_b*ty - m_c*tz;   // M3
+	m_powerMotor[3] =  m_a*T + m_b*tx - m_b*ty + m_c*tz;   // M4
 }

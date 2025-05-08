@@ -360,22 +360,23 @@ void Scheduler::setMotorPower(const Motor motor, const double power)
 		high = pwmResMax;
 	}
 
+	// Mapping enum to real motors
 	switch(motor)
 	{
 	case Motor::eMotor1:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, high);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, high);
 		break;
 
 	case Motor::eMotor2:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, high);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, high);
 		break;
 
 	case Motor::eMotor3:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, high);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, high);
 		break;
 
 	case Motor::eMotor4:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, high);
+		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, high);
 		break;
 
 	default:
