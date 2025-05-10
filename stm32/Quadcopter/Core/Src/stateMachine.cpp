@@ -143,7 +143,7 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 
 
 	// Run rate PID
-	dc.m_ctrlStrat.rateControlLoop(dt, dc.m_averagedGyro, dc.m_radio);
+	dc.m_ctrlStrat.rateControlLoop(dt, dc.m_calibratedGyro, dc.m_radio);
 
 	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0;
 	dc.m_torqueX = dc.m_ctrlStrat.m_rateLoop[0].m_output;

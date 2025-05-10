@@ -65,11 +65,11 @@ Quaternion<double> PID::getError(const Quaternion<double>& current, const Quater
 double PID::computePID(const double& error, const double& dt, const bool& integrate)
 {
 	// Proportionnal gain
-	double p = error * m_kp;
+	const double p = error * m_kp;
 
 	// Derivative gain
-	double derivedError = (error - m_previousError) / dt;
-	double d = derivedError * m_kd;
+	const double derivedError = (error - m_previousError) / dt;
+	const double d = derivedError * m_kd;
 	m_previousError = error;
 
 	// Integral gain
@@ -88,7 +88,7 @@ double PID::computePID(const double& error, const double& dt, const bool& integr
 		}
 	}
 
-	double i = m_sommeError * m_ki;
+	const double i = m_sommeError * m_ki;
 
 	return p + i + d;
 }

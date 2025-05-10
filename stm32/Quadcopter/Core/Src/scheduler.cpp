@@ -57,11 +57,11 @@
 #define YAW_ANGLE_KI 0.0
 #define YAW_ANGLE_KD 0.0
 
-#define ROLLPITCH_RATE_KP 0.001
+#define ROLLPITCH_RATE_KP 0.005
 #define ROLLPITCH_RATE_KI 0.0
-#define ROLLPITCH_RATE_KD 0.0
+#define ROLLPITCH_RATE_KD 0.000002
 
-#define YAW_RATE_KP 0.001
+#define YAW_RATE_KP 0.0
 #define YAW_RATE_KI 0.0
 #define YAW_RATE_KD 0.0
 
@@ -79,14 +79,17 @@
 #define TARGET_ANGLE_MAX 45.0
 #define TARGET_RATE_MAX 200.0
 
+// 0.45 (x4) = take off thrust
 
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-//#define DEBUG_DISABLE_MOTORS 1
+#define DEBUG_DISABLE_MOTORS 1
+//#define PID_TESTING_MODE 1
 
 
 // TODOs:
+// GYRO 500 d/s + low pass filter
 // Set hover thrust offset precisely
 // PIDs & map to motors
 // Remove Eigen
@@ -172,18 +175,7 @@ void Scheduler::mainLoop(const double dt)
 	// Fast loop (6khz)
 
 	// Read IMU
-	icm20948_gyro_read_dps(&m_gyro);
-	icm20948_accel_read_g(&m_accel);
-	//bool readMag = ak09916_mag_read_uT(&m_mag);
-
-	// Remove accel & gyro's offset
-	m_calibratedGyro = {static_cast<double>(m_gyro.x), static_cast<double>(m_gyro.y), static_cast<double>(m_gyro.z)};
-	m_calibratedGyro -= m_gyroOffset;
-	m_calibratedAccel = {static_cast<double>(m_accel.x), static_cast<double>(m_accel.y), static_cast<double>(m_accel.z)};
-	m_calibratedAccel -= m_accelOffset;
-
-	m_sumGyro += m_calibratedGyro;
-	m_nbSumGyro++;
+	readIMU();
 
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
@@ -228,13 +220,35 @@ void Scheduler::mainLoop(const double dt)
 			// Signal lost, target quaternion is horizon
 		}
 
+#ifdef PID_TESTING_MODE
+		//m_radio.m_targetRateRoll = 0.0;
+		//m_radio.m_targetRateYaw = 0.0;
+		//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
+#endif
+
+
+		//LogManager::getInstance().serialPrint("POWER: \n\r");
 		//LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
 		//LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
+		//LogManager::getInstance().serialPrint("TORQUE: \n\r");
+		//LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
 		//LogManager::getInstance().serialPrint("\n\r");
 
 		//LogManager::getInstance().serialPrint(m_averagedGyro.m_x, m_averagedGyro.m_y, m_averagedGyro.m_z, 0.0);
 		// Reset dt
 		m_radioLoopDt = 0.0;
+
+		std::string tmp = std::to_string(m_calibratedGyro.m_y);
+		auto it = std::find_if(tmp.begin(), tmp.end(), [](char c){return c == '.';});
+		if (it != tmp.end())
+		{
+			*it = ',';
+		}
+		tmp += "\n\r";
+		LogManager::getInstance().serialPrint((char*)tmp.c_str());
+
+		//LogManager::getInstance().serialPrint(m_radio.m_targetThrust, m_radio.m_targetRatePitch, 0.0, 0.0);
+		//LogManager::getInstance().serialPrint(m_radio.m_targetRatePitch);
 	}
 
 	// Enable PID angle loop (that will run in the state machine)
@@ -263,9 +277,9 @@ void Scheduler::mainLoop(const double dt)
 	if (m_pidRateLoopDt > PID_RATE_FREQUENCY_LOOP_PERIODE)
 	{
 		// Compute the average gyro value between 2 rate loop
-		m_averagedGyro = m_sumGyro / static_cast<double>(m_nbSumGyro);
-		m_nbSumGyro = 0;
-		m_sumGyro = {0.0, 0.0, 0.0};
+		//m_averagedGyro = m_sumGyro / static_cast<double>(m_nbSumGyro);
+		//m_nbSumGyro = 0;
+		//m_sumGyro = {0.0, 0.0, 0.0};
 
 		// Run the state machine
 		StateMachine::getInstance().run(m_pidRateLoopDt, *this);
@@ -307,6 +321,35 @@ void Scheduler::mainLoop(const double dt)
 
 
 /*
+ * Read the accelerometer and gyroscope and filter data
+ */
+void Scheduler::readIMU()
+{
+	icm20948_gyro_read_dps(&m_gyro);
+	icm20948_accel_read_g(&m_accel);
+	//bool readMag = ak09916_mag_read_uT(&m_mag);
+
+	// Remove gyro's offset
+	m_calibratedGyro -= m_gyroOffset;
+
+	// Filtering gyroscope data
+	m_calibratedGyro.m_x = m_lpf_gyro_gain * m_previousGyro.m_x + (1.0 - m_lpf_gyro_gain) * static_cast<double>(m_gyro.x);
+	m_calibratedGyro.m_y = m_lpf_gyro_gain * m_previousGyro.m_y + (1.0 - m_lpf_gyro_gain) * static_cast<double>(m_gyro.y);
+	m_calibratedGyro.m_z = m_lpf_gyro_gain * m_previousGyro.m_z + (1.0 - m_lpf_gyro_gain) * static_cast<double>(m_gyro.z);
+	m_previousGyro = m_calibratedGyro;
+
+	// Remove accel's offset
+	m_calibratedAccel -= m_accelOffset;
+
+	// Filtering accelerometer data
+	m_calibratedAccel.m_x = m_lpf_acc_gain * m_previousAcc.m_x + (1.0 - m_lpf_acc_gain) * static_cast<double>(m_accel.x);
+	m_calibratedAccel.m_y = m_lpf_acc_gain * m_previousAcc.m_y + (1.0 - m_lpf_acc_gain) * static_cast<double>(m_accel.y);
+	m_calibratedAccel.m_z = m_lpf_acc_gain * m_previousAcc.m_z + (1.0 - m_lpf_acc_gain) * static_cast<double>(m_accel.z);
+	m_previousAcc = m_calibratedAccel;
+}
+
+
+/*
  * Find the gyroscope and accelerometer offsets for each axis.
  */
 void Scheduler::gyroAccelCalibration()
@@ -314,7 +357,7 @@ void Scheduler::gyroAccelCalibration()
 	Vector3<double> gyro = Vector3<double>(0.0, 0.0, 0.0);
 	Vector3<double> accel = Vector3<double>(0.0, 0.0, 0.0);
 
-	const int nbIteration = 200;
+	const int nbIteration = 2000;
 
 	for (int i = 0; i < nbIteration; ++i)
 	{
@@ -325,7 +368,7 @@ void Scheduler::gyroAccelCalibration()
 		gyro += Vector3<double>(m_gyro.x, m_gyro.y, m_gyro.z);
 		accel += Vector3<double>(m_accel.x, m_accel.y, m_accel.z);
 
-		HAL_Delay(10);
+		HAL_Delay(1);
 	}
 
 	m_gyroOffset = gyro / static_cast<double>(nbIteration);

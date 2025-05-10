@@ -45,6 +45,10 @@ void Mixer<N>::clampRescale()
 			}
 		}
 	}
+	if (minVal < 0.0) // Update minVal. It is 0 if it was negative before
+	{
+		minVal = 0.0;
+	}
 
 	// At this point there is no negative values
 

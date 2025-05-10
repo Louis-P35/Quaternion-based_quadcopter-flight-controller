@@ -46,8 +46,8 @@ public:
 
 	// Write data to the the serial port
 	void serialPrint(const int val);
-	void serialPrint(const float val);
-	void serialPrint(const double val);
+	void serialPrint(const float val, const bool dotAsComma = true);
+	void serialPrint(const double val, const bool dotAsComma = true);
 	void serialPrint(char* pVal);
 	void serialPrint(const Quaternion<double>& q);
 	void serialPrint(const Quaternion<double>& q1, const Quaternion<double>& q2);

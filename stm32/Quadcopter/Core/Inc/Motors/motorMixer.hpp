@@ -38,6 +38,7 @@ class Mixer
 {
 public:
 	static constexpr double m_armLenghtM = 0.1;
+	// m_kT = 1.0 => 1 unit of power motor = 1 unit of thrust
 	static constexpr double m_kT = 1.0;		// Thrust gain (keep 1.0 for normalized output)
 	static constexpr double m_kQ = 0.02;	// Torque gain (Yaw authority over Roll & Pitch)
 

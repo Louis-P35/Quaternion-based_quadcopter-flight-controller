@@ -50,9 +50,6 @@ public:
 	Quaternion<double> m_qAttitudeCorrected = Quaternion<double>::iddentity();
 	Quaternion<double> m_qHoverOffset = Quaternion<double>(0.9999743, 0.0035298, -0.0062408, 0.0000220);
 	Vector3<double> m_calibratedGyro{0.0};
-	Vector3<double> m_averagedGyro{0.0};
-	Vector3<double> m_sumGyro{0.0};
-	int m_nbSumGyro = 0;
 	Vector3<double> m_calibratedAccel{0.0};
 
 	// Motors power
@@ -78,6 +75,11 @@ private:
 	Vector3<double> m_accelOffset = Vector3<double>(0.0, 0.0, 0.0);
 	Vector3<double> m_gyroOffset = Vector3<double>(0.0, 0.0, 0.0);
 
+	static constexpr double m_lpf_gyro_gain = 0.05;
+	static constexpr double m_lpf_acc_gain = 0.1;
+	Vector3<double> m_previousGyro = {0.0};
+	Vector3<double> m_previousAcc = {0.0};
+
 public:
 	Scheduler(
 			SPI_HandleTypeDef hspi,
@@ -92,6 +94,7 @@ public:
 	void setMotorPower(const Motor motor, const double power);
 
 private:
+	void readIMU();
 	void gyroAccelCalibration();
 	void calibrateHoverOffset();
 };

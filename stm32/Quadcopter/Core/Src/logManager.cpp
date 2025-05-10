@@ -8,6 +8,8 @@
 // STL
 #include <stdio.h>
 #include <cstring>
+#include <string>
+#include <algorithm>
 
 // Project
 #include "logManager.hpp"
@@ -53,13 +55,21 @@ void LogManager::serialPrint(const int val)
 /*
  * Write a float on the serial port
  */
-void LogManager::serialPrint(const float val)
+void LogManager::serialPrint(const float val, const bool dotAsComma)
 {
-	char pBuffer[256];
-	int numBytes;
+	std::string tmp = std::to_string(val);
+	tmp += "\n\r";
 
-	numBytes = sprintf(pBuffer, "%f\r\n", val);
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+	if (!dotAsComma)
+	{
+		auto it = std::find_if(tmp.begin(), tmp.end(), [](char c){return c == '.';});
+		if (it != tmp.end())
+		{
+			*it = ',';
+		}
+	}
+
+	serialPrint((char*)tmp.c_str());
 }
 
 
@@ -124,9 +134,9 @@ void LogManager::serialPrint(
 /*
  * Write a double on the serial port
  */
-void LogManager::serialPrint(const double val)
+void LogManager::serialPrint(const double val, const bool dotAsComma)
 {
-	serialPrint(static_cast<float>(val));
+	serialPrint(static_cast<float>(val), dotAsComma);
 }
 
 /*

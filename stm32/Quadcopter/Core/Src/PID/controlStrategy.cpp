@@ -104,7 +104,8 @@ void ControlStrategy::angleControlLoop(const double dt)
 
 	for (int i = 0; i < 3; ++i)
 	{
-		m_rateLoop[i].run(dt);
+		// TODO: fix error calculation
+		//m_angleLoop[i].run(dt);
 	}
 }
 
