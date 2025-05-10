@@ -329,23 +329,23 @@ void Scheduler::readIMU()
 	icm20948_accel_read_g(&m_accel);
 	//bool readMag = ak09916_mag_read_uT(&m_mag);
 
-	// Remove gyro's offset
-	m_calibratedGyro -= m_gyroOffset;
-
 	// Filtering gyroscope data
 	m_calibratedGyro.m_x = m_lpf_gyro_gain * m_previousGyro.m_x + (1.0 - m_lpf_gyro_gain) * static_cast<double>(m_gyro.x);
 	m_calibratedGyro.m_y = m_lpf_gyro_gain * m_previousGyro.m_y + (1.0 - m_lpf_gyro_gain) * static_cast<double>(m_gyro.y);
 	m_calibratedGyro.m_z = m_lpf_gyro_gain * m_previousGyro.m_z + (1.0 - m_lpf_gyro_gain) * static_cast<double>(m_gyro.z);
 	m_previousGyro = m_calibratedGyro;
 
-	// Remove accel's offset
-	m_calibratedAccel -= m_accelOffset;
+	// Remove gyro's offset
+	m_calibratedGyro -= m_gyroOffset;
 
 	// Filtering accelerometer data
 	m_calibratedAccel.m_x = m_lpf_acc_gain * m_previousAcc.m_x + (1.0 - m_lpf_acc_gain) * static_cast<double>(m_accel.x);
 	m_calibratedAccel.m_y = m_lpf_acc_gain * m_previousAcc.m_y + (1.0 - m_lpf_acc_gain) * static_cast<double>(m_accel.y);
 	m_calibratedAccel.m_z = m_lpf_acc_gain * m_previousAcc.m_z + (1.0 - m_lpf_acc_gain) * static_cast<double>(m_accel.z);
 	m_previousAcc = m_calibratedAccel;
+
+	// Remove accel's offset
+	m_calibratedAccel -= m_accelOffset;
 }
 
 
