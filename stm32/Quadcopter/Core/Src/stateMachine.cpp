@@ -12,9 +12,9 @@
 #include "PID/controlStrategy.hpp"
 
 
-void StartupSequenceState::handleState(const double dt, Scheduler& dc)
+void StartupSequenceState::handleState(Scheduler& dc)
 {
-	m_time += dt;
+	m_time += dc.m_rateDt;
 
 	// All motors at 0% power
 	dc.m_thrust = 0.0;
@@ -36,7 +36,7 @@ void StartupSequenceState::handleState(const double dt, Scheduler& dc)
 }
 
 
-void IdleState::handleState(const double dt, Scheduler& dc)
+void IdleState::handleState(Scheduler& dc)
 {
 	// All motors at 0% power
 	dc.m_thrust = 0.0;
@@ -56,7 +56,7 @@ void IdleState::handleState(const double dt, Scheduler& dc)
 }
 
 
-void ReadyToTakeOffState::handleState(const double dt, Scheduler& dc)
+void ReadyToTakeOffState::handleState(Scheduler& dc)
 {
 	//LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
 	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetThrust);
@@ -75,7 +75,7 @@ void ReadyToTakeOffState::handleState(const double dt, Scheduler& dc)
 }
 
 
-void TakeOffState::handleState(const double dt, Scheduler& dc)
+void TakeOffState::handleState(Scheduler& dc)
 {
 	// TODO: Handle take off autonomously
 
@@ -89,7 +89,7 @@ void TakeOffState::handleState(const double dt, Scheduler& dc)
 /*
  * Handle flying
  */
-void FlyingState::handleState(const double dt, Scheduler& dc)
+void FlyingState::handleState(Scheduler& dc)
 {
 	//static unsigned long int pos = 0;
 	//static unsigned long int angle = 0;
@@ -104,28 +104,28 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 
 		// A quaternion q and -q represent the same rotation.
 		// Here, canonical() make a sign choice (q.w >= 0).
-		Quaternion<double> qEst = Quaternion<double>::canonical(dc.m_qAttitudeCorrected);
-		Quaternion<double> qTarget = Quaternion<double>::canonical(dc.m_targetAttitude);
+		Quaternion<float> qEst = Quaternion<float>::canonical(dc.m_qAttitudeCorrected);
+		Quaternion<float> qTarget = Quaternion<float>::canonical(dc.m_targetAttitude);
 
 		// Get attitude error
-		Quaternion<double> qError = PID::getError(qEst, qTarget);
+		Quaternion<float> qError = PID::getError(qEst, qTarget);
 
 		//Quaternion qTest = qError * qEst;
 		//qTest.normalize();
 
 		// Get the angle and axis of rotation
-		Vector3<double> rotAxis;
-		double angleRad = 0.0;
+		Vector3<float> rotAxis;
+		float angleRad = 0.0f;
 		qError.toAxisAngle(rotAxis, angleRad);
 
 		// Projection of the rotation axis onto the 3 axis of the drone
 		// It is NOT Euler angles here, so no singularity
-		double rollError = rotAxis.m_x * angleRad;
-		double pitchError = rotAxis.m_y * angleRad;
-		double yawError = rotAxis.m_z * angleRad;
+		float rollError = rotAxis.m_x * angleRad;
+		float pitchError = rotAxis.m_y * angleRad;
+		float yawError = rotAxis.m_z * angleRad;
 
 		// Run angle PID
-		dc.m_ctrlStrat.angleControlLoop(dc.m_pidAngleLoopDt);
+		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt);
 
 		//angle++;
 
@@ -143,9 +143,9 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 
 
 	// Run rate PID
-	dc.m_ctrlStrat.rateControlLoop(dt, dc.m_calibratedGyro, dc.m_radio);
+	dc.m_ctrlStrat.rateControlLoop(dc.m_rateDt, dc.m_gyroCopy, dc.m_radio);
 
-	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0;
+	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0f;
 	dc.m_torqueX = dc.m_ctrlStrat.m_rateLoop[0].m_output;
 	dc.m_torqueY = dc.m_ctrlStrat.m_rateLoop[1].m_output;
 	dc.m_torqueZ = dc.m_ctrlStrat.m_rateLoop[2].m_output;
@@ -168,7 +168,7 @@ void FlyingState::handleState(const double dt, Scheduler& dc)
 }
 
 
-void LandingtState::handleState(const double dt, Scheduler& dc)
+void LandingtState::handleState(Scheduler& dc)
 {
 	// TODO: Handle autonomous landing
 

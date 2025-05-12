@@ -10,32 +10,47 @@
 // Include from project
 #include "Utils/quaternion.hpp"
 
+enum class DerivativeMode
+{
+	OnError,
+	OnMeasurement,
+	NoDerivative
+};
+
 
 class PIDConf
 {
 protected:
-	double m_kp = 0.0;
-	double m_ki = 0.0;
-	double m_kd = 0.0;
-	double m_saturation = 1000000.0;	// Inf
-	double m_outMin = -1000000.0;		// Inf
-	double m_outMax = 1000000.0;		// Inf
+	float m_kp = 0.0f;
+	float m_ki = 0.0f;
+	float m_kd = 0.0f;
+	float m_saturation = 1000.0f;	// Inf
+	float m_maxD = 1000.0;			// Inf
+	float m_outMin = -1000.0f;		// Inf
+	float m_outMax = 1000.0f;		// Inf
+
+	DerivativeMode m_derivativeMode = DerivativeMode::OnError;
 
 public:
 	PIDConf() = default;
 
-	void setPIDcoeffs(const double kp, const double ki, const double kd)
+	void setPIDcoeffs(const float kp, const float ki, const float kd)
 	{
 		m_kp = kp;
 		m_ki = ki;
 		m_kd = kd;
 	};
 
-	void setBoundcoeffs(const double sat, const double outMin, const double outMax)
+	void setBoundcoeffs(const float sat, const float outMin, const float outMax)
 	{
 		m_saturation = sat;
 		m_outMin = outMin;
 		m_outMax = outMax;
+	};
+
+	void setDerivativeMode(const DerivativeMode& derivativeMode)
+	{
+		m_derivativeMode = derivativeMode;
 	};
 };
 
@@ -45,25 +60,28 @@ public:
  */
 class PID : public PIDConf
 {
-private:
-	double m_previousError = 0.0;
-	double m_sommeError = 0.0;
+//private:
+public:
+	float m_previousError = 0.0f;
+	float m_previousMeasure = 0.0f;
+	float m_sommeError = 0.0f;
 
 public:
 	// Constructor to initialize PID gains
 	PID()
 	{
 		m_previousError = 0.0;
+		m_previousMeasure = 0.0;
 		m_sommeError = 0.0;
 	}
 
 	// For Euler-based PID
-	static double getError(const double& current, const double& target);
+	static float getError(const float& current, const float& target);
 
 	// For Quaternion-based PID
-	static Quaternion<double> getError(const Quaternion<double>& current, const Quaternion<double>& target);
+	static Quaternion<float> getError(const Quaternion<float>& current, const Quaternion<float>& target);
 
-	double computePID(const double& error, const double& dt, const bool& integrate);
+	float computePID(const float& error, const float& measure, const float& dt, const bool& integrate);
 };
 
 
@@ -73,13 +91,13 @@ public:
 class PIDBlock : public PID
 {
 public:
-	double m_measure = 0.0;
-	double m_target = 0.0;
-	double m_output = 0.0;
+	float m_measure = 0.0f;
+	float m_target = 0.0f;
+	float m_output = 0.0f;
 
 	PIDBlock() : PID() {}
 
-	void run(double dt);
+	void run(float dt);
 };
 
 

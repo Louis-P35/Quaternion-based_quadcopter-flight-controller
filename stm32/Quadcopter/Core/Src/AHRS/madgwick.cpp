@@ -125,7 +125,7 @@ void MadgwickFilter<T>::getEulerAngle(T& roll, T& pitch, T& yaw)
 }
 
 
-// Explicite instanciation for double
-template class MadgwickFilter<double>;
+// Explicite instanciation for float
+template class MadgwickFilter<float>;
 
 

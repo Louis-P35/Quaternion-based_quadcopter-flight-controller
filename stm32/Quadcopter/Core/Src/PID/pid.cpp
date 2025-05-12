@@ -13,7 +13,7 @@
  * Compute error
  * For Euler-based PID
  */
-double PID::getError(const double& current, const double& target)
+float PID::getError(const float& current, const float& target)
 {
 	return target - current;
 }
@@ -22,14 +22,14 @@ double PID::getError(const double& current, const double& target)
  * Compute error
  * For Quaternion-based PID
  */
-Quaternion<double> PID::getError(const Quaternion<double>& current, const Quaternion<double>& target)
+Quaternion<float> PID::getError(const Quaternion<float>& current, const Quaternion<float>& target)
 {
 	/*
 	Computes the rotation necessary to go from the current orientation to the target orientation.
 	This operation is from the perspective of the current orientation being the reference frame, and
 	it calculates the relative rotation needed to align exactly with the target.
 	*/
-	Quaternion<double> qError = target * current.inverse();
+	Quaternion<float> qError = target * current.inverse();
 
 	// Ensure it is normalized
 	qError.normalize();
@@ -62,15 +62,26 @@ Quaternion<double> PID::getError(const Quaternion<double>& current, const Quater
  * PID control.
  * Compute the response to an error.
  */
-double PID::computePID(const double& error, const double& dt, const bool& integrate)
+float PID::computePID(const float& error, const float& measure, const float& dt, const bool& integrate)
 {
-	// Proportionnal gain
-	const double p = error * m_kp;
+	float d = 0.0f;
+
+	// Proportional gain
+	const float p = error * m_kp;
 
 	// Derivative gain
-	const double derivedError = (error - m_previousError) / dt;
-	const double d = derivedError * m_kd;
-	m_previousError = error;
+	if (m_derivativeMode == DerivativeMode::OnError)
+	{
+		const float derivative = (error - m_previousError) / dt;
+		d = derivative * m_kd;
+		m_previousError = error;
+	}
+	else if (m_derivativeMode == DerivativeMode::OnMeasurement)
+	{
+		const float derivative = (measure - m_previousMeasure) / dt;
+		d = derivative * m_kd;
+		m_previousMeasure = measure;
+	}
 
 	// Integral gain
 	if (integrate) // Do not integrate error if the drone is not flying
@@ -88,17 +99,17 @@ double PID::computePID(const double& error, const double& dt, const bool& integr
 		}
 	}
 
-	const double i = m_sommeError * m_ki;
+	const float i = m_sommeError * m_ki;
 
 	return p + i + d;
 }
 
 
 
-void PIDBlock::run(double dt)
+void PIDBlock::run(float dt)
 {
-	const double error = m_target - m_measure;
-	m_output = computePID(error, dt, true);
+	const float error = m_target - m_measure;
+	m_output = computePID(error, m_measure, dt, true);
 }
 
 

@@ -18,7 +18,7 @@ class State
 {
 public:
 	virtual ~State() = default;
-	virtual void handleState(const double dt, Scheduler& dc) = 0;
+	virtual void handleState(Scheduler& dc) = 0;
 };
 
 
@@ -32,7 +32,7 @@ private:
 
 public:
 	~StartupSequenceState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -43,7 +43,7 @@ class IdleState : public State
 {
 public:
 	~IdleState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -56,7 +56,7 @@ class ReadyToTakeOffState : public State
 {
 public:
 	~ReadyToTakeOffState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -67,7 +67,7 @@ class TakeOffState : public State
 {
 public:
 	~TakeOffState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -78,7 +78,7 @@ class TakeOffOnFreeFallState : public State
 {
 public:
 	~TakeOffOnFreeFallState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -89,7 +89,7 @@ class FlyingState : public State
 {
 public:
 	~FlyingState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -100,7 +100,7 @@ class LandingtState : public State
 {
 public:
 	~LandingtState() override = default;
-	virtual void handleState(const double dt, Scheduler& dc) override;
+	virtual void handleState(Scheduler& dc) override;
 };
 
 
@@ -140,11 +140,11 @@ public:
 		m_pState = &nextState;
 	};
 
-	void run(const double dt, Scheduler& dc)
+	void run(Scheduler& dc)
 	{
 		if (m_pState)
 		{
-			m_pState->handleState(dt, dc);
+			m_pState->handleState(dc);
 		}
 	};
 

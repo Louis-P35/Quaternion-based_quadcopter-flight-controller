@@ -37,21 +37,21 @@ template<std::size_t N>
 class Mixer
 {
 public:
-	static constexpr double m_armLenghtM = 0.1;
+	static constexpr float m_armLenghtM = 0.1f;
 	// m_kT = 1.0 => 1 unit of power motor = 1 unit of thrust
-	static constexpr double m_kT = 1.0;		// Thrust gain (keep 1.0 for normalized output)
-	static constexpr double m_kQ = 0.02;	// Torque gain (Yaw authority over Roll & Pitch)
+	static constexpr float m_kT = 1.0f;		// Thrust gain (keep 1.0 for normalized output)
+	static constexpr float m_kQ = 0.02f;	// Torque gain (Yaw authority over Roll & Pitch)
 
-	double m_powerMotor[N];
+	float m_powerMotor[N];
 
 public:
 	Mixer() {};
 
 	virtual void mixThrustTorque(
-			const double& T,
-			const double& tx,
-			const double& ty,
-			const double& tz
+			const float& T,
+			const float& tx,
+			const float& ty,
+			const float& tz
 			) = 0;
 
 	void clampRescale();
@@ -64,18 +64,18 @@ public:
 class XquadMixer : public Mixer<4>
 {
 private:
-	static constexpr double m_a = 1.0 / (4.0 * m_kT);
-	static constexpr double m_b = 1.0 / (4.0 * m_kT * m_armLenghtM);
-	static constexpr double m_c = 1.0 / (4.0 * m_kQ);
+	static constexpr float m_a = 1.0f / (4.0f * m_kT);
+	static constexpr float m_b = 1.0f / (4.0f * m_kT * m_armLenghtM);
+	static constexpr float m_c = 1.0f / (4.0f * m_kQ);
 
 public:
 	XquadMixer() {};
 
 	virtual void mixThrustTorque(
-				const double& T,
-				const double& tx,
-				const double& ty,
-				const double& tz
+				const float& T,
+				const float& tx,
+				const float& ty,
+				const float& tz
 				);
 };
 

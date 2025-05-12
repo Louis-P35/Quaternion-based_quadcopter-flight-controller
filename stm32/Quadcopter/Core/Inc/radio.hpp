@@ -17,21 +17,21 @@ class Radio
 {
 public:
 	// Thrust params
-	static constexpr double m_rawThrustRadioMin = 1070.0;
-	static constexpr double m_rawThrustRadioMax = 1941.0;
-	double m_throttleHoverOffset = 0.0;
-	double m_throttleExpo = 0.0;
-	double m_targetAngleMax = 0.0;
-	double m_targetRateMax = 0.0;
+	static constexpr float m_rawThrustRadioMin = 1070.0f;
+	static constexpr float m_rawThrustRadioMax = 1941.0f;
+	float m_throttleHoverOffset = 0.0f;
+	float m_throttleExpo = 0.0f;
+	float m_targetAngleMax = 0.0f;
+	float m_targetRateMax = 0.0f;
 
 
-	double m_targetYaw = 0.0;
-	double m_targetPitch = 0.0;
-	double m_targetRoll = 0.0;
-	double m_targetRateYaw = 0.0;
-	double m_targetRatePitch = 0.0;
-	double m_targetRateRoll = 0.0;
-	double m_targetThrust = 0.0;
+	float m_targetYaw = 0.0f;
+	float m_targetPitch = 0.0f;
+	float m_targetRoll = 0.0f;
+	float m_targetRateYaw = 0.0f;
+	float m_targetRatePitch = 0.0f;
+	float m_targetRateRoll = 0.0f;
+	float m_targetThrust = 0.0f;
 
 	bool m_signalLost = true;
 
@@ -41,15 +41,15 @@ public:
 	uint32_t m_radioChannel4 = 0;
 
 public:
-	Radio(const double& mid, const double& expo, const double& targetAngleMax, const double& targetRateMax);
+	Radio(const float& mid, const float& expo, const float& targetAngleMax, const float& targetRateMax);
 
-	bool readRadioReceiver(const bool& isFlying, const double& dt);
-	double getThrottle(double radioInput) const;
-	double msToDegree(
+	bool readRadioReceiver(const bool& isFlying, const float& dt);
+	float getThrottle(float radioInput) const;
+	float msToDegree(
 			const uint32_t& duration,
-			const double& amplitudeMax,
+			const float& amplitudeMax,
 			const bool& invertAxe,
-			const double deadZone
+			const float deadZone
 			);
-	double integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& invertAxe, const bool& isFlying);
+	float integrateTargetYaw(const uint32_t& duration, const float& dt, const bool& invertAxe, const bool& isFlying);
 };

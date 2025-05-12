@@ -49,15 +49,15 @@ public:
 	void serialPrint(const float val, const bool dotAsComma = true);
 	void serialPrint(const double val, const bool dotAsComma = true);
 	void serialPrint(char* pVal);
-	void serialPrint(const Quaternion<double>& q);
-	void serialPrint(const Quaternion<double>& q1, const Quaternion<double>& q2);
+	void serialPrint(const Quaternion<float>& q);
+	void serialPrint(const Quaternion<float>& q1, const Quaternion<float>& q2);
 	void serialPrint(
-			const double ax, const double ay, const double az,
-			const double gx, const double gy, const double gz,
-			const double mx, const double my, const double mz
+			const float ax, const float ay, const float az,
+			const float gx, const float gy, const float gz,
+			const float mx, const float my, const float mz
 			);
 	void serialPrint(const uint32_t ch1, const uint32_t ch2, const uint32_t ch3, const uint32_t ch4);
-	void serialPrint(const double ch1, const double ch2, const double ch3, const double ch4);
+	void serialPrint(const float ch1, const float ch2, const float ch3, const float ch4);
 };
 
 

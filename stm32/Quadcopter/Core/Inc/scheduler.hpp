@@ -11,15 +11,22 @@
 #include "stm32h7xx_hal.h"
 
 // Includes from project
-#include "Sensors/icm20948.h"
+#include "Sensors/IMU.hpp"
 #include "PID/controlStrategy.hpp"
 #include "AHRS/madgwick.hpp"
 #include "radio.hpp"
 #include "Motors/motorMixer.hpp"
 #include "Utils/vector.hpp"
 
-// Includes from 3rd party
-//#include <AHRS/ESKF.h>
+
+// DO not change this unless change the timer 2 settings accordingly
+// IMU_SAMPLE_FREQUENCY must be a round multiple of 1000
+#define IMU_SAMPLE_FREQUENCY 6000
+#define RATE_DIVIDER 3
+#define AHRS_DIVIDER 6
+#define ESC_DIVIDER 12
+#define POS_HOLD_DIVIDER 60
+#define RADIO_DIVIDER 120
 
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
@@ -36,49 +43,42 @@ public:
 	UART_HandleTypeDef m_huart_ext;
 	TIM_HandleTypeDef& m_htim1;
 
-	// IMU data
-	axises m_gyro;
-	axises m_accel;
-	axises m_mag;
+	// IMU
+	IMU m_imu;
+	Vector3<float> m_gyroCopy;
+	Vector3<float> m_accelCopy;
 
 	// Radio
 	Radio m_radio;
-	Quaternion<double> m_targetAttitude;
+	Quaternion<float> m_targetAttitude;
 
 	// ARHR (Madgwick)
-	MadgwickFilter<double> m_madgwickFilter;
-	Quaternion<double> m_qAttitudeCorrected = Quaternion<double>::iddentity();
-	Quaternion<double> m_qHoverOffset = Quaternion<double>(0.9999743, 0.0035298, -0.0062408, 0.0000220);
-	Vector3<double> m_calibratedGyro{0.0};
-	Vector3<double> m_calibratedAccel{0.0};
+	MadgwickFilter<float> m_madgwickFilter;
+	Quaternion<float> m_qAttitudeCorrected = Quaternion<float>::iddentity();
+	Quaternion<float> m_qHoverOffset = Quaternion<float>(0.9999743f, 0.0035298f, -0.0062408f, 0.0000220f);
 
 	// Motors power
-	double m_thrust = 0.0;
-	double m_torqueX = 0.0;
-	double m_torqueY = 0.0;
-	double m_torqueZ = 0.0;
+	float m_thrust = 0.0f;
+	float m_torqueX = 0.0f;
+	float m_torqueY = 0.0f;
+	float m_torqueZ = 0.0f;
 	XquadMixer m_motorMixer;
 
 	ControlStrategy m_ctrlStrat;
 
-	// Scheduler
-	double m_pidRateLoopDt = 0.0;
-	double m_pidAngleLoopDt = 0.0;
-	double m_pidPosLoopDt = 0.0;
-	double m_escsLoopDt = 0.0;
-	double m_radioLoopDt = 0.0;
+	uint32_t m_ahrsStartTime = 0;
+	uint32_t m_rateStartTime = 0;
+	uint32_t m_angleStartTime = 0;
+	uint32_t m_posStartTime = 0;
+	uint32_t m_radioStartTime = 0;
+	double m_ahrsDt = 0.001; // Non 0 init to avoid /0
+	double m_rateDt = 0.001;
+	double m_angleDt = 0.001;
+	double m_posDt = 0.001;
+	double m_radioDt = 0.001;
+
 	bool m_angleLoop = false;
 	bool m_posLoop = false;
-
-private:
-	Vector3<double> m_magBias = Vector3<double>(-40.05, 12.15, 29.025);
-	Vector3<double> m_accelOffset = Vector3<double>(0.0, 0.0, 0.0);
-	Vector3<double> m_gyroOffset = Vector3<double>(0.0, 0.0, 0.0);
-
-	static constexpr double m_lpf_gyro_gain = 0.05;
-	static constexpr double m_lpf_acc_gain = 0.1;
-	Vector3<double> m_previousGyro = {0.0};
-	Vector3<double> m_previousAcc = {0.0};
 
 public:
 	Scheduler(
@@ -91,14 +91,10 @@ public:
 	void mainSetup();
 	void mainLoop(const double dt);
 
-	void setMotorPower(const Motor motor, const double power);
+	void setMotorPower(const Motor& motor, const float& power);
 
 private:
 	void readIMU();
 	void gyroAccelCalibration();
 	void calibrateHoverOffset();
 };
-
-
-
-void magnetometerCalibration();

@@ -73,7 +73,7 @@ void LogManager::serialPrint(const float val, const bool dotAsComma)
 }
 
 
-void LogManager::serialPrint(const Quaternion<double>& q)
+void LogManager::serialPrint(const Quaternion<float>& q)
 {
 	char pBuffer[256];
 	sprintf(pBuffer,
@@ -82,7 +82,7 @@ void LogManager::serialPrint(const Quaternion<double>& q)
 	serialPrint(pBuffer);
 }
 
-void LogManager::serialPrint(const Quaternion<double>& q1, const Quaternion<double>& q2)
+void LogManager::serialPrint(const Quaternion<float>& q1, const Quaternion<float>& q2)
 {
 	char pBuffer[256];
 	sprintf(pBuffer,
@@ -101,7 +101,7 @@ void LogManager::serialPrint(const uint32_t ch1, const uint32_t ch2, const uint3
 	serialPrint(pBuffer);
 }
 
-void LogManager::serialPrint(const double ch1, const double ch2, const double ch3, const double ch4)
+void LogManager::serialPrint(const float ch1, const float ch2, const float ch3, const float ch4)
 {
 	char pBuffer[256];
 	sprintf(pBuffer,
@@ -114,9 +114,9 @@ void LogManager::serialPrint(const double ch1, const double ch2, const double ch
  * Print IMU data
  */
 void LogManager::serialPrint(
-			const double ax, const double ay, const double az,
-			const double gx, const double gy, const double gz,
-			const double mx, const double my, const double mz
+			const float ax, const float ay, const float az,
+			const float gx, const float gy, const float gz,
+			const float mx, const float my, const float mz
 			)
 {
 	char pBuffer[256];

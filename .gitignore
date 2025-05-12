@@ -1,7 +1,10 @@
 *.mp4
+*.gcode
 
 stm32/Quadcopter/Debug/
 stm32/Quadcopter/Release/
+
+PID_settings/
 
 # But not these file types
 !*.c

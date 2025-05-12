@@ -14,10 +14,10 @@
 //#define DEBUG_NO_RADIO 1
 
 Radio::Radio(
-		const double& hoverOffset,
-		const double& expo,
-		const double& targetAngleMax,
-		const double& targetRateMax
+		const float& hoverOffset,
+		const float& expo,
+		const float& targetAngleMax,
+		const float& targetRateMax
 		)
 : m_throttleHoverOffset(hoverOffset),
   m_throttleExpo(expo),
@@ -27,7 +27,7 @@ Radio::Radio(
 
 }
 
-bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
+bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 {
 	/* Read the radio receiver */
 	m_radioChannel1 = PWM_GetPulse(0); // Roll
@@ -54,20 +54,20 @@ bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
 #endif
 
 	// Compute target thrust
-	const double rawThrottle = (static_cast<double>(m_radioChannel4) - m_rawThrustRadioMin) / (m_rawThrustRadioMax - m_rawThrustRadioMin);
+	const float rawThrottle = (static_cast<float>(m_radioChannel4) - m_rawThrustRadioMin) / (m_rawThrustRadioMax - m_rawThrustRadioMin);
 	m_targetThrust = getThrottle(rawThrottle);
 
 	// Compute target angles
-	constexpr double angleDeadZone = 1.0;
+	constexpr float angleDeadZone = 1.0f;
 	m_targetRoll = msToDegree(m_radioChannel1, m_targetAngleMax, true, angleDeadZone);
 	m_targetPitch = msToDegree(m_radioChannel2, m_targetAngleMax, false, angleDeadZone);
 	m_targetYaw = integrateTargetYaw(m_radioChannel3, dt, true, isFlying);
 
 	// Compute target rates
-	constexpr double rateDeadZone = 4.0;
+	constexpr float rateDeadZone = 4.0f;
 	m_targetRateRoll = msToDegree(m_radioChannel1, m_targetRateMax, true, rateDeadZone);
 	m_targetRatePitch = msToDegree(m_radioChannel2, m_targetRateMax, false, rateDeadZone);
-	m_targetRateYaw = msToDegree(m_radioChannel3, m_targetRateMax / 5.0, true, rateDeadZone);
+	m_targetRateYaw = msToDegree(m_radioChannel3, m_targetRateMax / 5.0f, true, rateDeadZone);
 
 	return false;
 }
@@ -77,42 +77,42 @@ bool Radio::readRadioReceiver(const bool& isFlying, const double& dt)
  * Return the throttle value according to the radio receiver input
  * and the defined throttle curve.
  */
-double Radio::getThrottle(double radioInput) const
+float Radio::getThrottle(float radioInput) const
 {
-	if (radioInput < 0.0)
+	if (radioInput < 0.0f)
 	{
-		radioInput = 0.0;
+		radioInput = 0.0f;
 	}
-	else if (radioInput > 1.0)
+	else if (radioInput > 1.0f)
 	{
-		radioInput = 1.0;
+		radioInput = 1.0f;
 	}
 
 	// The thrust is proportional to the square of the propeller velocity.
 	// So we compute the radio input square root to make the thrust proportional
 	// to the radio stick.
-	double linearized = std::sqrt(radioInput);
+	float linearized = std::sqrt(radioInput);
 
 	// From there the expo function give more precision close to the ground
-	double expoPart = (1.0 - m_throttleExpo) * linearized + m_throttleExpo * linearized * linearized * linearized;
+	float expoPart = (1.0f - m_throttleExpo) * linearized + m_throttleExpo * linearized * linearized * linearized;
 	//LogManager::getInstance().serialPrint(expoPart);
 
 	// Hover point
-	double out = m_throttleHoverOffset + expoPart * (1.0 - m_throttleHoverOffset);
+	float out = m_throttleHoverOffset + expoPart * (1.0f - m_throttleHoverOffset);
 	//LogManager::getInstance().serialPrint(out);
-	if (out < 0.0)
+	if (out < 0.0f)
 	{
-		out = 0.0;
+		out = 0.0f;
 	}
-	else if (out > 1.0)
+	else if (out > 1.0f)
 	{
-		out = 1.0;
+		out = 1.0f;
 	}
 
 	// Totally shut down motors if stick is all the way down
-	if (expoPart < 0.01)
+	if (expoPart < 0.01f)
 	{
-		out = 0.0;
+		out = 0.0f;
 	}
 
 	return out;
@@ -122,19 +122,19 @@ double Radio::getThrottle(double radioInput) const
 /*
  * Method to convert microseconds to angle
  */
-double Radio::msToDegree(
+float Radio::msToDegree(
 		const uint32_t& duration,
-		const double& amplitudeMax,
+		const float& amplitudeMax,
 		const bool& invertAxe,
-		const double deadZone
+		const float deadZone
 		)
 {
-	double tmp = (((static_cast<double>(duration) - 1000.0) / 1000.0) * (amplitudeMax * 2.0)) - amplitudeMax;
+	float tmp = (((static_cast<float>(duration) - 1000.0f) / 1000.0f) * (amplitudeMax * 2.0f)) - amplitudeMax;
 
 	// Hysteresis to have a stable zero
 	if (tmp > -deadZone && tmp < deadZone)
 	{
-		tmp = 0.0;
+		tmp = 0.0f;
 	}
 	else if (tmp > 0.0)
 	{
@@ -145,7 +145,7 @@ double Radio::msToDegree(
 		tmp += deadZone;
 	}
 
-	const double retVal = (tmp < -amplitudeMax) ? (-amplitudeMax) : (tmp > amplitudeMax) ? amplitudeMax : tmp;
+	const float retVal = (tmp < -amplitudeMax) ? (-amplitudeMax) : (tmp > amplitudeMax) ? amplitudeMax : tmp;
 
 	return invertAxe ? -retVal : retVal;
 }
@@ -154,10 +154,10 @@ double Radio::msToDegree(
 /*
  * Method to integrate yaw command
  */
-double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, const bool& invertAxe, const bool& isFlying)
+float Radio::integrateTargetYaw(const uint32_t& duration, const float& dt, const bool& invertAxe, const bool& isFlying)
 {
-	constexpr double deadZone = 0.05;
-	constexpr double speed = 400.0;
+	constexpr float deadZone = 0.05f;
+	constexpr float speed = 400.0f;
 
 	// Update target yaw only when flying
 	if (!isFlying)
@@ -165,7 +165,7 @@ double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, con
 		return m_targetYaw;
 	}
 
-	double tmp = ((static_cast<double>(duration) - 1000.0) / 1000.0) - 0.5;
+	float tmp = ((static_cast<float>(duration) - 1000.0f) / 1000.0f) - 0.5f;
 
 	if (invertAxe)
 	{
@@ -175,9 +175,9 @@ double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, con
 	// Hysteresis to have a stable zero
 	if (tmp > -deadZone && tmp < deadZone)
 	{
-		tmp = 0.0;
+		tmp = 0.0f;
 	}
-	else if (tmp > 0.0)
+	else if (tmp > 0.0f)
 	{
 		tmp -= deadZone;
 	}
@@ -190,13 +190,13 @@ double Radio::integrateTargetYaw(const uint32_t& duration, const double& dt, con
 	m_targetYaw += tmp * speed * dt;
 
 	// Clamp value to [-180;+180]
-	if (m_targetYaw > 180.0)
+	if (m_targetYaw > 180.0f)
 	{
-		m_targetYaw -= 360.0;
+		m_targetYaw -= 360.0f;
 	}
-	else if (m_targetYaw < -180.0)
+	else if (m_targetYaw < -180.0f)
 	{
-		m_targetYaw += 360.0;
+		m_targetYaw += 360.0f;
 	}
 
 	return m_targetYaw;

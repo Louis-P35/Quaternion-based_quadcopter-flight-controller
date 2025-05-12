@@ -17,9 +17,9 @@ void ControlStrategy::setAngleTarget()
 	switch (m_flightMode)
 	{
 	case StabilizationMode::STAB:
-		m_angleLoop[0].m_target = 0.0; // Radio roll
-		m_angleLoop[1].m_target = 0.0; // Radio pitch
-		m_angleLoop[2].m_target = 0.0; // Radio yaw
+		m_angleLoop[0].m_target = 0.0f; // Radio roll
+		m_angleLoop[1].m_target = 0.0f; // Radio pitch
+		m_angleLoop[2].m_target = 0.0f; // Radio yaw
 		break;
 
 	case StabilizationMode::ACRO:
@@ -78,7 +78,7 @@ void ControlStrategy::setRateTarget(Radio& radio)
  *
  * return the rotation axis. It's norm is the rotation magnitude
  */
-void ControlStrategy::rateControlLoop(const double dt, const Vector3<double>& gyro, Radio& radio)
+void ControlStrategy::rateControlLoop(const float dt, const Vector3<float>& gyro, Radio& radio)
 {
 	m_rateLoop[0].m_measure = gyro.m_x;
 	m_rateLoop[1].m_measure = gyro.m_y;
@@ -93,11 +93,11 @@ void ControlStrategy::rateControlLoop(const double dt, const Vector3<double>& gy
 	}
 }
 
-void ControlStrategy::angleControlLoop(const double dt)
+void ControlStrategy::angleControlLoop(const float dt)
 {
-	m_rateLoop[0].m_measure = 0.0; // TODO: From gyro
-	m_rateLoop[1].m_measure = 0.0; // TODO: From gyro
-	m_rateLoop[2].m_measure = 0.0; // TODO: From gyro
+	m_rateLoop[0].m_measure = 0.0f; // TODO: From gyro
+	m_rateLoop[1].m_measure = 0.0f; // TODO: From gyro
+	m_rateLoop[2].m_measure = 0.0f; // TODO: From gyro
 
 	// Set the angles target according to the flight mode
 	setAngleTarget();
@@ -109,15 +109,15 @@ void ControlStrategy::angleControlLoop(const double dt)
 	}
 }
 
-void ControlStrategy::posControlLoop(const double dt)
+void ControlStrategy::posControlLoop(const float dt)
 {
-	m_posLoop[0].m_measure = 0.0; // TODO: px
-	m_posLoop[1].m_measure = 0.0; // TODO: py
-	m_posLoop[2].m_measure = 0.0; // TODO: pz
+	m_posLoop[0].m_measure = 0.0f; // TODO: px
+	m_posLoop[1].m_measure = 0.0f; // TODO: py
+	m_posLoop[2].m_measure = 0.0f; // TODO: pz
 
-	m_posLoop[0].m_target = 0.0;
-	m_posLoop[1].m_target = 0.0;
-	m_posLoop[2].m_target = 0.0;
+	m_posLoop[0].m_target = 0.0f;
+	m_posLoop[1].m_target = 0.0f;
+	m_posLoop[2].m_target = 0.0f;
 
 	for (int i = 0; i < 3; ++i)
 	{
@@ -130,7 +130,7 @@ void ControlStrategy::posControlLoop(const double dt)
  * Return the torque vector.
  * It is the rotation torque (around the rotation axis) computed by the last PID of the chain
  */
-void ControlStrategy::getTorqueVector(double& tx, double& ty, double& tz)
+void ControlStrategy::getTorqueVector(float& tx, float& ty, float& tz)
 {
 	tx = m_angleLoop[0].m_output;
 	ty = m_angleLoop[1].m_output;
@@ -145,7 +145,7 @@ void ControlStrategy::getTorqueVector(double& tx, double& ty, double& tz)
  * PIDs coeff setters
  */
 
-void ControlStrategy::setPIDsatMinMax(const double sat, const double minOut, const double maxOut)
+void ControlStrategy::setPIDsatMinMax(const float sat, const float minOut, const float maxOut)
 {
 	for (size_t i = 0; i < 3; ++i)
 	{
@@ -156,55 +156,80 @@ void ControlStrategy::setPIDsatMinMax(const double sat, const double minOut, con
 }
 
 
-void ControlStrategy::setRatePIDcoefsRoll(const double kp, const double ki, const double kd)
+void ControlStrategy::setRatePIDcoefsRoll(const float kp, const float ki, const float kd)
 {
 	m_rateLoop[0].setPIDcoeffs(kp, ki, kd);
 }
 
 
-void ControlStrategy::setRatePIDcoefsPitch(const double kp, const double ki, const double kd)
+void ControlStrategy::setRatePIDcoefsPitch(const float kp, const float ki, const float kd)
 {
 	m_rateLoop[1].setPIDcoeffs(kp, ki, kd);
 }
 
 
-void ControlStrategy::setRatePIDcoefsYaw(const double kp, const double ki, const double kd)
+void ControlStrategy::setRatePIDcoefsYaw(const float kp, const float ki, const float kd)
 {
 	m_rateLoop[2].setPIDcoeffs(kp, ki, kd);
 }
 
+void ControlStrategy::setRatePIDderivativeMode(const DerivativeMode& derivativeMode)
+{
+	for (size_t i = 0; i < 3; ++i)
+	{
+		m_rateLoop[i].setDerivativeMode(derivativeMode);
+	}
+}
 
-void ControlStrategy::setAnglePIDcoefsRoll(const double kp, const double ki, const double kd)
+
+void ControlStrategy::setAnglePIDcoefsRoll(const float kp, const float ki, const float kd)
 {
 	m_angleLoop[0].setPIDcoeffs(kp, ki, kd);
 }
 
 
-void ControlStrategy::setAnglePIDcoefsPitch(const double kp, const double ki, const double kd)
+void ControlStrategy::setAnglePIDcoefsPitch(const float kp, const float ki, const float kd)
 {
 	m_angleLoop[1].setPIDcoeffs(kp, ki, kd);
 }
 
 
-void ControlStrategy::setAnglePIDcoefsYaw(const double kp, const double ki, const double kd)
+void ControlStrategy::setAnglePIDcoefsYaw(const float kp, const float ki, const float kd)
 {
 	m_angleLoop[2].setPIDcoeffs(kp, ki, kd);
 }
 
+void ControlStrategy::setAnglePIDderivativeMode(const DerivativeMode& derivativeMode)
+{
+	for (size_t i = 0; i < 3; ++i)
+	{
+		m_angleLoop[i].setDerivativeMode(derivativeMode);
+	}
+}
 
-void ControlStrategy::setPosPIDcoefsRoll(const double kp, const double ki, const double kd)
+
+void ControlStrategy::setPosPIDcoefsRoll(const float kp, const float ki, const float kd)
 {
 	m_posLoop[0].setPIDcoeffs(kp, ki, kd);
 }
 
 
-void ControlStrategy::setPosPIDcoefsPitch(const double kp, const double ki, const double kd)
+void ControlStrategy::setPosPIDcoefsPitch(const float kp, const float ki, const float kd)
 {
 	m_posLoop[1].setPIDcoeffs(kp, ki, kd);
 }
 
 
-void ControlStrategy::setPosPIDcoefsYaw(const double kp, const double ki, const double kd)
+void ControlStrategy::setPosPIDcoefsYaw(const float kp, const float ki, const float kd)
 {
 	m_posLoop[2].setPIDcoeffs(kp, ki, kd);
 }
+
+void ControlStrategy::setPosPIDderivativeMode(const DerivativeMode& derivativeMode)
+{
+	for (size_t i = 0; i < 3; ++i)
+	{
+		m_posLoop[i].setDerivativeMode(derivativeMode);
+	}
+}
+
