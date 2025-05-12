@@ -70,17 +70,27 @@ float PID::computePID(const float& error, const float& measure, const float& dt,
 	const float p = error * m_kp;
 
 	// Derivative gain
+	const float frequency = 1.0f / dt;
+	const float dMax = m_kd * frequency * m_maxDpercent;
 	if (m_derivativeMode == DerivativeMode::OnError)
 	{
-		const float derivative = (error - m_previousError) / dt;
+		const float derivative = (error - m_previousError) * frequency;
 		d = derivative * m_kd;
 		m_previousError = error;
 	}
 	else if (m_derivativeMode == DerivativeMode::OnMeasurement)
 	{
-		const float derivative = (measure - m_previousMeasure) / dt;
+		const float derivative = (measure - m_previousMeasure) * frequency;
 		d = derivative * m_kd;
 		m_previousMeasure = measure;
+	}
+	if (d > dMax)
+	{
+		d = dMax;
+	}
+	else if (d < -dMax)
+	{
+		d = -dMax;
 	}
 
 	// Integral gain
@@ -106,7 +116,7 @@ float PID::computePID(const float& error, const float& measure, const float& dt,
 
 
 
-void PIDBlock::run(float dt)
+void PIDBlock::run(const float& dt)
 {
 	const float error = m_target - m_measure;
 	m_output = computePID(error, m_measure, dt, true);

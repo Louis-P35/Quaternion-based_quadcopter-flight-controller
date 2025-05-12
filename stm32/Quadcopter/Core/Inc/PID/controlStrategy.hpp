@@ -31,30 +31,33 @@ public:
 
 public:
 	ControlStrategy() {};
-	void angleControlLoop(const float dt);
-	void rateControlLoop(const float dt, const Vector3<float>& gyro, Radio& radio);
-	void posControlLoop(const float dt);
+	void angleControlLoop(const float& dt);
+	void rateControlLoop(const float& dt, const Vector3<float>& gyro, const Radio& radio);
+	void posControlLoop(const float& dt);
 
 	void getTorqueVector(float& tx, float& ty, float& tz);
 
 	// PIDs coeff setters
-	void setPIDsatMinMax(const float sat, const float minOut, const float maxOut);
-	void setRatePIDcoefsRoll(const float kp, const float ki, const float kd);
-	void setRatePIDcoefsPitch(const float kp, const float ki, const float kd);
-	void setRatePIDcoefsYaw(const float kp, const float ki, const float kd);
+	void setPIDsatMinMaxRate(const float& sat, const float& minOut, const float& maxOut, const float maxDpercent = 1.0f);
+	void setPIDsatMinMaxAngle(const float& sat, const float& minOut, const float& maxOut, const float maxDpercent = 1.0f);
+	void setPIDsatMinMaxPos(const float& sat, const float& minOut, const float& maxOut, const float maxDpercent = 1.0f);
+	void setRatePIDcoefsRoll(const float& kp, const float& ki, const float& kd);
+	void setRatePIDcoefsPitch(const float& kp, const float& ki, const float& kd);
+	void setRatePIDcoefsYaw(const float& kp, const float& ki, const float& kd);
 	void setRatePIDderivativeMode(const DerivativeMode& derivativeMode);
-	void setAnglePIDcoefsRoll(const float kp, const float ki, const float kd);
-	void setAnglePIDcoefsPitch(const float kp, const float ki, const float kd);
-	void setAnglePIDcoefsYaw(const float kp, const float ki, const float kd);
+
+	void setAnglePIDcoefsRoll(const float& kp, const float& ki, const float& kd);
+	void setAnglePIDcoefsPitch(const float& kp, const float& ki, const float& kd);
+	void setAnglePIDcoefsYaw(const float& kp, const float& ki, const float& kd);
 	void setAnglePIDderivativeMode(const DerivativeMode& derivativeMode);
-	void setPosPIDcoefsRoll(const float kp, const float ki, const float kd);
-	void setPosPIDcoefsPitch(const float kp, const float ki, const float kd);
-	void setPosPIDcoefsYaw(const float kp, const float ki, const float kd);
+	void setPosPIDcoefsRoll(const float& kp, const float& ki, const float& kd);
+	void setPosPIDcoefsPitch(const float& kp, const float& ki, const float& kd);
+	void setPosPIDcoefsYaw(const float& kp, const float& ki, const float& kd);
 	void setPosPIDderivativeMode(const DerivativeMode& derivativeMode);
 
 private:
 	void setAngleTarget();
-	void setRateTarget(Radio& radio);
+	void setRateTarget(const Radio& radio);
 };
 
 

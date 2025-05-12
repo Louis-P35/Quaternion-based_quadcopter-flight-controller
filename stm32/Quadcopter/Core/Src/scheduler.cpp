@@ -26,10 +26,10 @@
  * Filters
  */
 
-#define GYRO_NOTCH_F0 330.0
-#define GYRO_NOTCH_Q 15.0
-#define ACCEL_NOTCH_F0 200.0
-#define ACCEL_NOTCH_Q 15.0
+#define GYRO_NOTCH_F0 330.0f
+#define GYRO_NOTCH_Q 15.0f
+#define ACCEL_NOTCH_F0 200.0f
+#define ACCEL_NOTCH_Q 15.0f
 
 
 
@@ -40,6 +40,8 @@
 #define SATURATION 75.0f
 #define MAX_OUT 1000.0f
 #define MIN_OUT -1000.0f
+
+#define ROLL_PITCH_RATE_MAX_D_PERCENT 0.75f // < 1 for stability, [1, 2] for aggresivity
 
 #define ROLLPITCH_ANGLE_KP 0.0f
 #define ROLLPITCH_ANGLE_KI 0.0f
@@ -88,7 +90,7 @@ volatile bool g_enableRadioLoop = false;
 
 // Uncomment this to disable motors
 #define DEBUG_DISABLE_MOTORS 1
-//#define PID_TESTING_MODE 1
+#define PID_TESTING_MODE 1
 
 
 // TODOs:
@@ -147,22 +149,23 @@ void Scheduler::mainSetup()
 	StateMachine::getInstance().setState(StateMachine::getInstance().getStartupSequenceState());
 
 	// Configure PIDs
-	m_ctrlStrat.setPIDsatMinMax(SATURATION, MIN_OUT, MAX_OUT);
-
 	m_ctrlStrat.setRatePIDderivativeMode(DerivativeMode::OnMeasurement);
 	m_ctrlStrat.setRatePIDcoefsRoll(ROLLPITCH_RATE_KP, ROLLPITCH_RATE_KI, ROLLPITCH_RATE_KD);
 	m_ctrlStrat.setRatePIDcoefsPitch(ROLLPITCH_RATE_KP, ROLLPITCH_RATE_KI, ROLLPITCH_RATE_KD);
 	m_ctrlStrat.setRatePIDcoefsYaw(YAW_RATE_KP, YAW_RATE_KI, YAW_RATE_KD);
+	m_ctrlStrat.setPIDsatMinMaxRate(SATURATION, MIN_OUT, MAX_OUT, ROLL_PITCH_RATE_MAX_D_PERCENT);
 
 	m_ctrlStrat.setAnglePIDderivativeMode(DerivativeMode::OnError);
 	m_ctrlStrat.setAnglePIDcoefsRoll(ROLLPITCH_ANGLE_KP, ROLLPITCH_ANGLE_KI, ROLLPITCH_ANGLE_KD);
 	m_ctrlStrat.setAnglePIDcoefsPitch(ROLLPITCH_ANGLE_KP, ROLLPITCH_ANGLE_KI, ROLLPITCH_ANGLE_KD);
 	m_ctrlStrat.setAnglePIDcoefsYaw(YAW_ANGLE_KP, YAW_ANGLE_KI, YAW_ANGLE_KD);
+	m_ctrlStrat.setPIDsatMinMaxAngle(SATURATION, MIN_OUT, MAX_OUT);
 
 	m_ctrlStrat.setPosPIDderivativeMode(DerivativeMode::OnError);
 	m_ctrlStrat.setPosPIDcoefsRoll(ROLLPITCH_POS_KP, ROLLPITCH_POS_KI, ROLLPITCH_POS_KD);
 	m_ctrlStrat.setPosPIDcoefsPitch(ROLLPITCH_POS_KP, ROLLPITCH_POS_KI, ROLLPITCH_POS_KD);
 	m_ctrlStrat.setPosPIDcoefsYaw(YAW_POS_KP, YAW_POS_KI, YAW_POS_KD);
+	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
 
 
 	// Init timers to avoid huge spikes at startup
@@ -233,7 +236,7 @@ void Scheduler::mainLoop(const double dt)
 {
 	if (g_enableAHRSAndPidAngleloop)
 	{
-		m_ahrsDt = getEllapsedTime_s(m_ahrsStartTime);
+		m_ahrsDt = static_cast<float>(getEllapsedTime_s(m_ahrsStartTime));
 		m_ahrsStartTime = timerCounterGetCycles();
 
 		// Disable just the TIM2 overflow interrupt
@@ -250,7 +253,7 @@ void Scheduler::mainLoop(const double dt)
 				m_gyroCopy.m_x * DEGREE_TO_RAD,
 				m_gyroCopy.m_y * DEGREE_TO_RAD,
 				m_gyroCopy.m_z * DEGREE_TO_RAD,
-				static_cast<float>(m_ahrsDt)
+				m_ahrsDt
 			);
 
 		// Debug print AHRS result
@@ -280,12 +283,12 @@ void Scheduler::mainLoop(const double dt)
 	if (g_enableRadioLoop)
 	{
 		// Measure true dt
-		m_radioDt = getEllapsedTime_s(m_radioStartTime);
+		m_radioDt = static_cast<float>(getEllapsedTime_s(m_radioStartTime));
 		m_radioStartTime = timerCounterGetCycles();
 
 		const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
 
-		LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
+		//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
 
 		if (!signalLost)
 		{
@@ -303,22 +306,23 @@ void Scheduler::mainLoop(const double dt)
 		}
 
 #ifdef PID_TESTING_MODE
-		//m_radio.m_targetRateRoll = 0.0;
-		//m_radio.m_targetRateYaw = 0.0;
+		m_radio.m_targetRateRoll = 0.0;
+		m_radio.m_targetRateYaw = 0.0;
 		//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
 #endif
 
-
-		//LogManager::getInstance().serialPrint("POWER: \n\r");
-		//LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
-		//LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
-		//LogManager::getInstance().serialPrint("TORQUE: \n\r");
-		//LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
-		//LogManager::getInstance().serialPrint("\n\r");
-
-		//LogManager::getInstance().serialPrint(m_averagedGyro.m_x, m_averagedGyro.m_y, m_averagedGyro.m_z, 0.0);
-
-		//LogManager::getInstance().serialPrint(m_ctrlStrat.m_rateLoop[1].m_output);
+		static int ttt = 0;
+		ttt++;
+		if ((ttt % 10) == 0)
+		{
+			LogManager::getInstance().serialPrint(m_radio.m_radioChannel1, m_radio.m_radioChannel2, m_radio.m_radioChannel3, m_radio.m_radioChannel4);
+		}
+		/*LogManager::getInstance().serialPrint("POWER: \n\r");
+		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
+		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
+		LogManager::getInstance().serialPrint("TORQUE: \n\r");
+		LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
+		LogManager::getInstance().serialPrint("\n\r");*/
 
 		// Disable just the TIM2 overflow interrupt
 		NVIC_DisableIRQ(TIM2_IRQn);
@@ -332,11 +336,6 @@ void Scheduler::mainLoop(const double dt)
 		std::replace(ref.begin(), ref.end(), '.', ',');
 		std::string tmp = gyro + ";" + ref + "\r\n";
 		//LogManager::getInstance().serialPrint((char*)tmp.c_str());
-
-		//LogManager::getInstance().serialPrint(m_ctrlStrat.m_rateLoop[1].m_sommeError);
-
-		//LogManager::getInstance().serialPrint(m_radio.m_targetThrust, m_radio.m_targetRatePitch, 0.0, 0.0);
-		//LogManager::getInstance().serialPrint(m_radio.m_targetRatePitch);
 
 		g_enableRadioLoop = false;
 	}
@@ -358,18 +357,18 @@ void Scheduler::mainLoop(const double dt)
 	if (g_enablePIDrateLoop)
 	{
 		// Measure true dt
-		m_rateDt = getEllapsedTime_s(m_rateStartTime);
+		m_rateDt = static_cast<float>(getEllapsedTime_s(m_rateStartTime));
 		m_rateStartTime = timerCounterGetCycles();
 
 		if (m_angleLoop)
 		{
-			m_angleDt = getEllapsedTime_s(m_angleStartTime);
+			m_angleDt = static_cast<float>(getEllapsedTime_s(m_angleStartTime));
 			m_angleStartTime = timerCounterGetCycles();
 		}
 
 		if (m_posLoop)
 		{
-			m_posDt = getEllapsedTime_s(m_posStartTime);
+			m_posDt = static_cast<float>(getEllapsedTime_s(m_posStartTime));
 			m_posStartTime = timerCounterGetCycles();
 		}
 

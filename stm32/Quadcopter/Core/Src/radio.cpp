@@ -115,7 +115,7 @@ float Radio::getThrottle(float radioInput) const
 		out = 0.0f;
 	}
 
-	return out;
+	return out * 1000.0f;
 }
 
 

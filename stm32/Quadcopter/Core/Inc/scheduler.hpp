@@ -71,11 +71,11 @@ public:
 	uint32_t m_angleStartTime = 0;
 	uint32_t m_posStartTime = 0;
 	uint32_t m_radioStartTime = 0;
-	double m_ahrsDt = 0.001; // Non 0 init to avoid /0
-	double m_rateDt = 0.001;
-	double m_angleDt = 0.001;
-	double m_posDt = 0.001;
-	double m_radioDt = 0.001;
+	float m_ahrsDt = 0.001f; // Non 0 init to avoid /0
+	float m_rateDt = 0.001f;
+	float m_angleDt = 0.001f;
+	float m_posDt = 0.001f;
+	float m_radioDt = 0.001f;
 
 	bool m_angleLoop = false;
 	bool m_posLoop = false;

@@ -28,24 +28,26 @@ protected:
 	float m_maxD = 1000.0;			// Inf
 	float m_outMin = -1000.0f;		// Inf
 	float m_outMax = 1000.0f;		// Inf
+	float m_maxDpercent = 1.0f;
 
 	DerivativeMode m_derivativeMode = DerivativeMode::OnError;
 
 public:
 	PIDConf() = default;
 
-	void setPIDcoeffs(const float kp, const float ki, const float kd)
+	void setPIDcoeffs(const float& kp, const float& ki, const float& kd)
 	{
 		m_kp = kp;
 		m_ki = ki;
 		m_kd = kd;
 	};
 
-	void setBoundcoeffs(const float sat, const float outMin, const float outMax)
+	void setBoundcoeffs(const float& sat, const float& outMin, const float& outMax, const float& maxDpercent)
 	{
 		m_saturation = sat;
 		m_outMin = outMin;
 		m_outMax = outMax;
+		m_maxDpercent = maxDpercent;
 	};
 
 	void setDerivativeMode(const DerivativeMode& derivativeMode)
@@ -97,7 +99,7 @@ public:
 
 	PIDBlock() : PID() {}
 
-	void run(float dt);
+	void run(const float& dt);
 };
 
 
