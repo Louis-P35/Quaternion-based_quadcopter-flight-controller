@@ -15,6 +15,8 @@
 #include "logManager.hpp"
 
 
+volatile int uart2TxBusy = 0;
+
 /*
  * This method memorize the UART handler
  * needed to print over UART.
@@ -44,11 +46,12 @@ LogManager& LogManager::getInstance()
  */
 void LogManager::serialPrint(const int val)
 {
-	char pBuffer[256];
+	/*char pBuffer[256];
 	int numBytes;
 
 	numBytes = sprintf(pBuffer, "%d\r\n", val);
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+	//HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
+	HAL_UART_Transmit_DMA(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes);*/
 }
 
 
@@ -145,7 +148,7 @@ void LogManager::serialPrint(const double val, const bool dotAsComma)
 void LogManager::serialPrint(char* pVal)
 {
 	// Safety check
-	if (pVal == nullptr)
+	if (pVal == nullptr || uart2TxBusy)
 	{
 		return;
 	}
@@ -153,8 +156,26 @@ void LogManager::serialPrint(char* pVal)
 	// Get the size in byte of the string
 	const int len = strlen(pVal);
 
+	// Invalider le cache (spécifique STM32H7)
+	SCB_CleanDCache_by_Addr((uint32_t*)m_txBuf, len);
+
+	// Copier les données dans le buffer
+	memcpy(m_txBuf, pVal, len > 256 ? 256 : len);
+
+	// Workaround because the uart over dma stay in a non ready state after a transmission for some reason
+	// HAL_UART_Transmit_DMA() work once and then keep returning HAL_BUSY
+	// This is a crappy workaround but...
+	__HAL_UART_CLEAR_FLAG(&m_huart, UART_FLAG_TC);
+	m_huart.gState = HAL_UART_STATE_READY;
+	m_huart.hdmatx->State = HAL_DMA_STATE_READY;
+
 	// Send it over UART
-	HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pVal), len, 100);
+	HAL_StatusTypeDef st = HAL_UART_Transmit_DMA(&m_huart, reinterpret_cast<uint8_t*>(m_txBuf), len);
+	if (st == HAL_OK)
+	{
+		uart2TxBusy = 1;
+	}
+	//HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pVal), len, 100);
 }
 
 

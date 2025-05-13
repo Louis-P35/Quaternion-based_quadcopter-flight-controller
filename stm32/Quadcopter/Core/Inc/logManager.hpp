@@ -26,6 +26,8 @@ public:
 	// Handle of the UART
 	UART_HandleTypeDef m_huart;
 
+	char m_txBuf[256];
+
 private:
 	LogManager() {};
 

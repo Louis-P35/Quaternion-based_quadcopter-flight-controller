@@ -68,6 +68,10 @@ public:
 	float m_previousMeasure = 0.0f;
 	float m_sommeError = 0.0f;
 
+	float m_pTerm = 0.0f;
+	float m_iTerm = 0.0f;
+	float m_dTerm = 0.0f;
+
 public:
 	// Constructor to initialize PID gains
 	PID()

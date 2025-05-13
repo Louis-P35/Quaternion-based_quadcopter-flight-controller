@@ -64,10 +64,13 @@ Quaternion<float> PID::getError(const Quaternion<float>& current, const Quaterni
  */
 float PID::computePID(const float& error, const float& measure, const float& dt, const bool& integrate)
 {
-	float d = 0.0f;
+	// TODO enlever l'erreur en parametre
+	// mettre measure et target en parametre
+	// Calculer l'erreur ici
+	// Ajouter le feed forward
 
 	// Proportional gain
-	const float p = error * m_kp;
+	m_pTerm = error * m_kp;
 
 	// Derivative gain
 	const float frequency = 1.0f / dt;
@@ -75,22 +78,26 @@ float PID::computePID(const float& error, const float& measure, const float& dt,
 	if (m_derivativeMode == DerivativeMode::OnError)
 	{
 		const float derivative = (error - m_previousError) * frequency;
-		d = derivative * m_kd;
+		m_dTerm = derivative * m_kd;
 		m_previousError = error;
 	}
 	else if (m_derivativeMode == DerivativeMode::OnMeasurement)
 	{
-		const float derivative = (measure - m_previousMeasure) * frequency;
-		d = derivative * m_kd;
+		const float derivative = -(measure - m_previousMeasure) * frequency;
+		m_dTerm = derivative * m_kd;
 		m_previousMeasure = measure;
 	}
-	if (d > dMax)
+	else
 	{
-		d = dMax;
+		m_dTerm = 0.0f;
 	}
-	else if (d < -dMax)
+	if (m_dTerm > dMax)
 	{
-		d = -dMax;
+		m_dTerm = dMax;
+	}
+	else if (m_dTerm < -dMax)
+	{
+		m_dTerm = -dMax;
 	}
 
 	// Integral gain
@@ -109,9 +116,9 @@ float PID::computePID(const float& error, const float& measure, const float& dt,
 		}
 	}
 
-	const float i = m_sommeError * m_ki;
+	m_iTerm = m_sommeError * m_ki;
 
-	return p + i + d;
+	return m_pTerm + m_iTerm + m_dTerm;
 }
 
 

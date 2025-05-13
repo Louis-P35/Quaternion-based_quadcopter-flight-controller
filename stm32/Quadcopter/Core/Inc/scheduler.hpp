@@ -97,4 +97,5 @@ private:
 	void readIMU();
 	void gyroAccelCalibration();
 	void calibrateHoverOffset();
+	void pidDebugStream();
 };

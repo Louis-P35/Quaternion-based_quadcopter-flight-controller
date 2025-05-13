@@ -311,12 +311,14 @@ void Scheduler::mainLoop(const double dt)
 		//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
 #endif
 
-		static int ttt = 0;
+		pidDebugStream();
+
+		/*static int ttt = 0;
 		ttt++;
 		if ((ttt % 10) == 0)
 		{
 			LogManager::getInstance().serialPrint(m_radio.m_radioChannel1, m_radio.m_radioChannel2, m_radio.m_radioChannel3, m_radio.m_radioChannel4);
-		}
+		}*/
 		/*LogManager::getInstance().serialPrint("POWER: \n\r");
 		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
 		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
@@ -330,8 +332,11 @@ void Scheduler::mainLoop(const double dt)
 		m_accelCopy = g_pIMU->m_accel;
 		NVIC_EnableIRQ(TIM2_IRQn); // Re-enable the IRQ
 
-		std::string gyro = std::to_string(m_gyroCopy.m_y);
+		char buffer[16];
+		snprintf(buffer, sizeof(buffer), "%.1f", m_gyroCopy.m_y);
+		std::string gyro(buffer);
 		std::replace(gyro.begin(), gyro.end(), '.', ',');
+
 		std::string ref = std::to_string(m_radio.m_targetRatePitch);
 		std::replace(ref.begin(), ref.end(), '.', ',');
 		std::string tmp = gyro + ";" + ref + "\r\n";
@@ -506,6 +511,48 @@ void Scheduler::calibrateHoverOffset()
 		LogManager::getInstance().serialPrint(m_qHoverOffset);
 		print = false;
 	}
+}
+
+
+/*
+ * Must be called at 50 hz
+ */
+void Scheduler::pidDebugStream()
+{
+	static size_t callCount = 0;
+
+	// Logging at 25 hz
+	/*if ((callCount%2) != 0)
+	{
+		return;
+	}*/
+
+	auto formatString = [](const float& val) -> std::string
+	{
+		char buffer[16];
+
+		snprintf(buffer, sizeof(buffer), "%.1f", val);
+		std::string str(buffer);
+		std::replace(str.begin(), str.end(), '.', ',');
+
+		return str;
+	};
+
+	if (callCount == 0)
+	{
+		LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D\r\n");
+	}
+
+	std::string gyro = formatString(m_gyroCopy.m_y);
+	std::string targetRate = formatString(m_radio.m_targetRatePitch);
+	std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
+	std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
+	std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_dTerm);
+
+	std::string tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + "\r\n";
+	LogManager::getInstance().serialPrint((char*)tmp.c_str());
+
+	callCount++;
 }
 
 
