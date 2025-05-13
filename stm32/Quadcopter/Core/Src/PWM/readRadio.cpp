@@ -5,7 +5,9 @@
  *      Author: Louis
  */
 
+// Includes from project
 #include "PWM/readRadio.hpp"
+#include "Filters/lowPassFilter.hpp"
 
 #include "stm32h7xx_ll_exti.h"
 
@@ -16,6 +18,7 @@ static uint16_t channelPins[NUM_CHANNELS];
 
 volatile uint32_t pulseStart[NUM_CHANNELS] = {0};
 volatile uint32_t pulseWidth[NUM_CHANNELS] = {0};
+LPF<float> lowPassFilter[NUM_CHANNELS];
 volatile bool waitingForFallingEdge[NUM_CHANNELS] = {false};
 
 
@@ -26,6 +29,11 @@ void setupRadio()
 			 GPIOB, GPIO_PIN_1,   // PB1
 			 GPIOB, GPIO_PIN_4,   // PB4
 			 GPIOB, GPIO_PIN_5);  // PB5
+
+	for (size_t i = 0; i < NUM_CHANNELS; ++i)
+	{
+		lowPassFilter[i].init(0.9f);
+	}
 }
 
 void PWM_Init(GPIO_TypeDef* port0, uint16_t pin0,
@@ -67,7 +75,8 @@ void PWM_EXTI_Callback(uint16_t GPIO_Pin)
 				uint32_t pulse = getEllapsedTime_us(pulseStart[i]);
 				if (pulse > 950 && pulse < 2200)
 				{
-					pulseWidth[i] = pulse;
+					pulseWidth[i] = static_cast<uint32_t>(lowPassFilter[i].apply(static_cast<float>(pulse)));
+					//pulseWidth[i] = pulse;
 				}
 				else
 				{

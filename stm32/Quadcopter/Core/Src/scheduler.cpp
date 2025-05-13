@@ -51,9 +51,9 @@
 #define YAW_ANGLE_KI 0.0f
 #define YAW_ANGLE_KD 0.0f
 
-#define ROLLPITCH_RATE_KP 0.2f
-#define ROLLPITCH_RATE_KI 0.2f
-#define ROLLPITCH_RATE_KD 0.002f
+#define ROLLPITCH_RATE_KP 0.5f
+#define ROLLPITCH_RATE_KI 0.3f
+#define ROLLPITCH_RATE_KD 0.06f
 
 #define YAW_RATE_KP 0.0f
 #define YAW_RATE_KI 0.0f
@@ -89,7 +89,7 @@ volatile bool g_enableRadioLoop = false;
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-#define DEBUG_DISABLE_MOTORS 1
+//#define DEBUG_DISABLE_MOTORS 1
 #define PID_TESTING_MODE 1
 
 
@@ -173,6 +173,15 @@ void Scheduler::mainSetup()
 	m_rateStartTime = timerCounterGetCycles();
 	m_angleStartTime = timerCounterGetCycles();
 	m_posStartTime = timerCounterGetCycles();
+
+
+	// Gyro filters for PID rate loop
+	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
+	for (size_t i = 0; i < 3; ++i)
+	{
+		//m_ctrlStrat.m_rateLoop[i].m_heavyLpfMeasure.init(rateLoopFreq, 15.0f);
+		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 20.0f);
+	}
 }
 
 
@@ -309,9 +318,23 @@ void Scheduler::mainLoop(const double dt)
 		m_radio.m_targetRateRoll = 0.0;
 		m_radio.m_targetRateYaw = 0.0;
 		//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
-#endif
+
+		if (m_radio.m_targetThrust > 350.0f)
+		{
+			m_radio.m_targetThrust = 350.0f;
+		}
+
+		if (m_radio.m_targetRatePitch > 50.0f)
+		{
+			m_radio.m_targetRatePitch = 250.0f;
+		}
+		else if (m_radio.m_targetRatePitch < -50.0f)
+		{
+			m_radio.m_targetRatePitch = -250.0f;
+		}
 
 		pidDebugStream();
+#endif
 
 		/*static int ttt = 0;
 		ttt++;
@@ -319,28 +342,31 @@ void Scheduler::mainLoop(const double dt)
 		{
 			LogManager::getInstance().serialPrint(m_radio.m_radioChannel1, m_radio.m_radioChannel2, m_radio.m_radioChannel3, m_radio.m_radioChannel4);
 		}*/
+		/*std::string tototmp = "POWER: \r\n";
+		tototmp += std::to_string(m_motorMixer.m_powerMotor[1]);
+		tototmp += " ";
+		tototmp += std::to_string(m_motorMixer.m_powerMotor[2]);
+		tototmp += "\r\n";
+		tototmp += std::to_string(m_motorMixer.m_powerMotor[0]);
+		tototmp += " ";
+		tototmp += std::to_string(m_motorMixer.m_powerMotor[3]);
+		tototmp += "\r\nTORQUE: \n\r";
+		tototmp += std::to_string(m_thrust);
+		tototmp += " ";
+		tototmp += std::to_string(m_torqueX);
+		tototmp += " ";
+		tototmp += std::to_string(m_torqueY);
+		tototmp += " ";
+		tototmp += std::to_string(m_torqueZ);
+		tototmp += "\r\n";
+		LogManager::getInstance().serialPrint((char*)tototmp.c_str());*/
+
 		/*LogManager::getInstance().serialPrint("POWER: \n\r");
 		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
 		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
 		LogManager::getInstance().serialPrint("TORQUE: \n\r");
 		LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
 		LogManager::getInstance().serialPrint("\n\r");*/
-
-		// Disable just the TIM2 overflow interrupt
-		NVIC_DisableIRQ(TIM2_IRQn);
-		m_gyroCopy = g_pIMU->m_gyro;
-		m_accelCopy = g_pIMU->m_accel;
-		NVIC_EnableIRQ(TIM2_IRQn); // Re-enable the IRQ
-
-		char buffer[16];
-		snprintf(buffer, sizeof(buffer), "%.1f", m_gyroCopy.m_y);
-		std::string gyro(buffer);
-		std::replace(gyro.begin(), gyro.end(), '.', ',');
-
-		std::string ref = std::to_string(m_radio.m_targetRatePitch);
-		std::replace(ref.begin(), ref.end(), '.', ',');
-		std::string tmp = gyro + ";" + ref + "\r\n";
-		//LogManager::getInstance().serialPrint((char*)tmp.c_str());
 
 		g_enableRadioLoop = false;
 	}
@@ -361,6 +387,12 @@ void Scheduler::mainLoop(const double dt)
 	// Run all the PID loops
 	if (g_enablePIDrateLoop)
 	{
+		// Disable just the TIM2 overflow interrupt
+		NVIC_DisableIRQ(TIM2_IRQn);
+		m_gyroCopy = g_pIMU->m_gyro;
+		m_accelCopy = g_pIMU->m_accel;
+		NVIC_EnableIRQ(TIM2_IRQn); // Re-enable the IRQ
+
 		// Measure true dt
 		m_rateDt = static_cast<float>(getEllapsedTime_s(m_rateStartTime));
 		m_rateStartTime = timerCounterGetCycles();

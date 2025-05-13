@@ -34,6 +34,27 @@ public:
 		m_alpha = alpha;
 	};
 
+	void init(const T& signalFrequency, const T& cutFrequency)
+	{
+		const T dt = T(1.0) / signalFrequency;
+		const T rc = T(1.0) / (T(2.0) * M_PI * cutFrequency);
+
+		T alpha = rc / (rc + dt);
+
+		if (alpha < T(0.0))
+		{
+			m_alpha = T(0.0);
+			return;
+		}
+		else if (alpha > T(1.0))
+		{
+			m_alpha = T(1.0);
+			return;
+		}
+
+		m_alpha = alpha;
+	};
+
 	T apply(const T& val)
 	{
 		T filtered = m_alpha * m_previousVal + (T(1.0) - m_alpha) * val;

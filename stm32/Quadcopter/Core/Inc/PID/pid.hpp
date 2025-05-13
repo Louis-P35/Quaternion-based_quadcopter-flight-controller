@@ -9,6 +9,7 @@
 
 // Include from project
 #include "Utils/quaternion.hpp"
+#include "Filters/lowPassFilter.hpp"
 
 enum class DerivativeMode
 {
@@ -72,6 +73,8 @@ public:
 	float m_iTerm = 0.0f;
 	float m_dTerm = 0.0f;
 
+	LPF<float> m_dTermLpf;
+
 public:
 	// Constructor to initialize PID gains
 	PID()
@@ -101,9 +104,12 @@ public:
 	float m_target = 0.0f;
 	float m_output = 0.0f;
 
+	float m_heavilyFilteredMeasure;
+	//LPF<float> m_heavyLpfMeasure;
+
 	PIDBlock() : PID() {}
 
-	void run(const float& dt);
+	//void run(const float& dt);
 };
 
 

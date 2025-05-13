@@ -34,9 +34,13 @@ void IMU::init(
 	m_lpfAccelY.init(m_lpf_acc_gain);
 	m_lpfAccelZ.init(m_lpf_acc_gain);
 
-	m_lpfGyroX.init(m_lpf_gyro_gain);
-	m_lpfGyroY.init(m_lpf_gyro_gain);
-	m_lpfGyroZ.init(m_lpf_gyro_gain);
+	m_lpfGyroX.init(6000.0f, 30.0f);
+	m_lpfGyroY.init(6000.0f, 30.0f);
+	m_lpfGyroZ.init(6000.0f, 30.0f);
+
+	m_lpfGyroX2.init(6000.0f, 30.0f);
+	m_lpfGyroY2.init(6000.0f, 30.0f);
+	m_lpfGyroZ2.init(6000.0f, 30.0f);
 
 	m_notchGyroX.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
 	m_notchGyroY.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
@@ -76,10 +80,10 @@ void IMU::readAndFilterIMU_gdps()
 	rawGyro.y = m_notchGyroY.apply(rawGyro.y);
 	rawGyro.z = m_notchGyroZ.apply(rawGyro.z);
 
-	// LPF gyroscope data
-	m_gyro.m_x = m_lpfGyroX.apply(rawGyro.x);
-	m_gyro.m_y = m_lpfGyroY.apply(rawGyro.y);
-	m_gyro.m_z = m_lpfGyroZ.apply(rawGyro.z);
+	// Cascade LPFs on gyroscope data
+	m_gyro.m_x = m_lpfGyroX2.apply(m_lpfGyroX.apply(rawGyro.x));
+	m_gyro.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
+	m_gyro.m_z = m_lpfGyroZ2.apply(m_lpfGyroZ.apply(rawGyro.z));
 
 	// Remove gyro's offset
 	m_gyro -= m_gyroOffset;

@@ -62,7 +62,12 @@ Quaternion<float> PID::getError(const Quaternion<float>& current, const Quaterni
  * PID control.
  * Compute the response to an error.
  */
-float PID::computePID(const float& error, const float& measure, const float& dt, const bool& integrate)
+float PID::computePID(
+		const float& error,
+		const float& measure,
+		const float& dt,
+		const bool& integrate
+		)
 {
 	// TODO enlever l'erreur en parametre
 	// mettre measure et target en parametre
@@ -77,14 +82,14 @@ float PID::computePID(const float& error, const float& measure, const float& dt,
 	const float dMax = m_kd * frequency * m_maxDpercent;
 	if (m_derivativeMode == DerivativeMode::OnError)
 	{
-		const float derivative = (error - m_previousError) * frequency;
-		m_dTerm = derivative * m_kd;
+		const float derivative = (error - m_previousError) * frequency * m_kd;
+		m_dTerm = m_dTermLpf.apply(derivative);
 		m_previousError = error;
 	}
 	else if (m_derivativeMode == DerivativeMode::OnMeasurement)
 	{
-		const float derivative = -(measure - m_previousMeasure) * frequency;
-		m_dTerm = derivative * m_kd;
+		const float derivative = -(measure - m_previousMeasure) * frequency * m_kd;
+		m_dTerm = m_dTermLpf.apply(derivative);
 		m_previousMeasure = measure;
 	}
 	else
@@ -123,11 +128,11 @@ float PID::computePID(const float& error, const float& measure, const float& dt,
 
 
 
-void PIDBlock::run(const float& dt)
+/*void PIDBlock::run(const float& dt)
 {
 	const float error = m_target - m_measure;
-	m_output = computePID(error, m_measure, dt, true);
-}
+	m_output = computePID(error, m_measure, m_heavilyFilteredMeasure, dt, true);
+}*/
 
 
 

@@ -141,7 +141,6 @@ void FlyingState::handleState(Scheduler& dc)
 	//rate++;
 	//LogManager::getInstance().serialPrint(pos, angle, rate, 0L);
 
-
 	// Run rate PID
 	dc.m_ctrlStrat.rateControlLoop(dc.m_rateDt, dc.m_gyroCopy, dc.m_radio);
 
