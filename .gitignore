@@ -5,6 +5,7 @@ stm32/Quadcopter/Debug/
 stm32/Quadcopter/Release/
 
 PID_settings/
+FFT_tool/
 
 # But not these file types
 !*.c
@@ -12,6 +13,9 @@ PID_settings/
 !*.h
 !*.hpp
 !.gitignore
+
+!FFT_tool/fft.py
+!FFT_tool/fft2.py
 
 # stm32/Quadcopter/Drivers/
 

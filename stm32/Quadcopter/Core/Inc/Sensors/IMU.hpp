@@ -42,6 +42,10 @@ private:
 	NotchFilter<float> m_notchGyroY;
 	NotchFilter<float> m_notchGyroZ;
 
+	NotchFilter<float> m_notchGyroX2;
+	NotchFilter<float> m_notchGyroY2;
+	NotchFilter<float> m_notchGyroZ2;
+
 	NotchFilter<float> m_notchAccelX;
 	NotchFilter<float> m_notchAccelY;
 	NotchFilter<float> m_notchAccelZ;
@@ -49,6 +53,10 @@ private:
 public:
 	Vector3<float> m_accel = {0.0f};
 	Vector3<float> m_gyro = {0.0f};
+	Vector3<float> m_gyroRaw = {0.0f};
+
+	Vector3<float> m_gyroDebug[5000];
+	int m_gyroDebugIndex = 0;
 
 public:
 	IMU() = default;

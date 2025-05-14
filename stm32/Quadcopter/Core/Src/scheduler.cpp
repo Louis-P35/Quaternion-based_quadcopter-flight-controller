@@ -26,8 +26,8 @@
  * Filters
  */
 
-#define GYRO_NOTCH_F0 330.0f
-#define GYRO_NOTCH_Q 15.0f
+#define GYRO_NOTCH_F0 87.5f
+#define GYRO_NOTCH_Q 1.0f
 #define ACCEL_NOTCH_F0 200.0f
 #define ACCEL_NOTCH_Q 15.0f
 
@@ -94,7 +94,11 @@ volatile bool g_enableRadioLoop = false;
 
 
 // TODOs:
-// GYRO notch + lpf
+// GYRO à 6khz => voir ce que ça donne de monter les fréquences de coupure des 2 LPF (moins de latences)
+// 		=> Test avec un biquad Butterworth 2ᵉ ordre à la place des 2 LPF chainé (moins de latences)
+
+// PID d terme chainer 2 LPF et monter la fréquence de coupure (moins de latence)
+
 // PID D terd on derived gyro instead of derived error
 // Compute frequency and do not /dt in pid
 // Set PID coefs at hover point
@@ -179,8 +183,8 @@ void Scheduler::mainSetup()
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
 	for (size_t i = 0; i < 3; ++i)
 	{
-		//m_ctrlStrat.m_rateLoop[i].m_heavyLpfMeasure.init(rateLoopFreq, 15.0f);
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 20.0f);
+		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
 	}
 }
 
@@ -243,6 +247,8 @@ void orchestrator_highestFrequencyLoop()
  */
 void Scheduler::mainLoop(const double dt)
 {
+	static bool startRecord = false;
+
 	if (g_enableAHRSAndPidAngleloop)
 	{
 		m_ahrsDt = static_cast<float>(getEllapsedTime_s(m_ahrsStartTime));
@@ -285,6 +291,19 @@ void Scheduler::mainLoop(const double dt)
 			m_angleLoop = true;
 		}
 
+		// Debug logging
+		/*uint8_t pBuffer[36];
+		memcpy(pBuffer, &m_imu.m_gyro.m_x, sizeof(float));
+		memcpy(pBuffer + 4, &m_imu.m_gyro.m_y, sizeof(float));
+		memcpy(pBuffer + 8, &m_imu.m_gyro.m_z, sizeof(float));
+		memcpy(pBuffer + 12, &m_imu.m_gyro.m_x, sizeof(float));
+		memcpy(pBuffer + 16, &m_imu.m_gyro.m_y, sizeof(float));
+		memcpy(pBuffer + 20, &m_imu.m_gyro.m_z, sizeof(float));
+		memcpy(pBuffer + 24, &m_imu.m_gyro.m_x, sizeof(float));
+		memcpy(pBuffer + 28, &m_imu.m_gyro.m_y, sizeof(float));
+		memcpy(pBuffer + 32, &m_imu.m_gyro.m_z, sizeof(float));
+		m_18BytesBlackbox.blackBoxLogToSdCard(pBuffer);*/
+
 		g_enableAHRSAndPidAngleloop = false;
 	}
 
@@ -322,6 +341,7 @@ void Scheduler::mainLoop(const double dt)
 		if (m_radio.m_targetThrust > 350.0f)
 		{
 			m_radio.m_targetThrust = 350.0f;
+			startRecord = true;
 		}
 
 		if (m_radio.m_targetRatePitch > 50.0f)
@@ -333,7 +353,7 @@ void Scheduler::mainLoop(const double dt)
 			m_radio.m_targetRatePitch = -250.0f;
 		}
 
-		pidDebugStream();
+		//pidDebugStream();
 #endif
 
 		/*static int ttt = 0;
@@ -391,6 +411,7 @@ void Scheduler::mainLoop(const double dt)
 		NVIC_DisableIRQ(TIM2_IRQn);
 		m_gyroCopy = g_pIMU->m_gyro;
 		m_accelCopy = g_pIMU->m_accel;
+		m_gyroCopyRaw = g_pIMU->m_gyroRaw;
 		NVIC_EnableIRQ(TIM2_IRQn); // Re-enable the IRQ
 
 		// Measure true dt
@@ -417,6 +438,26 @@ void Scheduler::mainLoop(const double dt)
 		m_posLoop = false;
 
 		g_enablePIDrateLoop = false;
+
+
+		if (startRecord && m_imu.m_gyroDebugIndex < 5000)
+		{
+			m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_gyroCopyRaw;
+			m_imu.m_gyroDebugIndex++;
+		}
+		else if (m_imu.m_gyroDebugIndex == 5000)
+		{
+			m_imu.m_gyroDebugIndex++;
+			setMotorPower(Motor::eMotor1, 0.0f);
+			setMotorPower(Motor::eMotor2, 0.0f);
+			setMotorPower(Motor::eMotor3, 0.0f);
+			setMotorPower(Motor::eMotor4, 0.0f);
+			for (int i = 0; i < 5000; ++i)
+			{
+				LogManager::getInstance().serialPrint(m_imu.m_gyroDebug[i].m_x, m_imu.m_gyroDebug[i].m_y, false);
+				HAL_Delay(20);
+			}
+		}
 	}
 
 	// Motors update
@@ -586,5 +627,4 @@ void Scheduler::pidDebugStream()
 
 	callCount++;
 }
-
 

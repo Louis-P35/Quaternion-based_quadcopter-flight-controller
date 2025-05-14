@@ -61,7 +61,7 @@ void LogManager::serialPrint(const int val)
 void LogManager::serialPrint(const float val, const bool dotAsComma)
 {
 	std::string tmp = std::to_string(val);
-	tmp += "\n\r";
+	tmp += "\r\n";
 
 	if (!dotAsComma)
 	{
@@ -73,6 +73,34 @@ void LogManager::serialPrint(const float val, const bool dotAsComma)
 	}
 
 	serialPrint((char*)tmp.c_str());
+}
+
+/*
+ * Write a float on the serial port
+ */
+void LogManager::serialPrint(const float val, const float val2, const bool dotAsComma)
+{
+	std::string tmp = std::to_string(val);
+	std::string tmp2 = std::to_string(val2);
+	//tmp += "\r\n";
+
+	if (!dotAsComma)
+	{
+		auto it = std::find_if(tmp.begin(), tmp.end(), [](char c){return c == '.';});
+		if (it != tmp.end())
+		{
+			*it = ',';
+		}
+
+		auto it2 = std::find_if(tmp2.begin(), tmp2.end(), [](char c){return c == '.';});
+		if (it2 != tmp2.end())
+		{
+			*it2 = ',';
+		}
+	}
+
+	std::string str = tmp + ";" + tmp2 + "\r\n";
+	serialPrint((char*)str.c_str());
 }
 
 

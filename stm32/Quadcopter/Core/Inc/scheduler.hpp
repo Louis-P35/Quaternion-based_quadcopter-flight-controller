@@ -17,6 +17,7 @@
 #include "radio.hpp"
 #include "Motors/motorMixer.hpp"
 #include "Utils/vector.hpp"
+#include "BlackboxSD/blackbox.hpp"
 
 
 // DO not change this unless change the timer 2 settings accordingly
@@ -43,8 +44,12 @@ public:
 	UART_HandleTypeDef m_huart_ext;
 	TIM_HandleTypeDef& m_htim1;
 
+	// Blackbox logger on SD card
+	//Blackbox<36> m_18BytesBlackbox;
+
 	// IMU
 	IMU m_imu;
+	Vector3<float> m_gyroCopyRaw;
 	Vector3<float> m_gyroCopy;
 	Vector3<float> m_accelCopy;
 
@@ -97,5 +102,7 @@ private:
 	void readIMU();
 	void gyroAccelCalibration();
 	void calibrateHoverOffset();
+
+	// Debug logging
 	void pidDebugStream();
 };

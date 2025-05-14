@@ -9,13 +9,18 @@ SAMPLE_RATE = 1000  # Hz
 # Read and parse data with ',' as decimal separator and two signals per line
 def load_signals(filename):
     sig1, sig2 = [], []
-    with open(filename, 'r') as f:
+    with open(filename, 'r', encoding='utf-8', errors='ignore') as f:
         for line in f:
-            if line.strip():
-                parts = line.strip().replace(',', '.').split(';')
-                if len(parts) == 2:
-                    sig1.append(float(parts[0]))
-                    sig2.append(float(parts[1]))
+            try:
+                if line.strip():
+                    parts = line.strip().replace(',', '.').split(';')
+                    if len(parts) == 2:
+                        val1 = float(parts[0])
+                        val2 = float(parts[1])
+                        sig1.append(val1)
+                        sig2.append(val2)
+            except ValueError:
+                continue  # Ignore corrupted lines
     return np.array(sig1), np.array(sig2)
 
 # Compute FFT and plot

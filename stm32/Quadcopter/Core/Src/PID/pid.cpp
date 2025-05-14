@@ -65,30 +65,41 @@ Quaternion<float> PID::getError(const Quaternion<float>& current, const Quaterni
 float PID::computePID(
 		const float& error,
 		const float& measure,
+		const float& target,
 		const float& dt,
 		const bool& integrate
 		)
 {
-	// TODO enlever l'erreur en parametre
-	// mettre measure et target en parametre
-	// Calculer l'erreur ici
-	// Ajouter le feed forward
+	// Feed forward term
+	if (m_kff > 0.0f) // Do not compute it if the gain is 0
+	{
+		// Feed forward with low pass filter
+		m_ffTerm = m_ffTermLpf.apply(target * m_kff);
+	}
+	else
+	{
+		m_ffTerm = 0.0f;
+	}
 
-	// Proportional gain
+	// Proportional term
 	m_pTerm = error * m_kp;
 
-	// Derivative gain
+	// Derivative term
 	const float frequency = 1.0f / dt;
 	const float dMax = m_kd * frequency * m_maxDpercent;
 	if (m_derivativeMode == DerivativeMode::OnError)
 	{
+		// Compute derivative on error
 		const float derivative = (error - m_previousError) * frequency * m_kd;
+		// Apply low pass filter
 		m_dTerm = m_dTermLpf.apply(derivative);
 		m_previousError = error;
 	}
 	else if (m_derivativeMode == DerivativeMode::OnMeasurement)
 	{
+		// Compute derivative on measure
 		const float derivative = -(measure - m_previousMeasure) * frequency * m_kd;
+		// Apply low pass filter
 		m_dTerm = m_dTermLpf.apply(derivative);
 		m_previousMeasure = measure;
 	}
@@ -96,6 +107,7 @@ float PID::computePID(
 	{
 		m_dTerm = 0.0f;
 	}
+	// Cap D term
 	if (m_dTerm > dMax)
 	{
 		m_dTerm = dMax;
@@ -105,7 +117,7 @@ float PID::computePID(
 		m_dTerm = -dMax;
 	}
 
-	// Integral gain
+	// Integral term
 	if (integrate) // Do not integrate error if the drone is not flying
 	{
 		m_sommeError += error * dt;
@@ -123,7 +135,7 @@ float PID::computePID(
 
 	m_iTerm = m_sommeError * m_ki;
 
-	return m_pTerm + m_iTerm + m_dTerm;
+	return m_pTerm + m_iTerm + m_dTerm + m_ffTerm;
 }
 
 

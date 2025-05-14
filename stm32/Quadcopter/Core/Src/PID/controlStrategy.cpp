@@ -87,16 +87,10 @@ void ControlStrategy::rateControlLoop(const float& dt, const Vector3<float>& gyr
 	// Set the rates target according to the flight mode
 	setRateTarget(radio);
 
-	// Filter the measure
-	/*for (size_t i = 0; i < 3; ++i)
-	{
-		m_rateLoop[i].m_heavilyFilteredMeasure = m_rateLoop[i].m_heavyLpfMeasure.apply(m_rateLoop[i].m_measure);
-	}*/
-
 	for (int i = 0; i < 3; ++i)
 	{
-		const float error = m_rateLoop[i].m_target - m_rateLoop[i].m_measure; //m_rateLoop[i].m_heavilyFilteredMeasure;//m_measure;
-		m_rateLoop[i].m_output = m_rateLoop[i].computePID(error, m_rateLoop[i].m_measure, dt, true);
+		const float error = m_rateLoop[i].m_target - m_rateLoop[i].m_measure;
+		m_rateLoop[i].m_output = m_rateLoop[i].computePID(error, m_rateLoop[i].m_measure, m_rateLoop[i].m_target, dt, true);
 	}
 }
 
