@@ -11,6 +11,7 @@
 #include "Utils/vector.hpp"
 #include "Filters/lowpassFilter.hpp"
 #include "Filters/notchFilter.hpp"
+#include "Filters/lpfBiquadButterworth.hpp"
 
 
 /*
