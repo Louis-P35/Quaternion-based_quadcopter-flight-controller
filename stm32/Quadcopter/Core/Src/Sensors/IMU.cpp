@@ -34,6 +34,11 @@ void IMU::init(
 	m_lpfAccelY.init(m_lpf_acc_gain);
 	m_lpfAccelZ.init(m_lpf_acc_gain);
 
+	float params[1] = {75.0f};
+	m_lpfBiquadGyroX.init(dataAcquisitionRate, params);
+	m_lpfBiquadGyroY.init(dataAcquisitionRate, params);
+	m_lpfBiquadGyroZ.init(dataAcquisitionRate, params);
+
 	m_lpfGyroX.init(dataAcquisitionRate, 75.0f);
 	m_lpfGyroY.init(dataAcquisitionRate, 75.0f);
 	m_lpfGyroZ.init(dataAcquisitionRate, 75.0f);
@@ -42,7 +47,7 @@ void IMU::init(
 	m_lpfGyroY2.init(dataAcquisitionRate, 75.0f);
 	m_lpfGyroZ2.init(dataAcquisitionRate, 75.0f);
 
-	m_notchGyroX.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
+	/*m_notchGyroX.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
 	m_notchGyroY.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
 	m_notchGyroZ.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
 
@@ -52,7 +57,7 @@ void IMU::init(
 
 	m_notchAccelX.init(dataAcquisitionRate, accelNotchF0, accelNotchQ);
 	m_notchAccelY.init(dataAcquisitionRate, accelNotchF0, accelNotchQ);
-	m_notchAccelZ.init(dataAcquisitionRate, accelNotchF0, accelNotchQ);
+	m_notchAccelZ.init(dataAcquisitionRate, accelNotchF0, accelNotchQ);*/
 }
 
 void IMU::setAccelOffset(const Vector3<float>& offset)
@@ -87,20 +92,27 @@ void IMU::readAndFilterIMU_gdps()
 	//rawGyro.z = m_notchGyroZ2.apply(m_notchGyroZ.apply(rawGyro.z));
 
 	// Cascade LPFs on gyroscope data
-	m_gyro.m_x = m_lpfGyroX2.apply(m_lpfGyroX.apply(rawGyro.x));
-	m_gyro.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
-	m_gyro.m_z = m_lpfGyroZ2.apply(m_lpfGyroZ.apply(rawGyro.z));
+	//m_gyro.m_x = m_lpfGyroX2.apply(m_lpfGyroX.apply(rawGyro.x));
+	//m_gyro.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
+	//m_gyro.m_z = m_lpfGyroZ2.apply(m_lpfGyroZ.apply(rawGyro.z));
 
-	m_gyroRaw.m_y = m_gyro.m_y;
-	m_gyroRaw.m_z = m_gyro.m_z;
+	m_gyroRaw.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
+
+
+	// Butterworth biquad LPFs on gyroscope data
+	m_gyro.m_x = m_lpfBiquadGyroX.apply(rawGyro.x);
+	m_gyro.m_y = m_lpfBiquadGyroY.apply(rawGyro.y);
+	m_gyro.m_z = m_lpfBiquadGyroZ.apply(rawGyro.z);
+
+	m_gyroRaw.m_z = m_gyro.m_y;
 
 	// Remove gyro's offset
 	m_gyro -= m_gyroOffset;
 
 	// Notch filter accelerometer
-	rawAccel.x = m_notchAccelX.apply(rawAccel.x);
-	rawAccel.y = m_notchAccelY.apply(rawAccel.y);
-	rawAccel.z = m_notchAccelZ.apply(rawAccel.z);
+	//rawAccel.x = m_notchAccelX.apply(rawAccel.x);
+	//rawAccel.y = m_notchAccelY.apply(rawAccel.y);
+	//rawAccel.z = m_notchAccelZ.apply(rawAccel.z);
 
 	// LPF accelerometer data
 	m_accel.m_x = m_lpfAccelX.apply(rawAccel.x);

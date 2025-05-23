@@ -31,6 +31,10 @@ private:
 	LPF<float> m_lpfAccelY;
 	LPF<float> m_lpfAccelZ;
 
+	BiquadLPF<float> m_lpfBiquadGyroX;
+	BiquadLPF<float> m_lpfBiquadGyroY;
+	BiquadLPF<float> m_lpfBiquadGyroZ;
+
 	LPF<float> m_lpfGyroX;
 	LPF<float> m_lpfGyroY;
 	LPF<float> m_lpfGyroZ;
@@ -39,7 +43,7 @@ private:
 	LPF<float> m_lpfGyroY2;
 	LPF<float> m_lpfGyroZ2;
 
-	NotchFilter<float> m_notchGyroX;
+	/*NotchFilter<float> m_notchGyroX;
 	NotchFilter<float> m_notchGyroY;
 	NotchFilter<float> m_notchGyroZ;
 
@@ -49,7 +53,7 @@ private:
 
 	NotchFilter<float> m_notchAccelX;
 	NotchFilter<float> m_notchAccelY;
-	NotchFilter<float> m_notchAccelZ;
+	NotchFilter<float> m_notchAccelZ;*/
 
 public:
 	Vector3<float> m_accel = {0.0f};

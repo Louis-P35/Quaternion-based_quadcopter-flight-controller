@@ -22,18 +22,18 @@ public:
      * fs: sampling rate (Hz)
      * params: optional filter-specific parameters (e.g., cutoff frequency)
      */
-    virtual void init(T fs, const T* pParams = nullptr) = 0;
+    virtual void init(const T& fs, const T* pParams = nullptr) = 0;
 
     /*
      * Process one input sample and return the filtered output
      * x: input sample
      * Returns: filtered output
      */
-    virtual T apply(T x0) = 0;
+    virtual T apply(const T& x0) = 0;
 
     /*
      * Reset filter state to a given initial value
      * initial: initial state value (default 0.0)
      */
-    virtual void reset(T initial = T(0.0)) = 0;
+    virtual void reset(const T& initial = T(0.0)) = 0;
 };
