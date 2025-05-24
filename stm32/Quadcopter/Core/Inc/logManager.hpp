@@ -23,10 +23,7 @@
 class LogManager
 {
 public:
-	// Handle of the UART
-	UART_HandleTypeDef m_huart;
-
-	char m_txBuf[256];
+	alignas(32) uint8_t m_txBuf[256]; // Alignement cache-line
 
 private:
 	LogManager() {};
@@ -44,7 +41,7 @@ public:
 	// Return the only class instance
 	static LogManager& getInstance();
 
-	void setup(const UART_HandleTypeDef& huart);
+	void setup();
 
 	// Write data to the the serial port
 	void serialPrint(const int val);

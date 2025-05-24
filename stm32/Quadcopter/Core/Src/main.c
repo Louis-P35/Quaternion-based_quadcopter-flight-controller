@@ -15,14 +15,14 @@
   *
   ******************************************************************************
   */
-#include <main.hpp>
-#include "scheduler.hpp"
-#include "Utils/utilsTimer.hpp"
-#include "stateMachine.hpp"
+#include <main.h>
+//#include "scheduler.hpp"
+//#include "Utils/utilsTimer.hpp"
+//#include "stateMachine.hpp"
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "main.h"
 #include "fatfs.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -72,7 +72,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_SDMMC1_SD_Init(void);
 /* USER CODE BEGIN PFP */
-
+extern void interfaceMain();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -136,32 +136,29 @@ int main(void)
 
   //__HAL_TIM_MOE_ENABLE(&htim1);
 
-  /*
-   * Init and reset the timer counter
-   */
-  timerCounterInit();
-  timerCounterReset();
+  // Main loop here
+  interfaceMain();
 
-  Scheduler scheduler = Scheduler(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2, htim1);
-  scheduler.mainSetup();
+  //Scheduler scheduler = Scheduler(hspi1, SPI_CS_Pin, SPI_CS_GPIO_Port, huart2, htim1);
+  //scheduler.mainSetup();
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  uint32_t start = timerCounterGetCycles();
-  HAL_Delay(1); // Avoid first dt = 0
+  //uint32_t start = timerCounterGetCycles();
+  //HAL_Delay(1); // Avoid first dt = 0
   while (1)
   {
 	// Get the delta time in second
-	const double dt = getEllapsedTime_s(start);
+	//const double dt = getEllapsedTime_s(start);
 	// Get the start cycle count
-	start = timerCounterGetCycles();
+	//start = timerCounterGetCycles();
 
-	scheduler.mainLoop(dt);
-	//magnetometerCalibration();
+	//scheduler.mainLoop(dt);
+	////magnetometerCalibration();
 
-	//HAL_Delay(10);
+	////HAL_Delay(10);
 
     /* USER CODE END WHILE */
 
@@ -352,9 +349,9 @@ static void MX_TIM1_Init(void)
 
   /* USER CODE END TIM1_Init 1 */
   htim1.Instance = TIM1;
-  htim1.Init.Prescaler = (SystemCoreClock / 1000000) - 1;
+  htim1.Init.Prescaler = 471;
   htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 2000 - 1;
+  htim1.Init.Period = 1999;
   htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim1.Init.RepetitionCounter = 0;
   htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -426,7 +423,6 @@ static void MX_TIM1_Init(void)
 
 }
 
-
 /**
   * @brief TIM2 Initialization Function
   * @param None
@@ -446,9 +442,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 39;
+  htim2.Init.Prescaler = 2359;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 982;
+  htim2.Init.Period = 24;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -550,6 +546,8 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SPI_CS_GPIO_Port, SPI_CS_Pin, GPIO_PIN_RESET);

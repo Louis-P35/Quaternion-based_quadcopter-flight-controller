@@ -22,7 +22,7 @@
 /*-----------------------------------------------------------------------------/
 / Additional user header to be used
 /-----------------------------------------------------------------------------*/
-#include "main.hpp"
+#include "main.h"
 #include "stm32h7xx_hal.h"
 #include "bsp_driver_sd.h"
 

@@ -11,7 +11,7 @@
 
 
 // Driver
-#include <main.hpp> // For pin configuration
+#include <main.h> // For pin configuration
 #include "stm32h7xx_hal.h"
 
 #include <stdbool.h>

@@ -22,12 +22,12 @@
 
 // DO not change this unless change the timer 2 settings accordingly
 // IMU_SAMPLE_FREQUENCY must be a round multiple of 1000
-#define IMU_SAMPLE_FREQUENCY 6000
-#define RATE_DIVIDER 3
-#define AHRS_DIVIDER 6
-#define ESC_DIVIDER 12
-#define POS_HOLD_DIVIDER 60
-#define RADIO_DIVIDER 120
+#define IMU_SAMPLE_FREQUENCY 4000
+#define RATE_DIVIDER 2
+#define AHRS_DIVIDER 4
+#define ESC_DIVIDER 8
+#define POS_HOLD_DIVIDER 40
+#define RADIO_DIVIDER 80
 
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
@@ -41,17 +41,14 @@ enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
 class Scheduler
 {
 public:
-	UART_HandleTypeDef m_huart_ext;
-	TIM_HandleTypeDef& m_htim1;
-
 	// Blackbox logger on SD card
 	//Blackbox<36> m_18BytesBlackbox;
 
 	// IMU
 	IMU m_imu;
-	Vector3<float> m_gyroCopyRaw;
-	Vector3<float> m_gyroCopy;
-	Vector3<float> m_accelCopy;
+	//Vector3<float> m_gyroCopyRaw;
+	//Vector3<float> m_gyroCopy;
+	//Vector3<float> m_accelCopy;
 
 	// Radio
 	Radio m_radio;
@@ -71,30 +68,27 @@ public:
 
 	ControlStrategy m_ctrlStrat;
 
-	uint32_t m_ahrsStartTime = 0;
-	uint32_t m_rateStartTime = 0;
-	uint32_t m_angleStartTime = 0;
-	uint32_t m_posStartTime = 0;
-	uint32_t m_radioStartTime = 0;
-	float m_ahrsDt = 0.001f; // Non 0 init to avoid /0
-	float m_rateDt = 0.001f;
-	float m_angleDt = 0.001f;
-	float m_posDt = 0.001f;
-	float m_radioDt = 0.001f;
+	static constexpr float m_ahrsDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER));
+	static constexpr float m_rateDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER));
+	static constexpr float m_angleDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER)); // Same as ahrs
+	static constexpr float m_posDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(POS_HOLD_DIVIDER));
+	static constexpr float m_radioDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RADIO_DIVIDER));
 
 	bool m_angleLoop = false;
 	bool m_posLoop = false;
 
 public:
 	Scheduler(
-			SPI_HandleTypeDef hspi,
 			uint16_t spi_cs_pin,
-			GPIO_TypeDef* spi_cs_gpio_port,
-			UART_HandleTypeDef uart_ext,
-			TIM_HandleTypeDef& htim1
+			GPIO_TypeDef* spi_cs_gpio_port
 			);
 	void mainSetup();
 	void mainLoop(const double dt);
+
+	void pidRateLoop();
+	void ahrsLoop();
+	void escLoop();
+	void radioLoop();
 
 	void setMotorPower(const Motor& motor, const float& power);
 

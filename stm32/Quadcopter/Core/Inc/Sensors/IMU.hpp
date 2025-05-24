@@ -67,11 +67,11 @@ public:
 	IMU() = default;
 
 	void init(
-			const float& dataAcquisitionRate,
+			const float& dataAcquisitionRate/*,
 			const float& gyroNotchF0,
 			const float& gyroNotchQ,
 			const float& accelNotchF0,
-			const float& accelNotchQ
+			const float& accelNotchQ*/
 			);
 
 	void setAccelOffset(const Vector3<float>& offset);

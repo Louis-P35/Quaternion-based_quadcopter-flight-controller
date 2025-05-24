@@ -26,10 +26,10 @@
  * Filters
  */
 
-#define GYRO_NOTCH_F0 87.5f
-#define GYRO_NOTCH_Q 1.0f
-#define ACCEL_NOTCH_F0 200.0f
-#define ACCEL_NOTCH_Q 15.0f
+//#define GYRO_NOTCH_F0 87.5f
+//#define GYRO_NOTCH_Q 1.0f
+//#define ACCEL_NOTCH_F0 200.0f
+//#define ACCEL_NOTCH_Q 15.0f
 
 
 
@@ -74,13 +74,17 @@
 #define TARGET_RATE_MAX 200.0f
 
 
-IMU* g_pIMU = nullptr;
-volatile bool g_enableAHRSAndPidAngleloop = false;
-volatile bool g_enablePIDrateLoop = false;
-volatile bool g_enablePIDangleLoop = false;
-volatile bool g_enablePIDposLoop = false;
-volatile bool g_enableESCsLoop = false;
+extern TIM_HandleTypeDef htim1;
+extern SPI_HandleTypeDef hspi1;
+extern Scheduler g_scheduler;
 volatile bool g_enableRadioLoop = false;
+volatile bool g_start = false;
+
+constexpr float Scheduler::m_rateDt;
+constexpr float Scheduler::m_ahrsDt;
+constexpr float Scheduler::m_angleDt;
+constexpr float Scheduler::m_posDt;
+constexpr float Scheduler::m_radioDt;
 
 //#define CALIBRATE_IMU 1
 
@@ -89,7 +93,7 @@ volatile bool g_enableRadioLoop = false;
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-//#define DEBUG_DISABLE_MOTORS 1
+#define DEBUG_DISABLE_MOTORS 1
 #define PID_TESTING_MODE 1
 
 
@@ -109,14 +113,9 @@ volatile bool g_enableRadioLoop = false;
 
 
 Scheduler::Scheduler(
-		SPI_HandleTypeDef hspi,
 		uint16_t spi_cs_pin,
-		GPIO_TypeDef* spi_cs_gpio_port,
-		UART_HandleTypeDef uart_ext,
-		TIM_HandleTypeDef& htim1
+		GPIO_TypeDef* spi_cs_gpio_port
 		) :
-		m_huart_ext(uart_ext),
-		m_htim1(htim1),
 		m_radio(THROTTLE_HOVER_OFFSET, THROTTLE_EXPO, TARGET_ANGLE_MAX, TARGET_RATE_MAX)
 {
 
@@ -129,11 +128,10 @@ Scheduler::Scheduler(
 void Scheduler::mainSetup()
 {
 	// Setup the serial print
-	LogManager::getInstance().setup(m_huart_ext);
+	LogManager::getInstance().setup();
 
 	// Setup the IMU (ICM20948)
-	m_imu.init(IMU_SAMPLE_FREQUENCY, GYRO_NOTCH_F0, GYRO_NOTCH_Q, ACCEL_NOTCH_F0, ACCEL_NOTCH_Q);
-	g_pIMU = &m_imu; // Ref for TMR2 interrupt
+	m_imu.init(IMU_SAMPLE_FREQUENCY/*, GYRO_NOTCH_F0, GYRO_NOTCH_Q, ACCEL_NOTCH_F0, ACCEL_NOTCH_Q*/);
 
 	// Init AHRS
 	m_madgwickFilter = MadgwickFilter<float>();
@@ -172,13 +170,6 @@ void Scheduler::mainSetup()
 	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
 
 
-	// Init timers to avoid huge spikes at startup
-	m_ahrsStartTime = timerCounterGetCycles();
-	m_rateStartTime = timerCounterGetCycles();
-	m_angleStartTime = timerCounterGetCycles();
-	m_posStartTime = timerCounterGetCycles();
-
-
 	// Gyro filters for PID rate loop
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
 	for (size_t i = 0; i < 3; ++i)
@@ -186,296 +177,267 @@ void Scheduler::mainSetup()
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 20.0f);
 		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
 	}
+
+	// Start the loop
+	g_start = true;
 }
 
 
+uint32_t ahrsTicks = 0;
+uint32_t pidRateTicks = 0;
+uint32_t escTicks = 0;
+uint32_t radioTicks = 0;
+
+
 /*
- * Called at 6khz by timer 2 overflow interrupt
+ * Called at 4khz by timer 2 overflow interrupt
+ * This is the main loop of this software
  */
 void orchestrator_highestFrequencyLoop()
 {
-	static size_t ticks = 0;
+	static uint32_t ticks = 0;
 
-	if (g_pIMU != nullptr)
+	if (g_start)
 	{
 		ticks++;
 
-		// 6 khz loop
-		g_pIMU->readAndFilterIMU_gdps();
-
-		// 2 khz loop
-		// PID rate loop
-		if ((ticks % RATE_DIVIDER) == 0) // 2khz (6khz / 3)
-		{
-			g_enablePIDrateLoop = true;
-		}
+		// 4 khz loop
+		g_scheduler.m_imu.readAndFilterIMU_gdps();
 
 		// 1 khz loop
 		// AHRS
-		if ((ticks % AHRS_DIVIDER) == 0) // 1khz (6khz / 6)
+		if ((ticks % AHRS_DIVIDER) == 0) // 1khz (4khz / 4)
 		{
-			g_enableAHRSAndPidAngleloop = true;
+			g_scheduler.ahrsLoop();
+			ahrsTicks++;
 		}
 
 		// 500 hz loop
 		// ESCs
 		if ((ticks % ESC_DIVIDER) == 0) // 500hz (6khz / 12)
 		{
-			g_enableESCsLoop = true;
+			g_scheduler.escLoop();
+			escTicks++;
 		}
 
 		// 100 hz loop
 		// PID position hold
 		if ((ticks % POS_HOLD_DIVIDER) == 0) // 100hz (6khz / 60)
 		{
-			g_enablePIDposLoop = true;
+			// Enable PID position hold loop (that will run in the state machine)
+			// Enable it only in certain flight mode
+			if (g_scheduler.m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+			{
+				g_scheduler.m_posLoop = true;
+			}
 		}
 
 		// 50 hz loop
 		// Radio
 		if ((ticks % RADIO_DIVIDER) == 0) // 50hz (6khz / 120)
 		{
-			g_enableRadioLoop = true;
+			g_scheduler.radioLoop();
+			radioTicks++;
+		}
+
+		// 2 khz loop
+		// PID rate loop
+		// The last called because it run the state machine
+		if ((ticks % RATE_DIVIDER) == 0) // 2khz (4khz / 2)
+		{
+			g_scheduler.pidRateLoop();
+			pidRateTicks++;
 		}
 	}
 }
 
 
 /*
- * Called indefinitely in a loop
- * This is the main loop of this software
+ * Handle drone behavior according to the current state (state machine)
+ * Run all the PID loops
  */
-void Scheduler::mainLoop(const double dt)
+void Scheduler::pidRateLoop()
 {
-	static bool startRecord = false;
+	// Run the state machine
+	StateMachine::getInstance().run(*this);
 
-	if (g_enableAHRSAndPidAngleloop)
+	// Reset angle & position hold flag here because they are executed in the state machine
+	m_angleLoop = false;
+	m_posLoop = false;
+
+
+	/*if (startRecord && m_imu.m_gyroDebugIndex < 5000)
 	{
-		m_ahrsDt = static_cast<float>(getEllapsedTime_s(m_ahrsStartTime));
-		m_ahrsStartTime = timerCounterGetCycles();
+		m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_gyroCopyRaw;
+		m_imu.m_gyroDebugIndex++;
+	}
+	else if (m_imu.m_gyroDebugIndex == 5000)
+	{
+		m_imu.m_gyroDebugIndex++;
+		setMotorPower(Motor::eMotor1, 0.0f);
+		setMotorPower(Motor::eMotor2, 0.0f);
+		setMotorPower(Motor::eMotor3, 0.0f);
+		setMotorPower(Motor::eMotor4, 0.0f);
+		for (int i = 0; i < 5000; ++i)
+		{
+			LogManager::getInstance().serialPrint(m_imu.m_gyroDebug[i].m_x, m_imu.m_gyroDebug[i].m_y, false);
+			HAL_Delay(20);
+		}
+	}*/
+}
 
-		// Disable just the TIM2 overflow interrupt
-		NVIC_DisableIRQ(TIM2_IRQn);
-		m_gyroCopy = g_pIMU->m_gyro;
-		m_accelCopy = g_pIMU->m_accel;
-		NVIC_EnableIRQ(TIM2_IRQn); // Re-enable the IRQ
 
-		// AHRS, Madgwick filter
-		m_madgwickFilter.compute(
-				m_accelCopy.m_x, // Acceleration vector will be normalized
-				m_accelCopy.m_y,
-				m_accelCopy.m_z,
-				m_gyroCopy.m_x * DEGREE_TO_RAD,
-				m_gyroCopy.m_y * DEGREE_TO_RAD,
-				m_gyroCopy.m_z * DEGREE_TO_RAD,
-				m_ahrsDt
-			);
+/*
+ * Run Madgwick filter
+ */
+void Scheduler::ahrsLoop()
+{
+	// AHRS, Madgwick filter
+	m_madgwickFilter.compute(
+			m_imu.m_accel.m_x, // Acceleration vector will be normalized
+			m_imu.m_accel.m_y,
+			m_imu.m_accel.m_z,
+			m_imu.m_gyro.m_x * DEGREE_TO_RAD,
+			m_imu.m_gyro.m_y * DEGREE_TO_RAD,
+			m_imu.m_gyro.m_z * DEGREE_TO_RAD,
+			m_ahrsDt
+		);
 
-		// Debug print AHRS result
-		//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
-		//m_qAttitudeCorrected = m_qHoverOffset * m_madgwickFilter.m_qEst;
-		//m_qAttitudeCorrected.normalize();
-		//LogManager::getInstance().serialPrint(m_qAttitudeCorrected, m_madgwickFilter.m_qEst);
+	// Debug print AHRS result
+	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
 
 
 #ifdef COMPUTE_HOVER_OFFSET
-		// Compute the hover offset (must be done once after each teardown/build of the drone)
-		calibrateHoverOffset();
+	// Compute the hover offset (must be done once after each teardown/build of the drone)
+	calibrateHoverOffset();
 #endif
 
-		// Enable PID angle loop (that will run in the state machine)
-		// Enable it only in certain flight mode
-		if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
-				m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
-		{
-			m_angleLoop = true;
-		}
-
-		// Debug logging
-		/*uint8_t pBuffer[36];
-		memcpy(pBuffer, &m_imu.m_gyro.m_x, sizeof(float));
-		memcpy(pBuffer + 4, &m_imu.m_gyro.m_y, sizeof(float));
-		memcpy(pBuffer + 8, &m_imu.m_gyro.m_z, sizeof(float));
-		memcpy(pBuffer + 12, &m_imu.m_gyro.m_x, sizeof(float));
-		memcpy(pBuffer + 16, &m_imu.m_gyro.m_y, sizeof(float));
-		memcpy(pBuffer + 20, &m_imu.m_gyro.m_z, sizeof(float));
-		memcpy(pBuffer + 24, &m_imu.m_gyro.m_x, sizeof(float));
-		memcpy(pBuffer + 28, &m_imu.m_gyro.m_y, sizeof(float));
-		memcpy(pBuffer + 32, &m_imu.m_gyro.m_z, sizeof(float));
-		m_18BytesBlackbox.blackBoxLogToSdCard(pBuffer);*/
-
-		g_enableAHRSAndPidAngleloop = false;
-	}
-
-	// Read radio
-	if (g_enableRadioLoop)
+	// Enable PID angle loop (that will run in the state machine)
+	// Enable it only in certain flight mode
+	if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
+			m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
 	{
-		// Measure true dt
-		m_radioDt = static_cast<float>(getEllapsedTime_s(m_radioStartTime));
-		m_radioStartTime = timerCounterGetCycles();
-
-		const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
-
-		//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
-
-		if (!signalLost)
-		{
-			//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
-			//LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
-
-			// Compute target quaternion
-			m_targetAttitude = Quaternion<float>::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
-			// Debug print AHRS result
-			//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
-		}
-		else
-		{
-			// Signal lost, target quaternion is horizon
-		}
-
-#ifdef PID_TESTING_MODE
-		m_radio.m_targetRateRoll = 0.0;
-		m_radio.m_targetRateYaw = 0.0;
-		//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
-
-		if (m_radio.m_targetThrust > 350.0f)
-		{
-			m_radio.m_targetThrust = 350.0f;
-			startRecord = true;
-		}
-
-		if (m_radio.m_targetRatePitch > 50.0f)
-		{
-			m_radio.m_targetRatePitch = 250.0f;
-		}
-		else if (m_radio.m_targetRatePitch < -50.0f)
-		{
-			m_radio.m_targetRatePitch = -250.0f;
-		}
-
-		//pidDebugStream();
-#endif
-
-		/*static int ttt = 0;
-		ttt++;
-		if ((ttt % 10) == 0)
-		{
-			LogManager::getInstance().serialPrint(m_radio.m_radioChannel1, m_radio.m_radioChannel2, m_radio.m_radioChannel3, m_radio.m_radioChannel4);
-		}*/
-		/*std::string tototmp = "POWER: \r\n";
-		tototmp += std::to_string(m_motorMixer.m_powerMotor[1]);
-		tototmp += " ";
-		tototmp += std::to_string(m_motorMixer.m_powerMotor[2]);
-		tototmp += "\r\n";
-		tototmp += std::to_string(m_motorMixer.m_powerMotor[0]);
-		tototmp += " ";
-		tototmp += std::to_string(m_motorMixer.m_powerMotor[3]);
-		tototmp += "\r\nTORQUE: \n\r";
-		tototmp += std::to_string(m_thrust);
-		tototmp += " ";
-		tototmp += std::to_string(m_torqueX);
-		tototmp += " ";
-		tototmp += std::to_string(m_torqueY);
-		tototmp += " ";
-		tototmp += std::to_string(m_torqueZ);
-		tototmp += "\r\n";
-		LogManager::getInstance().serialPrint((char*)tototmp.c_str());*/
-
-		/*LogManager::getInstance().serialPrint("POWER: \n\r");
-		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
-		LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
-		LogManager::getInstance().serialPrint("TORQUE: \n\r");
-		LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
-		LogManager::getInstance().serialPrint("\n\r");*/
-
-		g_enableRadioLoop = false;
+		m_angleLoop = true;
 	}
-
-	// Enable PID position hold loop (that will run in the state machine)
-	if (g_enablePIDposLoop)
-	{
-		// Enable it only in certain flight mode
-		if (m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
-		{
-			m_posLoop = true;
-		}
-
-		g_enablePIDposLoop = false;
-	}
-
-	// Handle drone behavior according to the current state (state machine)
-	// Run all the PID loops
-	if (g_enablePIDrateLoop)
-	{
-		// Disable just the TIM2 overflow interrupt
-		NVIC_DisableIRQ(TIM2_IRQn);
-		m_gyroCopy = g_pIMU->m_gyro;
-		m_accelCopy = g_pIMU->m_accel;
-		m_gyroCopyRaw = g_pIMU->m_gyroRaw;
-		NVIC_EnableIRQ(TIM2_IRQn); // Re-enable the IRQ
-
-		// Measure true dt
-		m_rateDt = static_cast<float>(getEllapsedTime_s(m_rateStartTime));
-		m_rateStartTime = timerCounterGetCycles();
-
-		if (m_angleLoop)
-		{
-			m_angleDt = static_cast<float>(getEllapsedTime_s(m_angleStartTime));
-			m_angleStartTime = timerCounterGetCycles();
-		}
-
-		if (m_posLoop)
-		{
-			m_posDt = static_cast<float>(getEllapsedTime_s(m_posStartTime));
-			m_posStartTime = timerCounterGetCycles();
-		}
-
-		// Run the state machine
-		StateMachine::getInstance().run(*this);
-
-		// Reset angle & position hold flag here because they are executed in the state machine
-		m_angleLoop = false;
-		m_posLoop = false;
-
-		g_enablePIDrateLoop = false;
+}
 
 
-		if (startRecord && m_imu.m_gyroDebugIndex < 5000)
-		{
-			m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_gyroCopyRaw;
-			m_imu.m_gyroDebugIndex++;
-		}
-		else if (m_imu.m_gyroDebugIndex == 5000)
-		{
-			m_imu.m_gyroDebugIndex++;
-			setMotorPower(Motor::eMotor1, 0.0f);
-			setMotorPower(Motor::eMotor2, 0.0f);
-			setMotorPower(Motor::eMotor3, 0.0f);
-			setMotorPower(Motor::eMotor4, 0.0f);
-			for (int i = 0; i < 5000; ++i)
-			{
-				LogManager::getInstance().serialPrint(m_imu.m_gyroDebug[i].m_x, m_imu.m_gyroDebug[i].m_y, false);
-				HAL_Delay(20);
-			}
-		}
-	}
-
-	// Motors update
-	if (g_enableESCsLoop)
-	{
-		// PWM update
-		m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
-		m_motorMixer.clampRescale();
+/*
+ * Motors update
+ */
+void Scheduler::escLoop()
+{
+	// PWM update
+	m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
+	m_motorMixer.clampRescale();
 
 #ifndef DEBUG_DISABLE_MOTORS
-		setMotorPower(Motor::eMotor1, m_motorMixer.m_powerMotor[0]);
-		setMotorPower(Motor::eMotor2, m_motorMixer.m_powerMotor[1]);
-		setMotorPower(Motor::eMotor3, m_motorMixer.m_powerMotor[2]);
-		setMotorPower(Motor::eMotor4, m_motorMixer.m_powerMotor[3]);
+	setMotorPower(Motor::eMotor1, m_motorMixer.m_powerMotor[0]);
+	setMotorPower(Motor::eMotor2, m_motorMixer.m_powerMotor[1]);
+	setMotorPower(Motor::eMotor3, m_motorMixer.m_powerMotor[2]);
+	setMotorPower(Motor::eMotor4, m_motorMixer.m_powerMotor[3]);
+#endif
+}
+
+
+/*
+ * Read radio's PWM signals
+ */
+void Scheduler::radioLoop()
+{
+	static bool startRecord = false;
+	const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
+
+	//LogManager::getInstance().serialPrint(m_rateDt);
+
+	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
+
+	if (!signalLost)
+	{
+		//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
+		//LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
+
+		// Compute target quaternion
+		m_targetAttitude = Quaternion<float>::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
+		// Debug print AHRS result
+		//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
+	}
+	else
+	{
+		// Signal lost, target quaternion is horizon
+	}
+
+#ifdef PID_TESTING_MODE
+	m_radio.m_targetRateRoll = 0.0;
+	m_radio.m_targetRateYaw = 0.0;
+	//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
+
+	if (m_radio.m_targetThrust > 350.0f)
+	{
+		m_radio.m_targetThrust = 350.0f;
+		startRecord = true;
+	}
+
+	if (m_radio.m_targetRatePitch > 50.0f)
+	{
+		m_radio.m_targetRatePitch = 250.0f;
+	}
+	else if (m_radio.m_targetRatePitch < -50.0f)
+	{
+		m_radio.m_targetRatePitch = -250.0f;
+	}
+
+	//pidDebugStream();
 #endif
 
-		g_enableESCsLoop = false;
-	}
+	/*static int ttt = 0;
+	ttt++;
+	if ((ttt % 10) == 0)
+	{
+		LogManager::getInstance().serialPrint(m_radio.m_radioChannel1, m_radio.m_radioChannel2, m_radio.m_radioChannel3, m_radio.m_radioChannel4);
+	}*/
+	/*std::string tototmp = "POWER: \r\n";
+	tototmp += std::to_string(m_motorMixer.m_powerMotor[1]);
+	tototmp += " ";
+	tototmp += std::to_string(m_motorMixer.m_powerMotor[2]);
+	tototmp += "\r\n";
+	tototmp += std::to_string(m_motorMixer.m_powerMotor[0]);
+	tototmp += " ";
+	tototmp += std::to_string(m_motorMixer.m_powerMotor[3]);
+	tototmp += "\r\nTORQUE: \n\r";
+	tototmp += std::to_string(m_thrust);
+	tototmp += " ";
+	tototmp += std::to_string(m_torqueX);
+	tototmp += " ";
+	tototmp += std::to_string(m_torqueY);
+	tototmp += " ";
+	tototmp += std::to_string(m_torqueZ);
+	tototmp += "\r\n";
+	LogManager::getInstance().serialPrint((char*)tototmp.c_str());*/
+
+	/*LogManager::getInstance().serialPrint("POWER: \n\r");
+	LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
+	LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
+	LogManager::getInstance().serialPrint("TORQUE: \n\r");
+	LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
+	LogManager::getInstance().serialPrint("\n\r");*/
+}
+
+
+/*
+ * Called indefinitely in a loop
+ */
+void Scheduler::mainLoop(const double dt)
+{
+	//LogManager::getInstance().serialPrint(pidRateTicks, ahrsTicks, escTicks, radioTicks);
+	//LogManager::getInstance().serialPrint("\n\r");
+
+	//LogManager::getInstance().serialPrint(m_imu.m_gyro.m_y);
+	//LogManager::getInstance().serialPrint("\n\r");
+	LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
+	LogManager::getInstance().serialPrint("\n\r");
+
+	HAL_Delay(50);
 }
 
 
@@ -506,19 +468,19 @@ void Scheduler::setMotorPower(const Motor& motor, const float& power)
 	switch(motor)
 	{
 	case Motor::eMotor1:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_4, high);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_4, high);
 		break;
 
 	case Motor::eMotor2:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_1, high);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, high);
 		break;
 
 	case Motor::eMotor3:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_2, high);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_2, high);
 		break;
 
 	case Motor::eMotor4:
-		__HAL_TIM_SET_COMPARE(&m_htim1, TIM_CHANNEL_3, high);
+		__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_3, high);
 		break;
 
 	default:
@@ -616,7 +578,7 @@ void Scheduler::pidDebugStream()
 		LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D\r\n");
 	}
 
-	std::string gyro = formatString(m_gyroCopy.m_y);
+	std::string gyro = formatString(m_imu.m_gyro.m_y);
 	std::string targetRate = formatString(m_radio.m_targetRatePitch);
 	std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
 	std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
