@@ -30,14 +30,15 @@ Radio::Radio(
 bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 {
 	/* Read the radio receiver */
+	m_radioProtocole.parseSbusFrame();
 	/*m_radioChannel1 = PWM_GetPulse(0); // Roll
 	m_radioChannel2 = PWM_GetPulse(1); // Pitch
 	m_radioChannel3 = PWM_GetPulse(2); // Yaw
 	m_radioChannel4 = PWM_GetPulse(3); // Thrust*/
-	m_radioChannel1 = m_radioProtocole.getChannel(0); // Roll
+	m_radioChannel1 = m_radioProtocole.getChannel(3); // Roll
 	m_radioChannel2 = m_radioProtocole.getChannel(1); // Pitch
-	m_radioChannel3 = m_radioProtocole.getChannel(2); // Yaw
-	m_radioChannel4 = m_radioProtocole.getChannel(3); // Thrust
+	m_radioChannel3 = m_radioProtocole.getChannel(0); // Yaw
+	m_radioChannel4 = m_radioProtocole.getChannel(2); // Thrust
 	//LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
 	// 1070 - 1941
 

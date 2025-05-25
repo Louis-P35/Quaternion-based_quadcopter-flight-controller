@@ -46,7 +46,6 @@
 /* USER CODE BEGIN PV */
 
 extern volatile int uart2TxBusy;
-extern uint8_t* sbusBuf;
 
 /* USER CODE END PV */
 
@@ -296,16 +295,17 @@ void USART6_IRQHandler(void)
 	if (__HAL_UART_GET_FLAG(&huart6, UART_FLAG_IDLE))
 	{
 		__HAL_UART_CLEAR_IDLEFLAG(&huart6);
-		HAL_UART_DMAStop(&huart6);  // freeze the buffer
+		//HAL_UART_DMAStop(&huart6);  // freeze the buffer
 
 		// parse only if we got a full frame
-		if ((SBUS_FRAME_SIZE - __HAL_DMA_GET_COUNTER(huart6.hdmarx)) == SBUS_FRAME_SIZE && sbusBuf[0] == 0x0F)
-		{
-			copyFrame(sbusBuf);
-		}
+		//int toto = __HAL_DMA_GET_COUNTER(huart6.hdmarx);
+		//if ((SBUS_FRAME_SIZE - __HAL_DMA_GET_COUNTER(huart6.hdmarx)) == SBUS_FRAME_SIZE && sbusBuf[0] == 0x0F)
+		//{
+		copyFrame();
+		//}
 
 		// restart DMA for next frame
-		HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
+		//HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
 	}
   /* USER CODE END USART6_IRQn 0 */
   HAL_UART_IRQHandler(&huart6);

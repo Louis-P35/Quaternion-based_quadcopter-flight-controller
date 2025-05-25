@@ -15,7 +15,7 @@
 // Includes from STL
 #include <string>
 
-extern uint8_t* sbusBuf;
+extern uint8_t sbusBufCopy[];
 extern bool g_newFrameReady;
 extern UART_HandleTypeDef huart6;
 
@@ -24,12 +24,7 @@ constexpr int SbusParser::m_nbChannel;
 
 void SbusParser::init()
 {
-	// Clear any pending IDLE flag
-	__HAL_UART_CLEAR_IDLEFLAG(&huart6);
-	// Kick off the circular DMA transfer into the 25-byte buffer
-	HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
-	// Enable the UART IDLE interrupt so we know when a full frame has arrived
-	__HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
+	// Too soon to initilize uart6 here
 }
 
 
@@ -47,7 +42,7 @@ bool SbusParser::parseSbusFrame()
 	}
 
 	// Verify the start‐byte
-	if (m_pSbusBuf[0] != 0x0F)
+	if (sbusBufCopy[0] != 0x0F)
 	{
 		return false;
 	}
@@ -65,14 +60,21 @@ bool SbusParser::parseSbusFrame()
 	{
 		uint16_t offset = i*11;
 		uint16_t byteIndex = offset / 8;
-		uint16_t bitShiftOffset = offset % 8;
-		m_channel[i] = (static_cast<uint16_t>(m_pSbusBuf[byteIndex+2]) << (8 - bitShiftOffset) |
-				(static_cast<uint16_t>(m_pSbusBuf[byteIndex+1]) >> bitShiftOffset)) & 0x7FF;
+		uint16_t bitShift = offset % 8;
+
+		uint32_t temp = (static_cast<uint32_t>(sbusBufCopy[byteIndex + 1]) |
+                (static_cast<uint32_t>(sbusBufCopy[byteIndex + 2]) << 8) |
+                (static_cast<uint32_t>(sbusBufCopy[byteIndex + 3]) << 16)) >> bitShift;
+
+		m_channel[i] = temp & 0x7FF;
+
+		//m_channel[i] = (static_cast<uint32_t>(sbusBufCopy[byteIndex+2]) << (8 - bitShiftOffset) |
+		//		(static_cast<uint32_t>(sbusBufCopy[byteIndex+1]) >> bitShiftOffset)) & 0x7FF;
 	}
 
 	// Flags (byte 23)
-	m_frameLost = (m_pSbusBuf[23] & (1 << 2)) != 0;
-	m_failsafe  = (m_pSbusBuf[23] & (1 << 3)) != 0;
+	m_frameLost = (sbusBufCopy[23] & (1 << 2)) != 0;
+	m_failsafe  = (sbusBufCopy[23] & (1 << 3)) != 0;
 
 	g_newFrameReady = false;
 

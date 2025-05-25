@@ -8,24 +8,23 @@
 // Includes from project
 #include "Radio/sbusWrapperC.h"
 
-// Includes from STL
-#include <cstring>
-
-uint8_t sbusBuf[SBUS_FRAME_SIZE];
+// Place the SBUS DMA receive buffer into AXI-SRAM (D2) so the DMA engine can write to it.
+// The default DTCM section is not accessible by DMA, causing the buffer to remain zeroed.
+uint8_t sbusBuf[SBUS_FRAME_SIZE] __attribute__((section(".axisram_bss")));
+uint8_t sbusBufCopy[SBUS_FRAME_SIZE];
 bool g_newFrameReady = false;
 
 
 /*
  * Copy the received buffer from DMA to a global variable
  */
-void copyFrame(uint8_t* pSbusBuf)
+void copyFrame()
 {
-	if (!pSbusBuf)
+	for (int i = 0; i < SBUS_FRAME_SIZE; ++i)
 	{
-		return;
+		sbusBufCopy[i] = sbusBuf[i];
 	}
 
-	std::memcpy(sbusBuf, pSbusBuf, SBUS_FRAME_SIZE);
 	g_newFrameReady = true;
 }
 

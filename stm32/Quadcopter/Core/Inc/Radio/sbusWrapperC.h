@@ -16,7 +16,7 @@
 extern "C" {
 #endif
 
-void copyFrame(uint8_t* pSbusBuf);
+void copyFrame();
 
 #ifdef __cplusplus
 }

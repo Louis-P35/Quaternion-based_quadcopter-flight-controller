@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "Radio/sbusWrapperC.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -51,6 +52,8 @@ DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart6_rx;
 
 /* USER CODE BEGIN PV */
+
+extern uint8_t sbusBuf[];
 
 /* USER CODE END PV */
 
@@ -113,6 +116,13 @@ int main(void)
   MX_TIM2_Init();
   MX_USART6_UART_Init();
   /* USER CODE BEGIN 2 */
+
+  // Clear any pending IDLE flag
+  __HAL_UART_CLEAR_IDLEFLAG(&huart6);
+  // Kick off the circular DMA transfer into the 25-byte buffer
+  HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
+  // Enable the UART IDLE interrupt so we know when a full frame has arrived
+  __HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
 
   // Start timer 2
   HAL_TIM_Base_Start_IT(&htim2);
