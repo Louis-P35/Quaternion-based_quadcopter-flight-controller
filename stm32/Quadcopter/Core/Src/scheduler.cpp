@@ -23,17 +23,6 @@
 
 
 /*
- * Filters
- */
-
-//#define GYRO_NOTCH_F0 87.5f
-//#define GYRO_NOTCH_Q 1.0f
-//#define ACCEL_NOTCH_F0 200.0f
-//#define ACCEL_NOTCH_Q 15.0f
-
-
-
-/*
  * PIDs coeff
  */
 
@@ -76,6 +65,8 @@
 
 extern TIM_HandleTypeDef htim1;
 extern SPI_HandleTypeDef hspi1;
+extern UART_HandleTypeDef huart6;
+extern DMA_HandleTypeDef hdma_usart6_rx;
 extern Scheduler g_scheduler;
 volatile bool g_enableRadioLoop = false;
 volatile bool g_start = false;
@@ -131,7 +122,7 @@ void Scheduler::mainSetup()
 	LogManager::getInstance().setup();
 
 	// Setup the IMU (ICM20948)
-	m_imu.init(IMU_SAMPLE_FREQUENCY/*, GYRO_NOTCH_F0, GYRO_NOTCH_Q, ACCEL_NOTCH_F0, ACCEL_NOTCH_Q*/);
+	m_imu.init(IMU_SAMPLE_FREQUENCY);
 
 	// Init AHRS
 	m_madgwickFilter = MadgwickFilter<float>();
@@ -209,7 +200,7 @@ void orchestrator_highestFrequencyLoop()
 		if ((ticks % AHRS_DIVIDER) == 0) // 1khz (4khz / 4)
 		{
 			g_scheduler.ahrsLoop();
-			ahrsTicks++;
+			//ahrsTicks++;
 		}
 
 		// 500 hz loop
@@ -217,7 +208,7 @@ void orchestrator_highestFrequencyLoop()
 		if ((ticks % ESC_DIVIDER) == 0) // 500hz (6khz / 12)
 		{
 			g_scheduler.escLoop();
-			escTicks++;
+			//escTicks++;
 		}
 
 		// 100 hz loop
@@ -237,7 +228,7 @@ void orchestrator_highestFrequencyLoop()
 		if ((ticks % RADIO_DIVIDER) == 0) // 50hz (6khz / 120)
 		{
 			g_scheduler.radioLoop();
-			radioTicks++;
+			//radioTicks++;
 		}
 
 		// 2 khz loop
@@ -246,7 +237,7 @@ void orchestrator_highestFrequencyLoop()
 		if ((ticks % RATE_DIVIDER) == 0) // 2khz (4khz / 2)
 		{
 			g_scheduler.pidRateLoop();
-			pidRateTicks++;
+			//pidRateTicks++;
 		}
 	}
 }
@@ -426,6 +417,7 @@ void Scheduler::radioLoop()
 
 /*
  * Called indefinitely in a loop
+ * For non-critical real time tasks
  */
 void Scheduler::mainLoop(const double dt)
 {
@@ -434,8 +426,11 @@ void Scheduler::mainLoop(const double dt)
 
 	//LogManager::getInstance().serialPrint(m_imu.m_gyro.m_y);
 	//LogManager::getInstance().serialPrint("\n\r");
-	LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
-	LogManager::getInstance().serialPrint("\n\r");
+
+	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
+	//LogManager::getInstance().serialPrint("\n\r");
+
+	m_radio.m_radioProtocole.print();
 
 	HAL_Delay(50);
 }

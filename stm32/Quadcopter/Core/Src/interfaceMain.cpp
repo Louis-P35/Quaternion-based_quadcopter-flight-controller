@@ -13,7 +13,6 @@
 #include "Utils/utilsTimer.hpp"
 #include "stateMachine.hpp"
 
-extern SD_HandleTypeDef hsd1;
 extern SPI_HandleTypeDef hspi1;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;

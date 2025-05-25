@@ -13,7 +13,7 @@
 #include <string>
 
 // Includes from STM32CubeIDE
-#include "fatfs.h"
+//#include "fatfs.h"
 
 
 template<size_t SAMPLE_SIZE_BYTE>
@@ -24,8 +24,8 @@ private:
 	static constexpr size_t bufferDurationSec = 5;
 	static constexpr size_t bufferSize = sampleRateHz * SAMPLE_SIZE_BYTE * bufferDurationSec;
 
-	FATFS m_fs; // FATFS filesystem object
-	FIL m_file; // File object
+	//FATFS m_fs; // FATFS filesystem object
+	//FIL m_file; // File object
 	bool m_isFileOpen = false;
 	volatile bool m_isWriting = false; // Flag to track ongoing DMA write
 

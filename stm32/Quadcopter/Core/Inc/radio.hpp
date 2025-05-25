@@ -9,6 +9,7 @@
 
 // Includes from project
 #include "Utils/quaternion.hpp"
+#include "Radio/radioSbus.hpp"
 
 // Includes from STL
 #include <stdint.h>
@@ -33,8 +34,8 @@ public:
 	float m_targetRateRoll = 0.0f;
 	float m_targetThrust = 0.0f;
 
+	SbusParser m_radioProtocole;
 	bool m_signalLost = true;
-
 	uint32_t m_radioChannel1 = 0;
 	uint32_t m_radioChannel2 = 0;
 	uint32_t m_radioChannel3 = 0;

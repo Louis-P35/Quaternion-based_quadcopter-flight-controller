@@ -175,7 +175,7 @@ void LogManager::serialPrint(const double val, const bool dotAsComma)
 /*
  * Write a string on the serial port
  */
-void LogManager::serialPrint(char* pVal)
+void LogManager::serialPrint(const char* pVal)
 {
 	// Safety check
 	if (pVal == nullptr || uart2TxBusy)

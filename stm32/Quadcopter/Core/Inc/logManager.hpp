@@ -47,7 +47,7 @@ public:
 	void serialPrint(const int val);
 	void serialPrint(const float val, const bool dotAsComma = true);
 	void serialPrint(const double val, const bool dotAsComma = true);
-	void serialPrint(char* pVal);
+	void serialPrint(const char* pVal);
 	void serialPrint(const Quaternion<float>& q);
 	void serialPrint(const Quaternion<float>& q1, const Quaternion<float>& q2);
 	void serialPrint(

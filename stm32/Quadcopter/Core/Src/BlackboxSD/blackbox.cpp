@@ -15,8 +15,8 @@
 
 
 // External handles
-extern SD_HandleTypeDef hsd1; // SDMMC handle
-extern DMA_HandleTypeDef hdma_sdmmc1_tx; // DMA handle for SDMMC TX
+//extern SD_HandleTypeDef hsd1; // SDMMC handle
+//extern DMA_HandleTypeDef hdma_sdmmc1_tx; // DMA handle for SDMMC TX
 
 
 
@@ -24,7 +24,7 @@ template<size_t SAMPLE_SIZE_BYTE>
 bool Blackbox<SAMPLE_SIZE_BYTE>::init()
 {
 	// Ensure SDMMC is initialized
-	HAL_SD_StateTypeDef ret = HAL_SD_GetState(&hsd1);
+	/*HAL_SD_StateTypeDef ret = HAL_SD_GetState(&hsd1);
 	if (HAL_SD_GetState(&hsd1) != HAL_SD_STATE_READY)
 	{
 		return false;
@@ -34,7 +34,7 @@ bool Blackbox<SAMPLE_SIZE_BYTE>::init()
     if (f_mount(&m_fs, "0:", 1) != FR_OK)
     {
         return false; // Failed to mount
-    }
+    }*/
 
     return true;
 }
@@ -44,7 +44,7 @@ template<size_t SAMPLE_SIZE_BYTE>
 bool Blackbox<SAMPLE_SIZE_BYTE>::startLogging()
 {
     //m_fileName = generateFileName();
-    if (f_open(&m_file, m_fileName.c_str(), FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
+    /*if (f_open(&m_file, m_fileName.c_str(), FA_CREATE_ALWAYS | FA_WRITE) != FR_OK)
     {
         return false;
     }
@@ -52,7 +52,7 @@ bool Blackbox<SAMPLE_SIZE_BYTE>::startLogging()
     m_isFileOpen = true;
     m_writeOffset = 0;
     m_currentBuffer = 0;
-    m_isWriting = false;
+    m_isWriting = false;*/
 
     return true;
 }
@@ -104,13 +104,13 @@ void Blackbox<SAMPLE_SIZE_BYTE>::blackBoxLogToSdCard(const uint8_t pBuffer[SAMPL
 template<size_t SAMPLE_SIZE_BYTE>
 void Blackbox<SAMPLE_SIZE_BYTE>::writeToSdCard(const uint8_t* pBuffer)
 {
-	init();
+	/*init();
 
 	startLogging();
 
 	asyncWriteToSdCard(pBuffer);
 
-	f_close(&m_file);
+	f_close(&m_file);*/
 }
 
 
@@ -121,7 +121,7 @@ void Blackbox<SAMPLE_SIZE_BYTE>::writeToSdCard(const uint8_t* pBuffer)
 template<size_t SAMPLE_SIZE_BYTE>
 void Blackbox<SAMPLE_SIZE_BYTE>::asyncWriteToSdCard(const uint8_t* pBuffer)
 {
-	UINT bytesWritten;
+	/*UINT bytesWritten;
 	m_isWriting = true;
 
 	// Write to SD card using FATFS
@@ -135,7 +135,7 @@ void Blackbox<SAMPLE_SIZE_BYTE>::asyncWriteToSdCard(const uint8_t* pBuffer)
 	// Ensure data is flushed to SD card
 	f_sync(&m_file);
 
-	m_isWriting = false;
+	m_isWriting = false;*/
 }
 
 
