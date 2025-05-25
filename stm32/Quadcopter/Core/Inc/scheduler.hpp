@@ -14,7 +14,7 @@
 #include "Sensors/IMU.hpp"
 #include "PID/controlStrategy.hpp"
 #include "AHRS/madgwick.hpp"
-#include "radio.hpp"
+#include "Radio/radio.hpp"
 #include "Motors/motorMixer.hpp"
 #include "Utils/vector.hpp"
 #include "BlackboxSD/blackbox.hpp"

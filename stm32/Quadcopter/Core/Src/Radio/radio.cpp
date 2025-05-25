@@ -7,7 +7,7 @@
 
 
 // Includes from projects
-#include "radio.hpp"
+#include "Radio/radio.hpp"
 #include "PWM/readRadio.hpp"
 #include "logManager.hpp"
 
@@ -24,7 +24,7 @@ Radio::Radio(
   m_targetAngleMax(targetAngleMax),
   m_targetRateMax(targetRateMax)
 {
-	m_radioProtocole.init();
+	m_radioProtocole.init(); // TODO: Too early
 }
 
 bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
@@ -35,16 +35,17 @@ bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 	m_radioChannel2 = PWM_GetPulse(1); // Pitch
 	m_radioChannel3 = PWM_GetPulse(2); // Yaw
 	m_radioChannel4 = PWM_GetPulse(3); // Thrust*/
-	m_radioChannel1 = m_radioProtocole.getChannel(3); // Roll
-	m_radioChannel2 = m_radioProtocole.getChannel(1); // Pitch
-	m_radioChannel3 = m_radioProtocole.getChannel(0); // Yaw
-	m_radioChannel4 = m_radioProtocole.getChannel(2); // Thrust
+	m_radioChannel1 = m_radioProtocole.getRollRadioStick();
+	m_radioChannel2 = m_radioProtocole.getPitchRadioStick();
+	m_radioChannel3 = m_radioProtocole.getYawRadioStick();
+	m_radioChannel4 = m_radioProtocole.getThrustRadioStick();
 	//LogManager::getInstance().serialPrint(m_radioChannel1, m_radioChannel2, m_radioChannel3, m_radioChannel4);
-	// 1070 - 1941
+	// 306 - 1693
 
 #ifndef DEBUG_NO_RADIO
 	// Handle signal lost
-	if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel4 == 0)
+	//if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel4 == 0)
+	if (m_radioProtocole.getSignalLost())
 	{
 		m_signalLost = true;
 		return true;
@@ -59,7 +60,7 @@ bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 #endif
 
 	// Compute target thrust
-	const float rawThrottle = (static_cast<float>(m_radioChannel4) - m_rawThrustRadioMin) / (m_rawThrustRadioMax - m_rawThrustRadioMin);
+	const float rawThrottle = (static_cast<float>(m_radioChannel4) - 1000.0f) / 1000.0f;
 	m_targetThrust = getThrottle(rawThrottle);
 
 	// Compute target angles

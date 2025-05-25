@@ -21,6 +21,11 @@ class RadioProtocole
 public:
 	RadioProtocole() = default;
 	virtual void init() noexcept = 0;
-	virtual uint32_t getChannel(const int& x) const noexcept = 0;
+	virtual uint16_t getChannel(const int& x) const noexcept = 0;
+	virtual uint16_t getThrustRadioStick() const noexcept = 0;
+	virtual uint16_t getRollRadioStick() const noexcept = 0;
+	virtual uint16_t getPitchRadioStick() const noexcept = 0;
+	virtual uint16_t getYawRadioStick() const noexcept = 0;
+	virtual bool getSignalLost() const noexcept = 0;
 	virtual void print() const noexcept = 0;
 };

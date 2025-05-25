@@ -9,11 +9,8 @@
 
 // Project
 #include "PID/pid.hpp"
-#include "Radio.hpp"
+#include "Radio/radio.hpp"
 #include "Utils/Vector.hpp"
-
-// External lib
-#include "Utils/Eigen/Dense"
 
 
 enum StabilizationMode { ACRO, STAB, HORIZON, POSHOLD };

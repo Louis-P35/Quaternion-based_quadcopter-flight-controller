@@ -8,6 +8,7 @@
 // Includes from STL
 #include <orchestrator.h>
 #include <string.h>  // Include for memcpy
+#include <algorithm>
 
 // Includes from Project
 #include "scheduler.hpp"

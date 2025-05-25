@@ -18,8 +18,6 @@ class Radio
 {
 public:
 	// Thrust params
-	static constexpr float m_rawThrustRadioMin = 1070.0f;
-	static constexpr float m_rawThrustRadioMax = 1941.0f;
 	float m_throttleHoverOffset = 0.0f;
 	float m_throttleExpo = 0.0f;
 	float m_targetAngleMax = 0.0f;

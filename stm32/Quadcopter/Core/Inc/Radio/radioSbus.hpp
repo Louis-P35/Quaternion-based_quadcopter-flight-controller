@@ -20,6 +20,14 @@
 class SbusParser : public RadioProtocole
 {
 public:
+	static constexpr int m_minThrust = 306;
+	static constexpr int m_maxThrust = 1693;
+	static constexpr int m_minRoll = 306;
+	static constexpr int m_maxRoll = 1693;
+	static constexpr int m_minPitch = 306;
+	static constexpr int m_maxPitch = 1693;
+	static constexpr int m_minYaw = 306;
+	static constexpr int m_maxYaw = 1693;
 	static constexpr int m_nbChannel = 16;
 	uint16_t m_channel[m_nbChannel] = {0};
 
@@ -32,9 +40,15 @@ public:
 	SbusParser() = default;
 	bool parseSbusFrame() noexcept;
 	virtual void init() noexcept override;
-	virtual uint32_t getChannel(const int& x) const noexcept override;
+	virtual uint16_t getChannel(const int& x) const noexcept override;
+	virtual uint16_t getThrustRadioStick() const noexcept override;
+	virtual uint16_t getRollRadioStick() const noexcept override;
+	virtual uint16_t getPitchRadioStick() const noexcept override;
+	virtual uint16_t getYawRadioStick() const noexcept override;
+	virtual bool getSignalLost() const noexcept override;
 	virtual void print() const noexcept override;
 
 private:
 	void getBuffer() noexcept;
+	uint16_t scaleToMs(uint16_t val, const int& min, const int& max) const noexcept;
 };

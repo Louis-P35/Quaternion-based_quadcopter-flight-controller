@@ -6,7 +6,6 @@
  */
 
 #include "PID/controlStrategy.hpp"
-#include "radio.hpp"
 
 
 /*
