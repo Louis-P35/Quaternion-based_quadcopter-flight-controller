@@ -41,9 +41,9 @@
 #define YAW_ANGLE_KI 0.0f
 #define YAW_ANGLE_KD 0.0f
 
-#define ROLLPITCH_RATE_KP 0.5f
+#define ROLLPITCH_RATE_KP 0.3f
 #define ROLLPITCH_RATE_KI 0.3f
-#define ROLLPITCH_RATE_KD 0.06f
+#define ROLLPITCH_RATE_KD 0.10f
 
 #define YAW_RATE_KP 0.0f
 #define YAW_RATE_KI 0.0f
@@ -85,9 +85,12 @@ constexpr float Scheduler::m_radioDt;
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-#define DEBUG_DISABLE_MOTORS 1
+//#define DEBUG_DISABLE_MOTORS 1
 #define PID_TESTING_MODE 1
 
+
+bool g_startRecord = false;
+bool g_startPrint = false;
 
 // TODOs:
 // GYRO à 6khz => voir ce que ça donne de monter les fréquences de coupure des 2 LPF (moins de latences)
@@ -166,7 +169,8 @@ void Scheduler::mainSetup()
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
 	for (size_t i = 0; i < 3; ++i)
 	{
-		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 20.0f);
+		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 30.0f);
+		m_ctrlStrat.m_rateLoop[i].m_dTermLpf2.init(rateLoopFreq, 30.0f);
 		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
 	}
 
@@ -189,7 +193,7 @@ void orchestrator_highestFrequencyLoop()
 {
 	static uint32_t ticks = 0;
 
-	if (g_start)
+	if (g_start /*&& !g_startPrint*/)
 	{
 		ticks++;
 
@@ -222,6 +226,9 @@ void orchestrator_highestFrequencyLoop()
 			{
 				g_scheduler.m_posLoop = true;
 			}
+
+			// Compute voltage compensation
+			g_scheduler.m_motorMixer.ComputeVoltageCompensation();
 		}
 
 		// 50 hz loop
@@ -257,24 +264,15 @@ void Scheduler::pidRateLoop()
 	m_angleLoop = false;
 	m_posLoop = false;
 
-
-	/*if (startRecord && m_imu.m_gyroDebugIndex < 5000)
+	/*if (g_startRecord && m_imu.m_gyroDebugIndex < 5000)
 	{
-		m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_gyroCopyRaw;
+		m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_imu.m_gyroRaw;
 		m_imu.m_gyroDebugIndex++;
 	}
 	else if (m_imu.m_gyroDebugIndex == 5000)
 	{
+		g_startPrint = true;
 		m_imu.m_gyroDebugIndex++;
-		setMotorPower(Motor::eMotor1, 0.0f);
-		setMotorPower(Motor::eMotor2, 0.0f);
-		setMotorPower(Motor::eMotor3, 0.0f);
-		setMotorPower(Motor::eMotor4, 0.0f);
-		for (int i = 0; i < 5000; ++i)
-		{
-			LogManager::getInstance().serialPrint(m_imu.m_gyroDebug[i].m_x, m_imu.m_gyroDebug[i].m_y, false);
-			HAL_Delay(20);
-		}
 	}*/
 }
 
@@ -319,10 +317,11 @@ void Scheduler::ahrsLoop()
  */
 void Scheduler::escLoop()
 {
-	// PWM update
 	m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
+	m_motorMixer.applyVoltageCompensation();
 	m_motorMixer.clampRescale();
 
+	// PWM update
 #ifndef DEBUG_DISABLE_MOTORS
 	setMotorPower(Motor::eMotor1, m_motorMixer.m_powerMotor[0]);
 	setMotorPower(Motor::eMotor2, m_motorMixer.m_powerMotor[1]);
@@ -337,7 +336,6 @@ void Scheduler::escLoop()
  */
 void Scheduler::radioLoop()
 {
-	static bool startRecord = false;
 	const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
 
 	//LogManager::getInstance().serialPrint(m_rateDt);
@@ -367,7 +365,7 @@ void Scheduler::radioLoop()
 	if (m_radio.m_targetThrust > 350.0f)
 	{
 		m_radio.m_targetThrust = 350.0f;
-		startRecord = true;
+		g_startRecord = true;
 	}
 
 	if (m_radio.m_targetRatePitch > 50.0f)
@@ -427,14 +425,36 @@ void Scheduler::mainLoop(const double dt)
 
 	//LogManager::getInstance().serialPrint(m_imu.m_gyro.m_y);
 	//LogManager::getInstance().serialPrint("\n\r");
+	//LogManager::getInstance().serialPrint("COUCOU\n\r");
 
 	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
 	//LogManager::getInstance().serialPrint("\n\r");
 
 	//m_radio.m_radioProtocole.print();
-	LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
+	//LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
 
-	HAL_Delay(50);
+	/*if (g_startPrint)
+	{
+		setMotorPower(Motor::eMotor1, 0.0f);
+		setMotorPower(Motor::eMotor2, 0.0f);
+		setMotorPower(Motor::eMotor3, 0.0f);
+		setMotorPower(Motor::eMotor4, 0.0f);
+
+		HAL_Delay(500);
+
+		for (int i = 0; i < 5000; ++i)
+		{
+			LogManager::getInstance().serialPrint(m_imu.m_gyroDebug[i].m_x, m_imu.m_gyroDebug[i].m_y, m_imu.m_gyroDebug[i].m_z, false);
+			HAL_Delay(20);
+		}
+
+		g_startPrint = false;
+	}*/
+
+	//HAL_Delay(50);
+
+	pidDebugStream();
+	HAL_Delay(20);
 }
 
 

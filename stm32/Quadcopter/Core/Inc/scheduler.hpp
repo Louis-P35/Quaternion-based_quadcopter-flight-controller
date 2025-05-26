@@ -46,9 +46,6 @@ public:
 
 	// IMU
 	IMU m_imu;
-	//Vector3<float> m_gyroCopyRaw;
-	//Vector3<float> m_gyroCopy;
-	//Vector3<float> m_accelCopy;
 
 	// Radio
 	Radio m_radio;

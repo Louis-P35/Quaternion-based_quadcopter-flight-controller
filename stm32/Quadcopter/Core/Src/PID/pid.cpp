@@ -91,16 +91,16 @@ float PID::computePID(
 	{
 		// Compute derivative on error
 		const float derivative = (error - m_previousError) * frequency * m_kd;
-		// Apply low pass filter
-		m_dTerm = m_dTermLpf.apply(derivative);
+		// Apply cascaded low pass filters
+		m_dTerm = m_dTermLpf.apply(m_dTermLpf2.apply(derivative));
 		m_previousError = error;
 	}
 	else if (m_derivativeMode == DerivativeMode::OnMeasurement)
 	{
 		// Compute derivative on measure
 		const float derivative = -(measure - m_previousMeasure) * frequency * m_kd;
-		// Apply low pass filter
-		m_dTerm = m_dTermLpf.apply(derivative);
+		// Apply cascaded low pass filters
+		m_dTerm = m_dTermLpf.apply(m_dTermLpf2.apply(derivative));
 		m_previousMeasure = measure;
 	}
 	else

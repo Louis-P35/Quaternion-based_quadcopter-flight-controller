@@ -105,6 +105,41 @@ void LogManager::serialPrint(const float val, const float val2, const bool dotAs
 	serialPrint((char*)str.c_str());
 }
 
+/*
+ * Write a float on the serial port
+ */
+void LogManager::serialPrint(const float val, const float val2, const float val3, const bool dotAsComma)
+{
+	std::string tmp = std::to_string(val);
+	std::string tmp2 = std::to_string(val2);
+	std::string tmp3 = std::to_string(val3);
+	//tmp += "\r\n";
+
+	if (!dotAsComma)
+	{
+		auto it = std::find_if(tmp.begin(), tmp.end(), [](char c){return c == '.';});
+		if (it != tmp.end())
+		{
+			*it = ',';
+		}
+
+		auto it2 = std::find_if(tmp2.begin(), tmp2.end(), [](char c){return c == '.';});
+		if (it2 != tmp2.end())
+		{
+			*it2 = ',';
+		}
+
+		auto it3 = std::find_if(tmp3.begin(), tmp3.end(), [](char c){return c == '.';});
+		if (it3 != tmp3.end())
+		{
+			*it3 = ',';
+		}
+	}
+
+	std::string str = tmp + ";" + tmp2 + ";" + tmp3 + "\r\n";
+	serialPrint((char*)str.c_str());
+}
+
 
 void LogManager::serialPrint(const Quaternion<float>& q)
 {
@@ -178,7 +213,7 @@ void LogManager::serialPrint(const double val, const bool dotAsComma)
 void LogManager::serialPrint(const char* pVal)
 {
 	// Safety check
-	if (pVal == nullptr || uart2TxBusy)
+	if (pVal == nullptr /*|| uart2TxBusy*/)
 	{
 		return;
 	}
@@ -187,9 +222,8 @@ void LogManager::serialPrint(const char* pVal)
 	const int len = strlen(pVal);
 
 	// Invalider le cache (spécifique STM32H7)
-	//SCB_CleanDCache_by_Addr((uint32_t*)m_txBuf, len);
-	uint32_t alignedLen = ((len + 31) / 32) * 32;
-	SCB_CleanDCache_by_Addr((uint32_t*)m_txBuf, alignedLen);
+	//uint32_t alignedLen = ((len + 31) / 32) * 32;
+	//SCB_CleanDCache_by_Addr((uint32_t*)m_txBuf, alignedLen);
 
 	// Copier les données dans le buffer
 	memcpy(m_txBuf, pVal, len > 256 ? 256 : len);
@@ -197,17 +231,17 @@ void LogManager::serialPrint(const char* pVal)
 	// Workaround because the uart over dma stay in a non ready state after a transmission for some reason
 	// HAL_UART_Transmit_DMA() work once and then keep returning HAL_BUSY
 	// This is a crappy workaround but...
-	__HAL_UART_CLEAR_FLAG(&huart2, UART_FLAG_TC);
-	huart2.gState = HAL_UART_STATE_READY;
-	huart2.hdmatx->State = HAL_DMA_STATE_READY;
+	//__HAL_UART_CLEAR_FLAG(&huart2, UART_FLAG_TC);
+	//huart2.gState = HAL_UART_STATE_READY;
+	//huart2.hdmatx->State = HAL_DMA_STATE_READY;
 
 	// Send it over UART
-	HAL_StatusTypeDef st = HAL_UART_Transmit_DMA(&huart2, reinterpret_cast<uint8_t*>(m_txBuf), len);
+	/*HAL_StatusTypeDef st = HAL_UART_Transmit_DMA(&huart2, reinterpret_cast<uint8_t*>(m_txBuf), len);
 	if (st == HAL_OK)
 	{
 		uart2TxBusy = 1;
-	}
-	//HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(m_txBuf), len, 100);
+	}*/
+	HAL_UART_Transmit(&huart2, reinterpret_cast<uint8_t*>(m_txBuf), len, 100);
 }
 
 

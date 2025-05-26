@@ -77,6 +77,7 @@ public:
 	float m_ffTerm = 0.0f;
 
 	LPF<float> m_dTermLpf;
+	LPF<float> m_dTermLpf2;
 	LPF<float> m_ffTermLpf;
 
 public:

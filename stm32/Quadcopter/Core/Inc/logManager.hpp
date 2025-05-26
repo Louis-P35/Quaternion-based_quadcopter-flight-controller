@@ -58,6 +58,7 @@ public:
 	void serialPrint(const uint32_t ch1, const uint32_t ch2, const uint32_t ch3, const uint32_t ch4);
 	void serialPrint(const float ch1, const float ch2, const float ch3, const float ch4);
 	void serialPrint(const float val, const float val2, const bool dotAsComma);
+	void serialPrint(const float val, const float val2, const float val3, const bool dotAsComma);
 };
 
 

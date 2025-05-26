@@ -35,13 +35,13 @@ private:
 	BiquadLPF<float> m_lpfBiquadGyroY;
 	BiquadLPF<float> m_lpfBiquadGyroZ;
 
-	LPF<float> m_lpfGyroX;
+	/*LPF<float> m_lpfGyroX;
 	LPF<float> m_lpfGyroY;
 	LPF<float> m_lpfGyroZ;
 
 	LPF<float> m_lpfGyroX2;
 	LPF<float> m_lpfGyroY2;
-	LPF<float> m_lpfGyroZ2;
+	LPF<float> m_lpfGyroZ2;*/
 
 	/*NotchFilter<float> m_notchGyroX;
 	NotchFilter<float> m_notchGyroY;

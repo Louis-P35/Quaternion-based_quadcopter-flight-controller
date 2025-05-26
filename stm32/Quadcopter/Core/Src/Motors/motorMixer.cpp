@@ -106,3 +106,55 @@ void XquadMixer::mixThrustTorque(
 	m_powerMotor[2] =  m_a*T + m_b*tx + m_b*ty - m_c*tz;   // M3
 	m_powerMotor[3] =  m_a*T + m_b*tx - m_b*ty + m_c*tz;   // M4
 }
+
+
+/*
+ * Get the battery voltage to estimate the charge.
+ * Filter it with a low pass filter.
+ */
+template<std::size_t N>
+float Mixer<N>::getBatteryVoltage() const
+{
+	static float voltage = m_nominalVoltage;
+	float adcVoltage = m_nominalVoltage; // TODO
+
+	// Low pass filter
+	voltage = voltage * 0.99f + adcVoltage * 0.01f;
+
+	return voltage;
+}
+
+/*
+ * Compute the compensation to make the quad fly the same
+ * whatever the battery level.
+ */
+template<std::size_t N>
+void Mixer<N>::ComputeVoltageCompensation()
+{
+	const float voltage = getBatteryVoltage();
+
+	m_voltageCompensation = m_nominalVoltage / voltage;
+
+	// Avoid abusing critically low battery
+	if (m_voltageCompensation < 1.0f)
+	{
+		m_voltageCompensation = 1.0f;
+	}
+	else if (m_voltageCompensation > 1.5f)
+	{
+		m_voltageCompensation = 1.5f;
+	}
+}
+
+
+template<std::size_t N>
+void Mixer<N>::applyVoltageCompensation()
+{
+	for (std::size_t i = 0; i < N; ++i)
+	{
+		m_powerMotor[i] *= m_voltageCompensation;
+	}
+}
+
+
+

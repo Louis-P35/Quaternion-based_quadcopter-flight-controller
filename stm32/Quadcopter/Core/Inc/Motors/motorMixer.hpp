@@ -36,6 +36,10 @@
 template<std::size_t N>
 class Mixer
 {
+private:
+	static constexpr float m_nominalVoltage = 12.6f; // For 3S
+	float m_voltageCompensation = 1.0f;
+
 public:
 	static constexpr float m_armLenghtM = 0.1f;
 	// m_kT = 1.0 => 1 unit of power motor = 1 unit of thrust
@@ -55,6 +59,13 @@ public:
 			) = 0;
 
 	void clampRescale();
+
+	void applyVoltageCompensation();
+
+	void ComputeVoltageCompensation();
+
+private:
+	float getBatteryVoltage() const;
 };
 
 

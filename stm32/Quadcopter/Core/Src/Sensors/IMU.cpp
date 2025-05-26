@@ -25,6 +25,8 @@ void IMU::init(
 		const float& accelNotchQ*/
 		)
 {
+	constexpr float lpfCutoffFrequency = 75.0f;
+
 	// Setup the IMU (ICM20948)
 	icm20948_init(); // Accelerometer & gyroscope
 	//ak09916_init();  // Magnetometer
@@ -34,18 +36,18 @@ void IMU::init(
 	m_lpfAccelY.init(m_lpf_acc_gain);
 	m_lpfAccelZ.init(m_lpf_acc_gain);
 
-	float params[1] = {75.0f};
+	float params[1] = {lpfCutoffFrequency};
 	m_lpfBiquadGyroX.init(dataAcquisitionRate, params);
 	m_lpfBiquadGyroY.init(dataAcquisitionRate, params);
 	m_lpfBiquadGyroZ.init(dataAcquisitionRate, params);
 
-	m_lpfGyroX.init(dataAcquisitionRate, 75.0f);
-	m_lpfGyroY.init(dataAcquisitionRate, 75.0f);
-	m_lpfGyroZ.init(dataAcquisitionRate, 75.0f);
+	/*m_lpfGyroX.init(dataAcquisitionRate, lpfCutoffFrequency);
+	m_lpfGyroY.init(dataAcquisitionRate, lpfCutoffFrequency);
+	m_lpfGyroZ.init(dataAcquisitionRate, lpfCutoffFrequency);
 
-	m_lpfGyroX2.init(dataAcquisitionRate, 75.0f);
-	m_lpfGyroY2.init(dataAcquisitionRate, 75.0f);
-	m_lpfGyroZ2.init(dataAcquisitionRate, 75.0f);
+	m_lpfGyroX2.init(dataAcquisitionRate, lpfCutoffFrequency);
+	m_lpfGyroY2.init(dataAcquisitionRate, lpfCutoffFrequency);
+	m_lpfGyroZ2.init(dataAcquisitionRate, lpfCutoffFrequency);*/
 
 	/*m_notchGyroX.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
 	m_notchGyroY.init(dataAcquisitionRate, gyroNotchF0, gyroNotchQ);
@@ -84,7 +86,7 @@ void IMU::readAndFilterIMU_gdps()
 	icm20948_accel_read_g(&rawAccel);
 	//bool readMag = ak09916_mag_read_uT(&rawMag);
 
-	m_gyroRaw.m_x = rawGyro.y;
+	//m_gyroRaw.m_x = rawGyro.y;
 
 	// Cascade Notch filters on gyroscope data
 	//rawGyro.x = m_notchGyroX2.apply(m_notchGyroX.apply(rawGyro.x));
@@ -96,7 +98,7 @@ void IMU::readAndFilterIMU_gdps()
 	//m_gyro.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
 	//m_gyro.m_z = m_lpfGyroZ2.apply(m_lpfGyroZ.apply(rawGyro.z));
 
-	m_gyroRaw.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
+	//m_gyroRaw.m_y = m_lpfGyroY2.apply(m_lpfGyroY.apply(rawGyro.y));
 
 
 	// Butterworth biquad LPFs on gyroscope data
@@ -104,7 +106,7 @@ void IMU::readAndFilterIMU_gdps()
 	m_gyro.m_y = m_lpfBiquadGyroY.apply(rawGyro.y);
 	m_gyro.m_z = m_lpfBiquadGyroZ.apply(rawGyro.z);
 
-	m_gyroRaw.m_z = m_gyro.m_y;
+	//m_gyroRaw.m_z = m_gyro.m_y;
 
 	// Remove gyro's offset
 	m_gyro -= m_gyroOffset;
@@ -160,9 +162,9 @@ void IMU::gyroAccelCalibration()
 	m_accelOffset = averageAccel - g;
 
 	LogManager::getInstance().serialPrint("GyroOffset: \n\r");
-	LogManager::getInstance().serialPrint(m_accelOffset.m_x, m_accelOffset.m_y, m_accelOffset.m_z, 0.0);
+	LogManager::getInstance().serialPrint(m_accelOffset.m_x, m_accelOffset.m_y, m_accelOffset.m_z, 0.0f);
 	LogManager::getInstance().serialPrint("AccelOffset: \n\r");
-	LogManager::getInstance().serialPrint(m_gyroOffset.m_x, m_gyroOffset.m_y, m_gyroOffset.m_z, 0.0);
+	LogManager::getInstance().serialPrint(m_gyroOffset.m_x, m_gyroOffset.m_y, m_gyroOffset.m_z, 0.0f);
 }
 
 
