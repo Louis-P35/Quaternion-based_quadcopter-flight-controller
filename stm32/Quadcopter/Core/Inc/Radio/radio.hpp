@@ -9,6 +9,7 @@
 
 // Includes from project
 #include "Utils/quaternion.hpp"
+#include "Radio/radioPwm.hpp"
 #include "Radio/radioSbus.hpp"
 
 // Includes from STL

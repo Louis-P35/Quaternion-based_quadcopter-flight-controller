@@ -18,12 +18,11 @@
 /* USER CODE END Header */
 
 /* Includes ------------------------------------------------------------------*/
-#include "Radio/sbusWrapperC.h"
 #include "main.h"
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "PWM/readRadio.hpp"
+#include "Radio/pwmWrapperC.h"
 #include "orchestrator.h"
 /* USER CODE END Includes */
 

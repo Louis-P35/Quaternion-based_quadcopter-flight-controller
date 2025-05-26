@@ -1,11 +1,12 @@
 /*
- * readRadio.hpp
+ * pwmWrapperC.h
  *
- *  Created on: Jul 23, 2024
- *      Author: Louis
+ *  Created on: May 26, 2025
+ *      Author: louis
  */
 
-#pragma once
+#ifndef INC_PWM_PWMWRAPPERC_H_
+#define INC_PWM_PWMWRAPPERC_H_
 
 #include "stm32h7xx_hal.h"
 #include "Utils/utilsTimer.hpp"
@@ -28,3 +29,6 @@ uint32_t PWM_GetPulse(int channel);
 #ifdef __cplusplus
 }
 #endif
+
+
+#endif /* INC_PWM_PWMWRAPPERC_H_ */

@@ -8,7 +8,6 @@
 
 // Includes from projects
 #include "Radio/radio.hpp"
-#include "PWM/readRadio.hpp"
 #include "logManager.hpp"
 
 //#define DEBUG_NO_RADIO 1

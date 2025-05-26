@@ -15,7 +15,7 @@
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
 #include "PID/pid.hpp"
-#include "PWM/readRadio.hpp"
+#include "Radio/radio.hpp"
 #include "stateMachine.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
@@ -431,7 +431,8 @@ void Scheduler::mainLoop(const double dt)
 	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
 	//LogManager::getInstance().serialPrint("\n\r");
 
-	m_radio.m_radioProtocole.print();
+	//m_radio.m_radioProtocole.print();
+	LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
 
 	HAL_Delay(50);
 }
