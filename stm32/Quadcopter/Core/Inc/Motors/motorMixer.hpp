@@ -39,6 +39,7 @@ class Mixer
 private:
 	static constexpr float m_nominalVoltage = 12.6f; // For 3S
 	float m_voltageCompensation = 1.0f;
+	float m_filteredVoltage = m_nominalVoltage;
 
 public:
 	static constexpr float m_armLenghtM = 0.1f;
@@ -62,10 +63,7 @@ public:
 
 	void applyVoltageCompensation();
 
-	void ComputeVoltageCompensation();
-
-private:
-	float getBatteryVoltage() const;
+	void computeVoltageCompensation(const volatile float& adcVoltage);
 };
 
 

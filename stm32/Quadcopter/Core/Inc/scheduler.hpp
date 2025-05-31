@@ -65,6 +65,8 @@ public:
 
 	ControlStrategy m_ctrlStrat;
 
+	volatile float m_batteryVoltage = 12.6;
+
 	static constexpr float m_ahrsDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER));
 	static constexpr float m_rateDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER));
 	static constexpr float m_angleDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER)); // Same as ahrs
@@ -88,6 +90,7 @@ public:
 	void radioLoop();
 
 	void setMotorPower(const Motor& motor, const float& power);
+	float readBatteryVoltage();
 
 private:
 	void readIMU();

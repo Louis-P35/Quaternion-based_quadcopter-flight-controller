@@ -68,6 +68,7 @@ extern TIM_HandleTypeDef htim1;
 extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart6;
 extern DMA_HandleTypeDef hdma_usart6_rx;
+extern ADC_HandleTypeDef hadc3;
 extern Scheduler g_scheduler;
 volatile bool g_enableRadioLoop = false;
 volatile bool g_start = false;
@@ -228,7 +229,7 @@ void orchestrator_highestFrequencyLoop()
 			}
 
 			// Compute voltage compensation
-			g_scheduler.m_motorMixer.ComputeVoltageCompensation();
+			g_scheduler.m_motorMixer.computeVoltageCompensation(g_scheduler.m_batteryVoltage);
 		}
 
 		// 50 hz loop
@@ -420,6 +421,10 @@ void Scheduler::radioLoop()
  */
 void Scheduler::mainLoop(const double dt)
 {
+	// Read battery voltage
+	// It is a blocking function that is not critical for real time loop
+	m_batteryVoltage = readBatteryVoltage();
+
 	//LogManager::getInstance().serialPrint(pidRateTicks, ahrsTicks, escTicks, radioTicks);
 	//LogManager::getInstance().serialPrint("\n\r");
 
@@ -453,7 +458,7 @@ void Scheduler::mainLoop(const double dt)
 
 	//HAL_Delay(50);
 
-	pidDebugStream();
+	//pidDebugStream();
 	HAL_Delay(20);
 }
 
@@ -503,6 +508,31 @@ void Scheduler::setMotorPower(const Motor& motor, const float& power)
 	default:
 		break;
 	}
+}
+
+/*
+ * Read the ADC and convert it to 3S battery voltage.
+ * Return a value in Volt
+ */
+float Scheduler::readBatteryVoltage()
+{
+	constexpr float divider = 0.14826f; // Voltage divider bridge value
+	constexpr float vref = 3.3f;
+	constexpr float scale = ((1.0f / divider) * vref) / 4095.0f;
+
+	HAL_ADC_Start(&hadc3);
+
+	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK)
+	{
+		uint32_t raw = HAL_ADC_GetValue(&hadc3); // 0–4095
+		HAL_ADC_Stop(&hadc3);
+
+		return raw * scale;
+	}
+
+	HAL_ADC_Stop(&hadc3);
+
+	return 12.6; // No effect (assume full battery) if an error occur
 }
 
 /*
