@@ -38,6 +38,7 @@ class Mixer
 {
 private:
 	static constexpr float m_nominalVoltage = 12.6f; // For 3S
+public:
 	float m_voltageCompensation = 1.0f;
 	float m_filteredVoltage = m_nominalVoltage;
 

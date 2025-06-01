@@ -118,7 +118,10 @@ void Mixer<N>::computeVoltageCompensation(const volatile float& adcVoltage)
 	// Voltage low pass filter
 	m_filteredVoltage = m_filteredVoltage * 0.99f + adcVoltage * 0.01f;
 
+	// Because the propellers speed depend of the square of the battery voltage
+	// the compensation must be quadratic and not linear
 	m_voltageCompensation = m_nominalVoltage / m_filteredVoltage;
+	m_voltageCompensation *= m_voltageCompensation; // Quadratic correction
 
 	// Avoid abusing critically low battery
 	if (m_voltageCompensation < 1.0f)

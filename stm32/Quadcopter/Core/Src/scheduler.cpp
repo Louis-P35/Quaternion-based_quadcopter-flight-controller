@@ -41,9 +41,9 @@
 #define YAW_ANGLE_KI 0.0f
 #define YAW_ANGLE_KD 0.0f
 
-#define ROLLPITCH_RATE_KP 0.3f
-#define ROLLPITCH_RATE_KI 0.3f
-#define ROLLPITCH_RATE_KD 0.10f
+#define ROLLPITCH_RATE_KP 0.6f
+#define ROLLPITCH_RATE_KI 0.6f
+#define ROLLPITCH_RATE_KD 0.05f
 
 #define YAW_RATE_KP 0.0f
 #define YAW_RATE_KI 0.0f
@@ -339,19 +339,10 @@ void Scheduler::radioLoop()
 {
 	const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
 
-	//LogManager::getInstance().serialPrint(m_rateDt);
-
-	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
-
 	if (!signalLost)
 	{
-		//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
-		//LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
-
 		// Compute target quaternion
 		m_targetAttitude = Quaternion<float>::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
-		// Debug print AHRS result
-		//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_targetAttitude);
 	}
 	else
 	{
@@ -363,9 +354,9 @@ void Scheduler::radioLoop()
 	m_radio.m_targetRateYaw = 0.0;
 	//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
 
-	if (m_radio.m_targetThrust > 350.0f)
+	if (m_radio.m_targetThrust > 500.0f)
 	{
-		m_radio.m_targetThrust = 350.0f;
+		m_radio.m_targetThrust = 500.0f;
 		g_startRecord = true;
 	}
 
@@ -377,41 +368,7 @@ void Scheduler::radioLoop()
 	{
 		m_radio.m_targetRatePitch = -250.0f;
 	}
-
-	//pidDebugStream();
 #endif
-
-	/*static int ttt = 0;
-	ttt++;
-	if ((ttt % 10) == 0)
-	{
-		LogManager::getInstance().serialPrint(m_radio.m_radioChannel1, m_radio.m_radioChannel2, m_radio.m_radioChannel3, m_radio.m_radioChannel4);
-	}*/
-	/*std::string tototmp = "POWER: \r\n";
-	tototmp += std::to_string(m_motorMixer.m_powerMotor[1]);
-	tototmp += " ";
-	tototmp += std::to_string(m_motorMixer.m_powerMotor[2]);
-	tototmp += "\r\n";
-	tototmp += std::to_string(m_motorMixer.m_powerMotor[0]);
-	tototmp += " ";
-	tototmp += std::to_string(m_motorMixer.m_powerMotor[3]);
-	tototmp += "\r\nTORQUE: \n\r";
-	tototmp += std::to_string(m_thrust);
-	tototmp += " ";
-	tototmp += std::to_string(m_torqueX);
-	tototmp += " ";
-	tototmp += std::to_string(m_torqueY);
-	tototmp += " ";
-	tototmp += std::to_string(m_torqueZ);
-	tototmp += "\r\n";
-	LogManager::getInstance().serialPrint((char*)tototmp.c_str());*/
-
-	/*LogManager::getInstance().serialPrint("POWER: \n\r");
-	LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[1], m_motorMixer.m_powerMotor[2], 0.0, 0.0);
-	LogManager::getInstance().serialPrint(m_motorMixer.m_powerMotor[0], m_motorMixer.m_powerMotor[3], 0.0, 0.0);
-	LogManager::getInstance().serialPrint("TORQUE: \n\r");
-	LogManager::getInstance().serialPrint(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
-	LogManager::getInstance().serialPrint("\n\r");*/
 }
 
 
@@ -424,6 +381,20 @@ void Scheduler::mainLoop(const double dt)
 	// Read battery voltage
 	// It is a blocking function that is not critical for real time loop
 	m_batteryVoltage = readBatteryVoltage();
+
+#ifdef PID_TESTING_MODE
+	pidDebugStream();
+#endif
+
+	HAL_Delay(20);
+
+
+
+	/* DEBUG PRINT */
+
+	/*LogManager::getInstance().serialPrint("Battery voltage: ");
+	LogManager::getInstance().serialPrint(m_motorMixer.m_voltageCompensation);
+	LogManager::getInstance().serialPrint("\n\r");*/
 
 	//LogManager::getInstance().serialPrint(pidRateTicks, ahrsTicks, escTicks, radioTicks);
 	//LogManager::getInstance().serialPrint("\n\r");
@@ -457,9 +428,6 @@ void Scheduler::mainLoop(const double dt)
 	}*/
 
 	//HAL_Delay(50);
-
-	//pidDebugStream();
-	HAL_Delay(20);
 }
 
 
@@ -516,15 +484,15 @@ void Scheduler::setMotorPower(const Motor& motor, const float& power)
  */
 float Scheduler::readBatteryVoltage()
 {
-	constexpr float divider = 0.14826f; // Voltage divider bridge value
-	constexpr float vref = 3.3f;
-	constexpr float scale = ((1.0f / divider) * vref) / 4095.0f;
+	constexpr float divider = 1.0f / 0.14826f; // Voltage divider bridge value
+	constexpr float vref = 3.3f;//2.2f; // XXX: Calculated, I don't know why it is not 3.3V ?
+	constexpr float scale = (vref * divider) / 65535.0f;
 
 	HAL_ADC_Start(&hadc3);
 
 	if (HAL_ADC_PollForConversion(&hadc3, 10) == HAL_OK)
 	{
-		uint32_t raw = HAL_ADC_GetValue(&hadc3); // 0–4095
+		uint32_t raw = HAL_ADC_GetValue(&hadc3); // 0–65535 as it is a 16-bits resolution
 		HAL_ADC_Stop(&hadc3);
 
 		return raw * scale;
@@ -622,7 +590,7 @@ void Scheduler::pidDebugStream()
 
 	if (callCount == 0)
 	{
-		LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D\r\n");
+		LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D;VC\r\n");
 	}
 
 	std::string gyro = formatString(m_imu.m_gyro.m_y);
@@ -630,8 +598,9 @@ void Scheduler::pidDebugStream()
 	std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
 	std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
 	std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_dTerm);
+	std::string vc = formatString(m_motorMixer.m_voltageCompensation * 100.0f);
 
-	std::string tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + "\r\n";
+	std::string tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + ";" + vc + "\r\n";
 	LogManager::getInstance().serialPrint((char*)tmp.c_str());
 
 	callCount++;
