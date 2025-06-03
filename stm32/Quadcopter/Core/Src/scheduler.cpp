@@ -41,9 +41,9 @@
 #define YAW_ANGLE_KI 0.0f
 #define YAW_ANGLE_KD 0.0f
 
-#define ROLLPITCH_RATE_KP 0.6f
-#define ROLLPITCH_RATE_KI 0.6f
-#define ROLLPITCH_RATE_KD 0.05f
+#define ROLLPITCH_RATE_KP 0.4f
+#define ROLLPITCH_RATE_KI 0.4f
+#define ROLLPITCH_RATE_KD 0.04f
 
 #define YAW_RATE_KP 0.0f
 #define YAW_RATE_KI 0.0f
@@ -170,8 +170,8 @@ void Scheduler::mainSetup()
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
 	for (size_t i = 0; i < 3; ++i)
 	{
-		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 30.0f);
-		m_ctrlStrat.m_rateLoop[i].m_dTermLpf2.init(rateLoopFreq, 30.0f);
+		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 10.0f);
+		m_ctrlStrat.m_rateLoop[i].m_dTermLpf2.init(rateLoopFreq, 10.0f);
 		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
 	}
 
@@ -354,19 +354,19 @@ void Scheduler::radioLoop()
 	m_radio.m_targetRateYaw = 0.0;
 	//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
 
-	if (m_radio.m_targetThrust > 500.0f)
+	if (m_radio.m_targetThrust > 400.0f)
 	{
-		m_radio.m_targetThrust = 500.0f;
+		m_radio.m_targetThrust = 400.0f;
 		g_startRecord = true;
 	}
 
 	if (m_radio.m_targetRatePitch > 50.0f)
 	{
-		m_radio.m_targetRatePitch = 250.0f;
+		m_radio.m_targetRatePitch = 100.0f;
 	}
 	else if (m_radio.m_targetRatePitch < -50.0f)
 	{
-		m_radio.m_targetRatePitch = -250.0f;
+		m_radio.m_targetRatePitch = -100.0f;
 	}
 #endif
 }
