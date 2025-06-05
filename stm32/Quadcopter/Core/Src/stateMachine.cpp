@@ -120,12 +120,13 @@ void FlyingState::handleState(Scheduler& dc)
 
 		// Projection of the rotation axis onto the 3 axis of the drone
 		// It is NOT Euler angles here, so no singularity
-		float rollError = rotAxis.m_x * angleRad;
-		float pitchError = rotAxis.m_y * angleRad;
-		float yawError = rotAxis.m_z * angleRad;
+		std::array<float, 3> error;
+		error[0] = rotAxis.m_x * angleRad;
+		error[1] = rotAxis.m_y * angleRad;
+		error[2] = rotAxis.m_z * angleRad;
 
 		// Run angle PID
-		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt);
+		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt,dc.m_imu.m_gyro,dc.m_radio, error);
 
 		//angle++;
 
