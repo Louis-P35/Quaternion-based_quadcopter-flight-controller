@@ -126,7 +126,7 @@ uint16_t SbusParser::getThrustRadioStick() const
 
 uint16_t SbusParser::getRollRadioStick() const
 {
-	return scaleToMs(m_channel[3], m_minRoll, m_maxRoll);
+	return scaleToMs(m_channel[0], m_minRoll, m_maxRoll);
 }
 
 uint16_t SbusParser::getPitchRadioStick() const
@@ -136,7 +136,7 @@ uint16_t SbusParser::getPitchRadioStick() const
 
 uint16_t SbusParser::getYawRadioStick() const
 {
-	return scaleToMs(m_channel[0], m_minYaw, m_maxYaw);
+	return scaleToMs(m_channel[3], m_minYaw, m_maxYaw);
 }
 
 bool SbusParser::getSignalLost() const
