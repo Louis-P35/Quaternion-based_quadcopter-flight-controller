@@ -33,9 +33,9 @@
 
 #define ROLL_PITCH_RATE_MAX_D_PERCENT 0.75f // < 1 for stability, [1, 2] for aggresivity
 
-#define ROLLPITCH_ANGLE_KP 0.0f
+#define ROLLPITCH_ANGLE_KP 10.0f
 #define ROLLPITCH_ANGLE_KI 0.0f
-#define ROLLPITCH_ANGLE_KD 0.0f
+#define ROLLPITCH_ANGLE_KD 1.0f
 
 #define YAW_ANGLE_KP 0.0f
 #define YAW_ANGLE_KI 0.0f
@@ -87,11 +87,11 @@ constexpr float Scheduler::m_radioDt;
 
 // Uncomment this to disable motors
 //#define DEBUG_DISABLE_MOTORS 1
-#define PID_TESTING_MODE 1
+//#define PID_TESTING_MODE 1
 
 
-bool g_startRecord = false;
-bool g_startPrint = false;
+volatile bool g_startRecord = false;
+volatile bool g_startPrint = false;
 
 // TODOs:
 // GYRO à 6khz => voir ce que ça donne de monter les fréquences de coupure des 2 LPF (moins de latences)
@@ -174,6 +174,9 @@ void Scheduler::mainSetup()
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf2.init(rateLoopFreq, 10.0f);
 		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
 	}
+
+	// Set the control mode
+	m_ctrlStrat.m_flightMode = StabilizationMode::STAB;
 
 	// Start the loop
 	g_start = true;
@@ -399,8 +402,8 @@ void Scheduler::mainLoop(const double dt)
 	//LogManager::getInstance().serialPrint(pidRateTicks, ahrsTicks, escTicks, radioTicks);
 	//LogManager::getInstance().serialPrint("\n\r");
 
-	//LogManager::getInstance().serialPrint(m_imu.m_gyro.m_y);
-	//LogManager::getInstance().serialPrint("\n\r");
+	LogManager::getInstance().serialPrint(m_ctrlStrat.m_rateLoop[1].m_target);
+	LogManager::getInstance().serialPrint("\n\r");
 	//LogManager::getInstance().serialPrint("COUCOU\n\r");
 
 	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
@@ -408,6 +411,7 @@ void Scheduler::mainLoop(const double dt)
 
 	//m_radio.m_radioProtocole.print();
 	//LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
+	//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
 
 	/*if (g_startPrint)
 	{

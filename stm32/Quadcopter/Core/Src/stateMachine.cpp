@@ -12,6 +12,9 @@
 #include "PID/controlStrategy.hpp"
 
 
+#define RAD_TO_DEGRE (180.0/M_PI)
+
+
 void StartupSequenceState::handleState(Scheduler& dc)
 {
 	m_time += dc.m_rateDt;
@@ -121,9 +124,9 @@ void FlyingState::handleState(Scheduler& dc)
 		// Projection of the rotation axis onto the 3 axis of the drone
 		// It is NOT Euler angles here, so no singularity
 		std::array<float, 3> error;
-		error[0] = rotAxis.m_x * angleRad;
-		error[1] = rotAxis.m_y * angleRad;
-		error[2] = rotAxis.m_z * angleRad;
+		error[0] = rotAxis.m_x * angleRad * RAD_TO_DEGRE;
+		error[1] = rotAxis.m_y * angleRad * RAD_TO_DEGRE;
+		error[2] = rotAxis.m_z * angleRad * RAD_TO_DEGRE;
 
 		// Run angle PID
 		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt,dc.m_imu.m_gyro,dc.m_radio, error);
