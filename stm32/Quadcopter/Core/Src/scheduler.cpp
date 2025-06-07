@@ -86,7 +86,7 @@ constexpr float Scheduler::m_radioDt;
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-//#define DEBUG_DISABLE_MOTORS 1
+#define DEBUG_DISABLE_MOTORS 1
 //#define PID_TESTING_MODE 1
 
 
@@ -164,7 +164,6 @@ void Scheduler::mainSetup()
 	m_ctrlStrat.setPosPIDcoefsPitch(ROLLPITCH_POS_KP, ROLLPITCH_POS_KI, ROLLPITCH_POS_KD);
 	m_ctrlStrat.setPosPIDcoefsYaw(YAW_POS_KP, YAW_POS_KI, YAW_POS_KD);
 	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
-
 
 	// Gyro filters for PID rate loop
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
@@ -288,12 +287,12 @@ void Scheduler::ahrsLoop()
 {
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
-			m_imu.m_accel.m_x, // Acceleration vector will be normalized
-			m_imu.m_accel.m_y,
-			m_imu.m_accel.m_z,
-			m_imu.m_gyro.m_x * DEGREE_TO_RAD,
-			m_imu.m_gyro.m_y * DEGREE_TO_RAD,
-			m_imu.m_gyro.m_z * DEGREE_TO_RAD,
+			m_imu.m_accelFilterAhrs.m_x, // Acceleration vector will be normalized
+			m_imu.m_accelFilterAhrs.m_y,
+			m_imu.m_accelFilterAhrs.m_z,
+			m_imu.m_gyroFilterAhrs.m_x * DEGREE_TO_RAD,
+			m_imu.m_gyroFilterAhrs.m_y * DEGREE_TO_RAD,
+			m_imu.m_gyroFilterAhrs.m_z * DEGREE_TO_RAD,
 			m_ahrsDt
 		);
 
@@ -402,8 +401,8 @@ void Scheduler::mainLoop(const double dt)
 	//LogManager::getInstance().serialPrint(pidRateTicks, ahrsTicks, escTicks, radioTicks);
 	//LogManager::getInstance().serialPrint("\n\r");
 
-	LogManager::getInstance().serialPrint(m_ctrlStrat.m_rateLoop[1].m_target);
-	LogManager::getInstance().serialPrint("\n\r");
+	//LogManager::getInstance().serialPrint(m_ctrlStrat.m_rateLoop[1].m_target);
+	//LogManager::getInstance().serialPrint("\n\r");
 	//LogManager::getInstance().serialPrint("COUCOU\n\r");
 
 	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
@@ -574,12 +573,7 @@ void Scheduler::calibrateHoverOffset()
 void Scheduler::pidDebugStream()
 {
 	static size_t callCount = 0;
-
-	// Logging at 25 hz
-	/*if ((callCount%2) != 0)
-	{
-		return;
-	}*/
+	constexpr bool rate = false;
 
 	auto formatString = [](const float& val) -> std::string
 	{
@@ -594,17 +588,39 @@ void Scheduler::pidDebugStream()
 
 	if (callCount == 0)
 	{
-		LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D;VC\r\n");
+		if (rate)
+		{
+			LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D;VC\r\n");
+		}
+		else
+		{
+			LogManager::getInstance().serialPrint("ErrorPitch;TargetPitch;P;D;VC\r\n");
+		}
 	}
 
-	std::string gyro = formatString(m_imu.m_gyro.m_y);
-	std::string targetRate = formatString(m_radio.m_targetRatePitch);
-	std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
-	std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
-	std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_dTerm);
+	std::string tmp = "";
 	std::string vc = formatString(m_motorMixer.m_voltageCompensation * 100.0f);
 
-	std::string tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + ";" + vc + "\r\n";
+	if (rate)
+	{
+		std::string gyro = formatString(m_imu.m_gyroFilterRates.m_y);
+		std::string targetRate = formatString(m_radio.m_targetRatePitch);
+		std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
+		std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
+		std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_dTerm);
+
+		tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + ";" + vc + "\r\n";
+	}
+	else
+	{
+		std::string error = ""; // TODO
+		std::string targetAngle = formatString(m_radio.m_targetPitch);
+		std::string pTerm = formatString(m_ctrlStrat.m_angleLoop[1].m_pTerm);
+		std::string dTerm = formatString(m_ctrlStrat.m_angleLoop[1].m_dTerm);
+
+		tmp = error + ";" + targetAngle + ";" + pTerm + ";" + dTerm + ";" + vc + "\r\n";
+	}
+
 	LogManager::getInstance().serialPrint((char*)tmp.c_str());
 
 	callCount++;

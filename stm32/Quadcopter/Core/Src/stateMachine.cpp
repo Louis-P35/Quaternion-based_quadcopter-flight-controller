@@ -129,7 +129,7 @@ void FlyingState::handleState(Scheduler& dc)
 		error[2] = rotAxis.m_z * angleRad * RAD_TO_DEGRE;
 
 		// Run angle PID
-		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt,dc.m_imu.m_gyro,dc.m_radio, error);
+		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt, dc.m_imu.m_gyroFilterRates, dc.m_radio, error);
 
 		//angle++;
 
@@ -146,7 +146,7 @@ void FlyingState::handleState(Scheduler& dc)
 	//LogManager::getInstance().serialPrint(pos, angle, rate, 0L);
 
 	// Run rate PID
-	dc.m_ctrlStrat.rateControlLoop(dc.m_rateDt, dc.m_imu.m_gyro, dc.m_radio);
+	dc.m_ctrlStrat.rateControlLoop(dc.m_rateDt, dc.m_imu.m_gyroFilterRates, dc.m_radio);
 
 	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0f;
 	dc.m_torqueX = dc.m_ctrlStrat.m_rateLoop[0].m_output;
