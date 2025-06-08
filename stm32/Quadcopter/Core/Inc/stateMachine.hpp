@@ -61,77 +61,46 @@ public:
 
 
 /*
- * This state handle the take off autonomously
- */
-class TakeOffState : public State
-{
-public:
-	~TakeOffState() override = default;
-	virtual void handleState(Scheduler& dc) override;
-};
-
-
-/*
- * This state handle the "take off / recovery" during free fall detection
- */
-class TakeOffOnFreeFallState : public State
-{
-public:
-	~TakeOffOnFreeFallState() override = default;
-	virtual void handleState(Scheduler& dc) override;
-};
-
-
-/*
  * Flying state
  */
 class FlyingState : public State
 {
+private:
+	State* m_pSubStateMachine = nullptr;
+
 public:
 	~FlyingState() override = default;
 	virtual void handleState(Scheduler& dc) override;
 };
 
 
-/*
- * This state handle the landing autonomousely
- */
-class LandingtState : public State
-{
-public:
-	~LandingtState() override = default;
-	virtual void handleState(Scheduler& dc) override;
-};
 
 
-
-class StateMachine
+class MainStateMachine
 {
 private:
 	// States static instances (this class is a singleton)
 	StartupSequenceState m_startupSequenceState;
 	IdleState m_idleState;
 	ReadyToTakeOffState m_readyToTakeOffState;
-	TakeOffState m_takeOffState;
 	FlyingState m_flyingState;
-	LandingtState m_landingState;
 
 	State* m_pState = &m_startupSequenceState;
 
 private:
-	StateMachine() = default;
+	MainStateMachine() = default;
 
 public:
 	// Delete copy constructor and copy assignment operator
-	StateMachine(const StateMachine& sm) = delete;
-	StateMachine operator=(const StateMachine& sm) = delete;
+	MainStateMachine(const MainStateMachine& sm) = delete;
+	MainStateMachine operator=(const MainStateMachine& sm) = delete;
 	// Delete move constructor and move assignment operator
-	StateMachine(StateMachine&& sm) = delete;
-	StateMachine& operator=(StateMachine&& sm) = delete;
+	MainStateMachine(MainStateMachine&& sm) = delete;
+	MainStateMachine& operator=(MainStateMachine&& sm) = delete;
 
 	// Singleton instance getter
-	static StateMachine& getInstance() {
-		static StateMachine instance;
+	static MainStateMachine& getInstance() {
+		static MainStateMachine instance;
 		return instance;
 	};
 
@@ -152,9 +121,9 @@ public:
 	StartupSequenceState& getStartupSequenceState() {return m_startupSequenceState;};
 	IdleState& getIdleState() {return m_idleState;};
 	ReadyToTakeOffState& getReadyToTakeOffState() {return m_readyToTakeOffState;};
-	TakeOffState& getTakeOffState() {return m_takeOffState;};
 	FlyingState& getFlyingState() {return m_flyingState;};
-	LandingtState& getLandingState() {return m_landingState;};
 };
+
+
 
 

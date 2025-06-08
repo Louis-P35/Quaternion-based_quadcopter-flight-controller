@@ -18,6 +18,7 @@
 #include "Motors/motorMixer.hpp"
 #include "Utils/vector.hpp"
 #include "BlackboxSD/blackbox.hpp"
+#include "setPoints.hpp"
 
 
 // DO not change this unless change the timer 2 settings accordingly
@@ -49,7 +50,11 @@ public:
 
 	// Radio
 	Radio m_radio;
-	Quaternion<float> m_targetAttitude;
+	Quaternion<float> m_targetAttitude; // TODO remove that
+
+	// Target state (input of the PIDs controller)
+	// Driven by the radio or autonomous control
+	SetPoint<float> m_setPoint;
 
 	// ARHR (Madgwick)
 	MadgwickFilter<float> m_madgwickFilter;

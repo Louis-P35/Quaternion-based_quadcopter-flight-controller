@@ -34,7 +34,7 @@ void StartupSequenceState::handleState(Scheduler& dc)
 		m_time = 0.0; // Reset time
 
 		// Goto idle state
-		StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
+		MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getIdleState());
 	}
 }
 
@@ -54,7 +54,7 @@ void IdleState::handleState(Scheduler& dc)
 	if (!dc.m_radio.m_signalLost && dc.m_radio.m_targetThrust < (dc.m_radio.m_throttleHoverOffset + 0.01))
 	{
 		// Goto ready to take off state
-		StateMachine::getInstance().setState(StateMachine::getInstance().getReadyToTakeOffState());
+		MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getReadyToTakeOffState());
 	}
 }
 
@@ -73,19 +73,8 @@ void ReadyToTakeOffState::handleState(Scheduler& dc)
 	if (!dc.m_radio.m_signalLost && dc.m_radio.m_targetThrust > (dc.m_radio.m_throttleHoverOffset + 0.01))
 	{
 		// Goto ready to flying state
-		StateMachine::getInstance().setState(StateMachine::getInstance().getTakeOffState());
+		MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getFlyingState());
 	}
-}
-
-
-void TakeOffState::handleState(Scheduler& dc)
-{
-	// TODO: Handle take off autonomously
-
-	//LogManager::getInstance().serialPrint("TakeOffState\n\r");
-
-	// Goto to flying state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getFlyingState());
 }
 
 
@@ -129,6 +118,8 @@ void FlyingState::handleState(Scheduler& dc)
 		error[2] = rotAxis.m_z * angleRad * RAD_TO_DEGRE;
 
 		// Run angle PID
+		// TODO: SetPoints instead of radio
+		// setAngleTarget() & setRateTarget() must be replace by subStateMachine output
 		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt, dc.m_imu.m_gyroFilterRates, dc.m_radio, error);
 
 		//angle++;
@@ -168,15 +159,6 @@ void FlyingState::handleState(Scheduler& dc)
 
 	//StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
 	//StateMachine::getInstance().setState(StateMachine::getInstance().getLandingState());
-}
-
-
-void LandingtState::handleState(Scheduler& dc)
-{
-	// TODO: Handle autonomous landing
-
-	// Go back to idle state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
 }
 
 

@@ -144,7 +144,7 @@ void Scheduler::mainSetup()
 	setupRadio();
 
 	// Set Startup state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getStartupSequenceState());
+	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());
 
 	// Configure PIDs
 	m_ctrlStrat.setRatePIDderivativeMode(DerivativeMode::OnMeasurement);
@@ -165,7 +165,7 @@ void Scheduler::mainSetup()
 	m_ctrlStrat.setPosPIDcoefsYaw(YAW_POS_KP, YAW_POS_KI, YAW_POS_KD);
 	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
 
-	// Gyro filters for PID rate loop
+	// D term filters for PID rate loop
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
 	for (size_t i = 0; i < 3; ++i)
 	{
@@ -261,7 +261,7 @@ void orchestrator_highestFrequencyLoop()
 void Scheduler::pidRateLoop()
 {
 	// Run the state machine
-	StateMachine::getInstance().run(*this);
+	MainStateMachine::getInstance().run(*this);
 
 	// Reset angle & position hold flag here because they are executed in the state machine
 	m_angleLoop = false;
@@ -594,7 +594,7 @@ void Scheduler::pidDebugStream()
 		}
 		else
 		{
-			LogManager::getInstance().serialPrint("ErrorPitch;TargetPitch;P;D;VC\r\n");
+			LogManager::getInstance().serialPrint("Pitch;TargetPitch;P;D;VC\r\n");
 		}
 	}
 
@@ -613,12 +613,17 @@ void Scheduler::pidDebugStream()
 	}
 	else
 	{
-		std::string error = ""; // TODO
+		float roll;
+		float pitch;
+		float yaw;
+
+		m_madgwickFilter.getEulerAngle(roll, pitch, yaw);
+		std::string angle = formatString(pitch);
 		std::string targetAngle = formatString(m_radio.m_targetPitch);
 		std::string pTerm = formatString(m_ctrlStrat.m_angleLoop[1].m_pTerm);
 		std::string dTerm = formatString(m_ctrlStrat.m_angleLoop[1].m_dTerm);
 
-		tmp = error + ";" + targetAngle + ";" + pTerm + ";" + dTerm + ";" + vc + "\r\n";
+		tmp = angle + ";" + targetAngle + ";" + pTerm + ";" + dTerm + ";" + vc + "\r\n";
 	}
 
 	LogManager::getInstance().serialPrint((char*)tmp.c_str());
