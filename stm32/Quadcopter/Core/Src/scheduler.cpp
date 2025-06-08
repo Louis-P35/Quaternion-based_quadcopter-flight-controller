@@ -16,7 +16,7 @@
 #include "PID/controlStrategy.hpp"
 #include "PID/pid.hpp"
 #include "Radio/radio.hpp"
-#include "stateMachine.hpp"
+#include "FSM/stateMachine.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
 
@@ -33,22 +33,25 @@
 
 #define ROLL_PITCH_RATE_MAX_D_PERCENT 0.75f // < 1 for stability, [1, 2] for aggresivity
 
+// Attitude loop PIDs coefficients
 #define ROLLPITCH_ANGLE_KP 10.0f
 #define ROLLPITCH_ANGLE_KI 0.0f
 #define ROLLPITCH_ANGLE_KD 1.0f
 
-#define YAW_ANGLE_KP 0.0f
+#define YAW_ANGLE_KP (ROLLPITCH_ANGLE_KP / 2.0f)
 #define YAW_ANGLE_KI 0.0f
 #define YAW_ANGLE_KD 0.0f
 
+// Rate loop PIDs coefficients
 #define ROLLPITCH_RATE_KP 0.4f
 #define ROLLPITCH_RATE_KI 0.4f
 #define ROLLPITCH_RATE_KD 0.04f
 
-#define YAW_RATE_KP 0.0f
-#define YAW_RATE_KI 0.0f
+#define YAW_RATE_KP 0.3f
+#define YAW_RATE_KI 0.3f
 #define YAW_RATE_KD 0.0f
 
+// Position loop PIDs coefficients
 #define ROLLPITCH_POS_KP 0.0f
 #define ROLLPITCH_POS_KI 0.0f
 #define ROLLPITCH_POS_KD 0.0f
@@ -87,7 +90,7 @@ constexpr float Scheduler::m_radioDt;
 
 // Uncomment this to disable motors
 #define DEBUG_DISABLE_MOTORS 1
-//#define PID_TESTING_MODE 1
+#define PID_TESTING_MODE 1
 
 
 volatile bool g_startRecord = false;
@@ -488,7 +491,7 @@ void Scheduler::setMotorPower(const Motor& motor, const float& power)
 float Scheduler::readBatteryVoltage()
 {
 	constexpr float divider = 1.0f / 0.14826f; // Voltage divider bridge value
-	constexpr float vref = 3.3f;//2.2f; // XXX: Calculated, I don't know why it is not 3.3V ?
+	constexpr float vref = 3.3f;
 	constexpr float scale = (vref * divider) / 65535.0f;
 
 	HAL_ADC_Start(&hadc3);

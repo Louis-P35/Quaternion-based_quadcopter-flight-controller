@@ -9,23 +9,67 @@
 
 #include "scheduler.hpp"
 
-class StateMachine;
 
 /*
- * Abstract base class for the drone flying states
+ * Abstract base class for FSM states
  */
-class State
+class FSMState
 {
 public:
-	virtual ~State() = default;
+	virtual ~FSMState() = default;
 	virtual void handleState(Scheduler& dc) = 0;
 };
+
+
+
+
+class StateMachineBase
+{
+protected:
+	FSMState* m_pState = nullptr;
+
+public:
+	StateMachineBase() = default;
+	virtual ~StateMachineBase() = default;
+
+	void setState(FSMState& nextState) noexcept
+	{
+		m_pState = &nextState;
+	};
+
+	void run(Scheduler& dc) noexcept
+	{
+		if (m_pState)
+		{
+			m_pState->handleState(dc);
+		}
+	};
+};
+
+
+
+class FullRadioControlState : public FSMState
+{
+public:
+	~FullRadioControlState() override = default;
+	virtual void handleState(Scheduler& dc) override;
+};
+
+
+
+class SetPointFSM : public StateMachineBase
+{
+public:
+	SetPointFSM() = default;
+};
+
+
 
 
 /*
  * In this state the drone is performing the ESCs' startup sequence.
  */
-class StartupSequenceState : public State
+class StartupSequenceState : public FSMState
 {
 private:
 	double m_time = 0.0;
@@ -36,10 +80,12 @@ public:
 };
 
 
+
+
 /*
  * In this state the drone is in safe mode, propellers are not spinning.
  */
-class IdleState : public State
+class IdleState : public FSMState
 {
 public:
 	~IdleState() override = default;
@@ -47,12 +93,14 @@ public:
 };
 
 
+
+
 /*
  * In this state the drone is ready to take off,
  * Security is off, propellers are spinning.
  * PID's integral term is blocked to zero until flying.
  */
-class ReadyToTakeOffState : public State
+class ReadyToTakeOffState : public FSMState
 {
 public:
 	~ReadyToTakeOffState() override = default;
@@ -60,13 +108,14 @@ public:
 };
 
 
+
 /*
  * Flying state
  */
-class FlyingState : public State
+class FlyingState : public FSMState
 {
 private:
-	State* m_pSubStateMachine = nullptr;
+	SetPointFSM m_setPointStateMachine;
 
 public:
 	~FlyingState() override = default;
@@ -75,8 +124,7 @@ public:
 
 
 
-
-class MainStateMachine
+class MainStateMachine : public StateMachineBase
 {
 private:
 	// States static instances (this class is a singleton)
@@ -85,15 +133,16 @@ private:
 	ReadyToTakeOffState m_readyToTakeOffState;
 	FlyingState m_flyingState;
 
-	State* m_pState = &m_startupSequenceState;
-
-private:
-	MainStateMachine() = default;
+public:
+	MainStateMachine()
+	{
+		m_pState = &m_startupSequenceState;
+	};
 
 public:
 	// Delete copy constructor and copy assignment operator
 	MainStateMachine(const MainStateMachine& sm) = delete;
-	MainStateMachine operator=(const MainStateMachine& sm) = delete;
+	MainStateMachine& operator=(const MainStateMachine& sm) = delete;
 	// Delete move constructor and move assignment operator
 	MainStateMachine(MainStateMachine&& sm) = delete;
 	MainStateMachine& operator=(MainStateMachine&& sm) = delete;
@@ -102,19 +151,6 @@ public:
 	static MainStateMachine& getInstance() {
 		static MainStateMachine instance;
 		return instance;
-	};
-
-	void setState(State& nextState)
-	{
-		m_pState = &nextState;
-	};
-
-	void run(Scheduler& dc)
-	{
-		if (m_pState)
-		{
-			m_pState->handleState(dc);
-		}
 	};
 
 	// Getters

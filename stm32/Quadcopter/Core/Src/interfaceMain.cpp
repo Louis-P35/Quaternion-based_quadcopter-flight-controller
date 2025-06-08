@@ -11,7 +11,7 @@
 
 #include "scheduler.hpp"
 #include "Utils/utilsTimer.hpp"
-#include "stateMachine.hpp"
+#include "FSM/stateMachine.hpp"
 
 extern SPI_HandleTypeDef hspi1;
 extern TIM_HandleTypeDef htim1;

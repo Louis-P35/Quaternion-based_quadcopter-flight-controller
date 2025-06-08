@@ -6,7 +6,7 @@
  */
 
 // Includes from project
-#include "stateMachine.hpp"
+#include "FSM/stateMachine.hpp"
 #include "logManager.hpp"
 #include "PID/pid.hpp"
 #include "PID/controlStrategy.hpp"
