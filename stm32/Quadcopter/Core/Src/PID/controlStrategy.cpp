@@ -104,11 +104,18 @@ void ControlStrategy::angleControlLoop(
 	// Set the angles target according to the flight mode
 	setAngleTarget(radio);
 
+	static bool integrate = false;
+	if (radio.m_targetThrust > 340.0f)
+	{
+		integrate = true;
+	}
+
 	for (int i = 0; i < 3; ++i)
 	{
 		// measure = 0.0f because the derivative is on the error here
 		// target = 0.0f because no feedforward here
-		m_angleLoop[i].m_output = m_angleLoop[i].computePID(error[i], 0.0f, 0.0f, dt, true);
+		float pidOut = m_angleLoop[i].computePID(error[i], 0.0f, 0.0f, dt, integrate);
+		m_angleLoop[i].m_output = m_angleLoop[i].m_filteredOutput.apply(pidOut);
 	}
 }
 

@@ -26,8 +26,8 @@ void IMU::init(
 		)
 {
 	constexpr float lpfGyroRatesCutoffFrequency = 75.0f; // D term amplify noise so aggresiv filtering here
-	constexpr float lpfGyroAhrsCutoffFrequency = 125.0f; // Madgwick filter already so less aggresiv
-	constexpr float lpfAccelAhrsCutoffFrequency = 25.0f;
+	constexpr float lpfGyroAhrsCutoffFrequency = 75.0f; // Madgwick filter already so less aggresiv
+	constexpr float lpfAccelAhrsCutoffFrequency = 10.0f;
 
 	// Setup the IMU (ICM20948)
 	icm20948_init(); // Accelerometer & gyroscope

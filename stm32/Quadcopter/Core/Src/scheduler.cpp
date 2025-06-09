@@ -34,9 +34,9 @@
 #define ROLL_PITCH_RATE_MAX_D_PERCENT 0.75f // < 1 for stability, [1, 2] for aggresivity
 
 // Attitude loop PIDs coefficients
-#define ROLLPITCH_ANGLE_KP 10.0f
+#define ROLLPITCH_ANGLE_KP 8.0f
 #define ROLLPITCH_ANGLE_KI 0.0f
-#define ROLLPITCH_ANGLE_KD 1.0f
+#define ROLLPITCH_ANGLE_KD 0.0f
 
 #define YAW_ANGLE_KP (ROLLPITCH_ANGLE_KP / 2.0f)
 #define YAW_ANGLE_KI 0.0f
@@ -48,7 +48,7 @@
 #define ROLLPITCH_RATE_KD 0.04f
 
 #define YAW_RATE_KP 0.3f
-#define YAW_RATE_KI 0.3f
+#define YAW_RATE_KI 0.01f
 #define YAW_RATE_KD 0.0f
 
 // Position loop PIDs coefficients
@@ -89,8 +89,8 @@ constexpr float Scheduler::m_radioDt;
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-#define DEBUG_DISABLE_MOTORS 1
-#define PID_TESTING_MODE 1
+//#define DEBUG_DISABLE_MOTORS 1
+//#define PID_TESTING_MODE 1
 
 
 volatile bool g_startRecord = false;
@@ -126,6 +126,7 @@ Scheduler::Scheduler(
  */
 void Scheduler::mainSetup()
 {
+	constexpr float pidAngleOutputCutOffFreq = 15.0f;
 	// Setup the serial print
 	LogManager::getInstance().setup();
 
@@ -170,11 +171,16 @@ void Scheduler::mainSetup()
 
 	// D term filters for PID rate loop
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
+	const float angleLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER);
+	float paramsPIDAngleCutOff[1] = {pidAngleOutputCutOffFreq};
+
 	for (size_t i = 0; i < 3; ++i)
 	{
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 10.0f);
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf2.init(rateLoopFreq, 10.0f);
 		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
+
+		m_ctrlStrat.m_angleLoop[i].m_filteredOutput.init(angleLoopFreq, paramsPIDAngleCutOff);
 	}
 
 	// Set the control mode
@@ -355,8 +361,10 @@ void Scheduler::radioLoop()
 	}
 
 #ifdef PID_TESTING_MODE
-	m_radio.m_targetRateRoll = 0.0;
-	m_radio.m_targetRateYaw = 0.0;
+	/*m_radio.m_targetRateRoll = 0.0f;
+	m_radio.m_targetRateYaw = 0.0f;*/
+	m_radio.m_targetRoll = 0.0f;
+
 	//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
 
 	if (m_radio.m_targetThrust > 400.0f)
@@ -365,13 +373,21 @@ void Scheduler::radioLoop()
 		g_startRecord = true;
 	}
 
-	if (m_radio.m_targetRatePitch > 50.0f)
+	/*if (m_radio.m_targetRatePitch > 50.0f)
 	{
 		m_radio.m_targetRatePitch = 100.0f;
 	}
 	else if (m_radio.m_targetRatePitch < -50.0f)
 	{
 		m_radio.m_targetRatePitch = -100.0f;
+	}*/
+	if (m_radio.m_targetPitch > 5.0f)
+	{
+		m_radio.m_targetPitch = 45.0f;
+	}
+	else if (m_radio.m_targetPitch < -5.0f)
+	{
+		m_radio.m_targetPitch = -45.0f;
 	}
 #endif
 }
@@ -576,7 +592,7 @@ void Scheduler::calibrateHoverOffset()
 void Scheduler::pidDebugStream()
 {
 	static size_t callCount = 0;
-	constexpr bool rate = false;
+	constexpr bool rate = true;
 
 	auto formatString = [](const float& val) -> std::string
 	{
@@ -606,11 +622,11 @@ void Scheduler::pidDebugStream()
 
 	if (rate)
 	{
-		std::string gyro = formatString(m_imu.m_gyroFilterRates.m_y);
-		std::string targetRate = formatString(m_radio.m_targetRatePitch);
-		std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
-		std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
-		std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_dTerm);
+		std::string gyro = formatString(m_imu.m_gyroFilterRates.m_x);
+		std::string targetRate = formatString(m_ctrlStrat.m_rateLoop[0].m_target);//m_radio.m_targetRateRoll);
+		std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[0].m_pTerm);
+		std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[0].m_iTerm);
+		std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[0].m_dTerm);
 
 		tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + ";" + vc + "\r\n";
 	}
