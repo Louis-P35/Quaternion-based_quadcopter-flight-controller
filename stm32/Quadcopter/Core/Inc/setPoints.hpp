@@ -26,7 +26,7 @@ public:
 	T m_targetRateYaw = T(0);
 
 	// Angle setpoint
-	Quaternion<T> m_targetQuaternion = Quaternion<T>::iddentity();
+	Quaternion<T> m_targetQuaternion = Quaternion<T>::identity();
 
 	// Position setpoint
 	// TODO

@@ -65,6 +65,8 @@
 #define THROTTLE_EXPO 0.99f
 #define TARGET_ANGLE_MAX 45.0f
 #define TARGET_RATE_MAX 200.0f
+#define THRUST_IS_FLYING_THRESHOLD_UP 340.0f
+#define THRUST_IS_FLYING_THRESHOLD_DOWN 250.0f
 
 
 extern TIM_HandleTypeDef htim1;
@@ -360,36 +362,15 @@ void Scheduler::radioLoop()
 		// Signal lost, target quaternion is horizon
 	}
 
-#ifdef PID_TESTING_MODE
-	/*m_radio.m_targetRateRoll = 0.0f;
-	m_radio.m_targetRateYaw = 0.0f;*/
-	m_radio.m_targetRoll = 0.0f;
-
-	//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
-
-	if (m_radio.m_targetThrust > 400.0f)
+	// Handle is flying detection
+	if (!m_isFlying && m_radio.m_targetThrust > THRUST_IS_FLYING_THRESHOLD_UP)
 	{
-		m_radio.m_targetThrust = 400.0f;
-		g_startRecord = true;
+		m_isFlying = true;
 	}
-
-	/*if (m_radio.m_targetRatePitch > 50.0f)
+	else if (m_isFlying && m_radio.m_targetThrust < THRUST_IS_FLYING_THRESHOLD_DOWN)
 	{
-		m_radio.m_targetRatePitch = 100.0f;
+		m_isFlying = false;
 	}
-	else if (m_radio.m_targetRatePitch < -50.0f)
-	{
-		m_radio.m_targetRatePitch = -100.0f;
-	}*/
-	if (m_radio.m_targetPitch > 5.0f)
-	{
-		m_radio.m_targetPitch = 45.0f;
-	}
-	else if (m_radio.m_targetPitch < -5.0f)
-	{
-		m_radio.m_targetPitch = -45.0f;
-	}
-#endif
 }
 
 

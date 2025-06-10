@@ -35,7 +35,8 @@ public:
 			const float& dt,
 			const Vector3<float>& gyro,
 			const Radio& radio,
-			const std::array<float, 3>& error
+			const std::array<float, 3>& error,
+			const bool& integrate
 			);
 	void rateControlLoop(const float& dt, const Vector3<float>& gyro, const Radio& radio);
 	void posControlLoop(const float& dt);

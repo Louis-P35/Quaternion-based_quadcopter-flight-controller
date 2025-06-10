@@ -58,7 +58,7 @@ public:
 
 	// ARHR (Madgwick)
 	MadgwickFilter<float> m_madgwickFilter;
-	Quaternion<float> m_qAttitudeCorrected = Quaternion<float>::iddentity();
+	Quaternion<float> m_qAttitudeCorrected = Quaternion<float>::identity();
 	Quaternion<float> m_qHoverOffset = Quaternion<float>(0.9999743f, 0.0035298f, -0.0062408f, 0.0000220f);
 
 	// Motors power
@@ -71,6 +71,8 @@ public:
 	ControlStrategy m_ctrlStrat;
 
 	volatile float m_batteryVoltage = 12.6;
+
+	bool m_isFlying = false;
 
 	static constexpr float m_ahrsDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER));
 	static constexpr float m_rateDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER));

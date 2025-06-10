@@ -94,7 +94,8 @@ void ControlStrategy::angleControlLoop(
 		const float& dt,
 		const Vector3<float>& gyro,
 		const Radio& radio,
-		const std::array<float, 3>& error
+		const std::array<float, 3>& error,
+		const bool& integrate
 		)
 {
 	m_rateLoop[0].m_measure = gyro.m_x;
@@ -103,12 +104,6 @@ void ControlStrategy::angleControlLoop(
 
 	// Set the angles target according to the flight mode
 	setAngleTarget(radio);
-
-	static bool integrate = false;
-	if (radio.m_targetThrust > 340.0f)
-	{
-		integrate = true;
-	}
 
 	for (int i = 0; i < 3; ++i)
 	{

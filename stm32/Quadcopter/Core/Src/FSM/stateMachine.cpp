@@ -12,7 +12,7 @@
 #include "PID/controlStrategy.hpp"
 
 
-#define RAD_TO_DEGRE (180.0/M_PI)
+#define RAD_TO_DEG (180.0/M_PI)
 
 
 void StartupSequenceState::handleState(Scheduler& dc)
@@ -113,14 +113,14 @@ void FlyingState::handleState(Scheduler& dc)
 		// Projection of the rotation axis onto the 3 axis of the drone
 		// It is NOT Euler angles here, so no singularity
 		std::array<float, 3> error;
-		error[0] = rotAxis.m_x * angleRad * RAD_TO_DEGRE;
-		error[1] = rotAxis.m_y * angleRad * RAD_TO_DEGRE;
-		error[2] = rotAxis.m_z * angleRad * RAD_TO_DEGRE;
+		error[0] = rotAxis.m_x * angleRad * RAD_TO_DEG;
+		error[1] = rotAxis.m_y * angleRad * RAD_TO_DEG;
+		error[2] = rotAxis.m_z * angleRad * RAD_TO_DEG;
 
 		// Run angle PID
 		// TODO: SetPoints instead of radio
 		// setAngleTarget() & setRateTarget() must be replace by subStateMachine output
-		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt, dc.m_imu.m_gyroFilterRates, dc.m_radio, error);
+		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt, dc.m_imu.m_gyroFilterRates, dc.m_radio, error, dc.m_isFlying);
 
 		//angle++;
 
