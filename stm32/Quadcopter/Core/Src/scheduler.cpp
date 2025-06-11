@@ -352,16 +352,6 @@ void Scheduler::radioLoop()
 {
 	const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
 
-	if (!signalLost)
-	{
-		// Compute target quaternion
-		m_targetAttitude = Quaternion<float>::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
-	}
-	else
-	{
-		// Signal lost, target quaternion is horizon
-	}
-
 	// Handle is flying detection
 	if (!m_isFlying && m_radio.m_targetThrust > THRUST_IS_FLYING_THRESHOLD_UP)
 	{

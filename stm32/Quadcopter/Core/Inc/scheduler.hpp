@@ -50,7 +50,6 @@ public:
 
 	// Radio
 	Radio m_radio;
-	Quaternion<float> m_targetAttitude; // TODO remove that
 
 	// Target state (input of the PIDs controller)
 	// Driven by the radio or autonomous control

@@ -13,6 +13,7 @@
 
 
 #define RAD_TO_DEG (180.0/M_PI)
+#define DEG_TO_RAD (M_PI/180.0)
 
 
 void StartupSequenceState::handleState(Scheduler& dc)
@@ -83,13 +84,22 @@ void ReadyToTakeOffState::handleState(Scheduler& dc)
  */
 void FlyingState::handleState(Scheduler& dc)
 {
-	//static unsigned long int pos = 0;
-	//static unsigned long int angle = 0;
-	//static unsigned long int rate = 0;
+	// TODO: Set setPoint must be replace by subStateMachine output
 
 	// Angle loop
 	if (dc.m_angleLoop)
 	{
+		// Set setPoint (from radio)
+		if (!dc.m_radio.m_signalLost)
+		{
+			// Compute target quaternion
+			dc.m_setPoint.m_targetQuaternion = Quaternion<float>::fromEuler(dc.m_radio.m_targetRoll * DEG_TO_RAD, dc.m_radio.m_targetPitch * DEG_TO_RAD, dc.m_radio.m_targetYaw * DEG_TO_RAD);
+		}
+		else
+		{
+			// TODO: Signal lost, target quaternion is horizon
+		}
+
 		// Correct the physical offset IMU -> drone
 		dc.m_qAttitudeCorrected = dc.m_qHoverOffset * dc.m_madgwickFilter.m_qEst;
 		dc.m_qAttitudeCorrected.normalize();
@@ -97,11 +107,12 @@ void FlyingState::handleState(Scheduler& dc)
 		// A quaternion q and -q represent the same rotation.
 		// Here, canonical() make a sign choice (q.w >= 0).
 		Quaternion<float> qEst = Quaternion<float>::canonical(dc.m_qAttitudeCorrected);
-		Quaternion<float> qTarget = Quaternion<float>::canonical(dc.m_targetAttitude);
+		Quaternion<float> qTarget = Quaternion<float>::canonical(dc.m_setPoint.m_targetQuaternion);
 
 		// Get attitude error
 		Quaternion<float> qError = PID::getError(qEst, qTarget);
 
+		// Test
 		//Quaternion qTest = qError * qEst;
 		//qTest.normalize();
 
@@ -118,47 +129,36 @@ void FlyingState::handleState(Scheduler& dc)
 		error[2] = rotAxis.m_z * angleRad * RAD_TO_DEG;
 
 		// Run angle PID
-		// TODO: SetPoints instead of radio
-		// setAngleTarget() & setRateTarget() must be replace by subStateMachine output
-		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt, dc.m_imu.m_gyroFilterRates, dc.m_radio, error, dc.m_isFlying);
-
-		//angle++;
-
-		//LogManager::getInstance().serialPrint(qEst, qTarget);
+		dc.m_ctrlStrat.angleControlLoop(dc.m_angleDt, dc.m_imu.m_gyroFilterRates, error, dc.m_isFlying);
 	}
 
 	// Position hold loop
 	if (dc.m_posLoop)
 	{
-		//pos++;
+
 	}
 
-	//rate++;
-	//LogManager::getInstance().serialPrint(pos, angle, rate, 0L);
+	// Set setPoint
+	if (dc.m_ctrlStrat.m_flightMode == StabilizationMode::ACRO)
+	{
+		dc.m_setPoint.m_targetRateRoll = dc.m_radio.m_targetRateRoll;
+		dc.m_setPoint.m_targetRatePitch = dc.m_radio.m_targetRatePitch;
+		dc.m_setPoint.m_targetRateYaw = dc.m_radio.m_targetRateYaw;
+	}
+	else if (dc.m_ctrlStrat.m_flightMode == StabilizationMode::STAB)
+	{
+		dc.m_setPoint.m_targetRateRoll = dc.m_ctrlStrat.m_angleLoop[0].m_output;
+		dc.m_setPoint.m_targetRatePitch = dc.m_ctrlStrat.m_angleLoop[1].m_output;
+		dc.m_setPoint.m_targetRateYaw = dc.m_ctrlStrat.m_angleLoop[2].m_output;
+	}
 
 	// Run rate PID
-	dc.m_ctrlStrat.rateControlLoop(dc.m_rateDt, dc.m_imu.m_gyroFilterRates, dc.m_radio);
+	dc.m_ctrlStrat.rateControlLoop(dc.m_rateDt, dc.m_imu.m_gyroFilterRates, dc.m_setPoint);
 
 	dc.m_thrust = dc.m_radio.m_targetThrust * 4.0f;
 	dc.m_torqueX = dc.m_ctrlStrat.m_rateLoop[0].m_output;
 	dc.m_torqueY = dc.m_ctrlStrat.m_rateLoop[1].m_output;
 	dc.m_torqueZ = dc.m_ctrlStrat.m_rateLoop[2].m_output;
-
-	//LogManager::getInstance().serialPrint(dc.m_torqueX, dc.m_torqueY, dc.m_torqueZ, 0.0);
-
-	//LogManager::getInstance().serialPrint(dc.m_averagedGyro.m_x, dc.m_averagedGyro.m_y, dc.m_averagedGyro.m_z, 0.0);
-	//LogManager::getInstance().serialPrint(dc.m_radio.m_targetRateRoll, dc.m_radio.m_targetRatePitch, dc.m_radio.m_targetRateYaw, 0.0);
-	//LogManager::getInstance().serialPrint("\n\r");
-
-	//LogManager::getInstance().serialPrint("FlyingState\n\r");
-
-	// Debug print AHRS result
-	//LogManager::getInstance().serialPrint(qEst, qTarget);
-	//LogManager::getInstance().serialPrint(qTest, qTarget);
-
-
-	//StateMachine::getInstance().setState(StateMachine::getInstance().getIdleState());
-	//StateMachine::getInstance().setState(StateMachine::getInstance().getLandingState());
 }
 
 
