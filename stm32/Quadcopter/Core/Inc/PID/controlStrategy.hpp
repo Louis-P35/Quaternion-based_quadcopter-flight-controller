@@ -7,10 +7,13 @@
 
 #pragma once
 
-// Project
+// Includes from project
 #include "PID/pid.hpp"
-#include "Radio/radio.hpp"
 #include "Utils/Vector.hpp"
+#include "setPoints.hpp"
+
+// Includes from STL
+#include <array>
 
 
 enum StabilizationMode { ACRO, STAB, HORIZON, POSHOLD };
@@ -28,8 +31,13 @@ public:
 
 public:
 	ControlStrategy() {};
-	void angleControlLoop(const float& dt);
-	void rateControlLoop(const float& dt, const Vector3<float>& gyro, const Radio& radio);
+	void angleControlLoop(
+			const float& dt,
+			const Vector3<float>& gyro,
+			const std::array<float, 3>& error,
+			const bool& integrate
+			);
+	void rateControlLoop(const float& dt, const Vector3<float>& gyro, const SetPoint<float>& setPoint);
 	void posControlLoop(const float& dt);
 
 	void getTorqueVector(float& tx, float& ty, float& tz);
@@ -51,10 +59,6 @@ public:
 	void setPosPIDcoefsPitch(const float& kp, const float& ki, const float& kd);
 	void setPosPIDcoefsYaw(const float& kp, const float& ki, const float& kd);
 	void setPosPIDderivativeMode(const DerivativeMode& derivativeMode);
-
-private:
-	void setAngleTarget();
-	void setRateTarget(const Radio& radio);
 };
 
 

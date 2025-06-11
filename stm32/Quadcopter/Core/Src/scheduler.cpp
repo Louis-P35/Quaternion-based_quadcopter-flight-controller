@@ -16,7 +16,7 @@
 #include "PID/controlStrategy.hpp"
 #include "PID/pid.hpp"
 #include "Radio/radio.hpp"
-#include "stateMachine.hpp"
+#include "FSM/stateMachine.hpp"
 
 // screen /dev/tty.usbserial-14220 115200
 
@@ -33,22 +33,25 @@
 
 #define ROLL_PITCH_RATE_MAX_D_PERCENT 0.75f // < 1 for stability, [1, 2] for aggresivity
 
-#define ROLLPITCH_ANGLE_KP 0.0f
+// Attitude loop PIDs coefficients
+#define ROLLPITCH_ANGLE_KP 8.0f
 #define ROLLPITCH_ANGLE_KI 0.0f
 #define ROLLPITCH_ANGLE_KD 0.0f
 
-#define YAW_ANGLE_KP 0.0f
+#define YAW_ANGLE_KP (ROLLPITCH_ANGLE_KP / 2.0f)
 #define YAW_ANGLE_KI 0.0f
 #define YAW_ANGLE_KD 0.0f
 
+// Rate loop PIDs coefficients
 #define ROLLPITCH_RATE_KP 0.4f
 #define ROLLPITCH_RATE_KI 0.4f
 #define ROLLPITCH_RATE_KD 0.04f
 
-#define YAW_RATE_KP 0.0f
-#define YAW_RATE_KI 0.0f
+#define YAW_RATE_KP 0.3f
+#define YAW_RATE_KI 0.01f
 #define YAW_RATE_KD 0.0f
 
+// Position loop PIDs coefficients
 #define ROLLPITCH_POS_KP 0.0f
 #define ROLLPITCH_POS_KI 0.0f
 #define ROLLPITCH_POS_KD 0.0f
@@ -62,6 +65,8 @@
 #define THROTTLE_EXPO 0.99f
 #define TARGET_ANGLE_MAX 45.0f
 #define TARGET_RATE_MAX 200.0f
+#define THRUST_IS_FLYING_THRESHOLD_UP 340.0f
+#define THRUST_IS_FLYING_THRESHOLD_DOWN 250.0f
 
 
 extern TIM_HandleTypeDef htim1;
@@ -87,11 +92,11 @@ constexpr float Scheduler::m_radioDt;
 
 // Uncomment this to disable motors
 //#define DEBUG_DISABLE_MOTORS 1
-#define PID_TESTING_MODE 1
+//#define PID_TESTING_MODE 1
 
 
-bool g_startRecord = false;
-bool g_startPrint = false;
+volatile bool g_startRecord = false;
+volatile bool g_startPrint = false;
 
 // TODOs:
 // GYRO à 6khz => voir ce que ça donne de monter les fréquences de coupure des 2 LPF (moins de latences)
@@ -123,6 +128,7 @@ Scheduler::Scheduler(
  */
 void Scheduler::mainSetup()
 {
+	constexpr float pidAngleOutputCutOffFreq = 15.0f;
 	// Setup the serial print
 	LogManager::getInstance().setup();
 
@@ -144,7 +150,7 @@ void Scheduler::mainSetup()
 	setupRadio();
 
 	// Set Startup state
-	StateMachine::getInstance().setState(StateMachine::getInstance().getStartupSequenceState());
+	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());
 
 	// Configure PIDs
 	m_ctrlStrat.setRatePIDderivativeMode(DerivativeMode::OnMeasurement);
@@ -165,15 +171,22 @@ void Scheduler::mainSetup()
 	m_ctrlStrat.setPosPIDcoefsYaw(YAW_POS_KP, YAW_POS_KI, YAW_POS_KD);
 	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
 
-
-	// Gyro filters for PID rate loop
+	// D term filters for PID rate loop
 	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
+	const float angleLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER);
+	float paramsPIDAngleCutOff[1] = {pidAngleOutputCutOffFreq};
+
 	for (size_t i = 0; i < 3; ++i)
 	{
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf.init(rateLoopFreq, 10.0f);
 		m_ctrlStrat.m_rateLoop[i].m_dTermLpf2.init(rateLoopFreq, 10.0f);
 		m_ctrlStrat.m_rateLoop[i].m_ffTermLpf.init(rateLoopFreq, 50.0f);
+
+		m_ctrlStrat.m_angleLoop[i].m_filteredOutput.init(angleLoopFreq, paramsPIDAngleCutOff);
 	}
+
+	// Set the control mode
+	m_ctrlStrat.m_flightMode = StabilizationMode::STAB;
 
 	// Start the loop
 	g_start = true;
@@ -259,7 +272,7 @@ void orchestrator_highestFrequencyLoop()
 void Scheduler::pidRateLoop()
 {
 	// Run the state machine
-	StateMachine::getInstance().run(*this);
+	MainStateMachine::getInstance().run(*this);
 
 	// Reset angle & position hold flag here because they are executed in the state machine
 	m_angleLoop = false;
@@ -285,12 +298,12 @@ void Scheduler::ahrsLoop()
 {
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
-			m_imu.m_accel.m_x, // Acceleration vector will be normalized
-			m_imu.m_accel.m_y,
-			m_imu.m_accel.m_z,
-			m_imu.m_gyro.m_x * DEGREE_TO_RAD,
-			m_imu.m_gyro.m_y * DEGREE_TO_RAD,
-			m_imu.m_gyro.m_z * DEGREE_TO_RAD,
+			m_imu.m_accelFilterAhrs.m_x, // Acceleration vector will be normalized
+			m_imu.m_accelFilterAhrs.m_y,
+			m_imu.m_accelFilterAhrs.m_z,
+			m_imu.m_gyroFilterAhrs.m_x * DEGREE_TO_RAD,
+			m_imu.m_gyroFilterAhrs.m_y * DEGREE_TO_RAD,
+			m_imu.m_gyroFilterAhrs.m_z * DEGREE_TO_RAD,
 			m_ahrsDt
 		);
 
@@ -339,36 +352,15 @@ void Scheduler::radioLoop()
 {
 	const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
 
-	if (!signalLost)
+	// Handle is flying detection
+	if (!m_isFlying && m_radio.m_targetThrust > THRUST_IS_FLYING_THRESHOLD_UP)
 	{
-		// Compute target quaternion
-		m_targetAttitude = Quaternion<float>::fromEuler(m_radio.m_targetRoll * DEGREE_TO_RAD, m_radio.m_targetPitch * DEGREE_TO_RAD, m_radio.m_targetYaw * DEGREE_TO_RAD);
+		m_isFlying = true;
 	}
-	else
+	else if (m_isFlying && m_radio.m_targetThrust < THRUST_IS_FLYING_THRESHOLD_DOWN)
 	{
-		// Signal lost, target quaternion is horizon
+		m_isFlying = false;
 	}
-
-#ifdef PID_TESTING_MODE
-	m_radio.m_targetRateRoll = 0.0;
-	m_radio.m_targetRateYaw = 0.0;
-	//m_radio.m_targetRatePitch = (m_radio.m_targetRatePitch / 172.0) * 50.0;
-
-	if (m_radio.m_targetThrust > 400.0f)
-	{
-		m_radio.m_targetThrust = 400.0f;
-		g_startRecord = true;
-	}
-
-	if (m_radio.m_targetRatePitch > 50.0f)
-	{
-		m_radio.m_targetRatePitch = 100.0f;
-	}
-	else if (m_radio.m_targetRatePitch < -50.0f)
-	{
-		m_radio.m_targetRatePitch = -100.0f;
-	}
-#endif
 }
 
 
@@ -399,7 +391,7 @@ void Scheduler::mainLoop(const double dt)
 	//LogManager::getInstance().serialPrint(pidRateTicks, ahrsTicks, escTicks, radioTicks);
 	//LogManager::getInstance().serialPrint("\n\r");
 
-	//LogManager::getInstance().serialPrint(m_imu.m_gyro.m_y);
+	//LogManager::getInstance().serialPrint(m_ctrlStrat.m_rateLoop[1].m_target);
 	//LogManager::getInstance().serialPrint("\n\r");
 	//LogManager::getInstance().serialPrint("COUCOU\n\r");
 
@@ -408,6 +400,7 @@ void Scheduler::mainLoop(const double dt)
 
 	//m_radio.m_radioProtocole.print();
 	//LogManager::getInstance().serialPrint(m_radio.m_targetRateRoll, m_radio.m_targetRatePitch, m_radio.m_targetRateYaw, m_radio.m_targetThrust);
+	//LogManager::getInstance().serialPrint(m_radio.m_targetRoll, m_radio.m_targetPitch, m_radio.m_targetYaw, m_radio.m_targetThrust);
 
 	/*if (g_startPrint)
 	{
@@ -485,7 +478,7 @@ void Scheduler::setMotorPower(const Motor& motor, const float& power)
 float Scheduler::readBatteryVoltage()
 {
 	constexpr float divider = 1.0f / 0.14826f; // Voltage divider bridge value
-	constexpr float vref = 3.3f;//2.2f; // XXX: Calculated, I don't know why it is not 3.3V ?
+	constexpr float vref = 3.3f;
 	constexpr float scale = (vref * divider) / 65535.0f;
 
 	HAL_ADC_Start(&hadc3);
@@ -570,12 +563,7 @@ void Scheduler::calibrateHoverOffset()
 void Scheduler::pidDebugStream()
 {
 	static size_t callCount = 0;
-
-	// Logging at 25 hz
-	/*if ((callCount%2) != 0)
-	{
-		return;
-	}*/
+	constexpr bool rate = true;
 
 	auto formatString = [](const float& val) -> std::string
 	{
@@ -590,17 +578,44 @@ void Scheduler::pidDebugStream()
 
 	if (callCount == 0)
 	{
-		LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D;VC\r\n");
+		if (rate)
+		{
+			LogManager::getInstance().serialPrint("GyroPitch;TargetPitch;P;I;D;VC\r\n");
+		}
+		else
+		{
+			LogManager::getInstance().serialPrint("Pitch;TargetPitch;P;D;VC\r\n");
+		}
 	}
 
-	std::string gyro = formatString(m_imu.m_gyro.m_y);
-	std::string targetRate = formatString(m_radio.m_targetRatePitch);
-	std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_pTerm);
-	std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_iTerm);
-	std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[1].m_dTerm);
+	std::string tmp = "";
 	std::string vc = formatString(m_motorMixer.m_voltageCompensation * 100.0f);
 
-	std::string tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + ";" + vc + "\r\n";
+	if (rate)
+	{
+		std::string gyro = formatString(m_imu.m_gyroFilterRates.m_x);
+		std::string targetRate = formatString(m_ctrlStrat.m_rateLoop[0].m_target);//m_radio.m_targetRateRoll);
+		std::string pTerm = formatString(m_ctrlStrat.m_rateLoop[0].m_pTerm);
+		std::string iTerm = formatString(m_ctrlStrat.m_rateLoop[0].m_iTerm);
+		std::string dTerm = formatString(m_ctrlStrat.m_rateLoop[0].m_dTerm);
+
+		tmp = gyro + ";" + targetRate + ";" + pTerm + ";" + iTerm + ";" + dTerm + ";" + vc + "\r\n";
+	}
+	else
+	{
+		float roll;
+		float pitch;
+		float yaw;
+
+		m_madgwickFilter.getEulerAngle(roll, pitch, yaw);
+		std::string angle = formatString(pitch);
+		std::string targetAngle = formatString(m_radio.m_targetPitch);
+		std::string pTerm = formatString(m_ctrlStrat.m_angleLoop[1].m_pTerm);
+		std::string dTerm = formatString(m_ctrlStrat.m_angleLoop[1].m_dTerm);
+
+		tmp = angle + ";" + targetAngle + ";" + pTerm + ";" + dTerm + ";" + vc + "\r\n";
+	}
+
 	LogManager::getInstance().serialPrint((char*)tmp.c_str());
 
 	callCount++;

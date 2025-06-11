@@ -13,8 +13,8 @@
 
 
 // So the linker can find them
-constexpr float IMU::m_lpf_gyro_gain;
-constexpr float IMU::m_lpf_acc_gain;
+//constexpr float IMU::m_lpf_gyro_gain;
+//constexpr float IMU::m_lpf_acc_gain;
 
 
 void IMU::init(
@@ -25,21 +25,29 @@ void IMU::init(
 		const float& accelNotchQ*/
 		)
 {
-	constexpr float lpfCutoffFrequency = 75.0f;
+	constexpr float lpfGyroRatesCutoffFrequency = 75.0f; // D term amplify noise so aggresiv filtering here
+	constexpr float lpfGyroAhrsCutoffFrequency = 75.0f; // Madgwick filter already so less aggresiv
+	constexpr float lpfAccelAhrsCutoffFrequency = 10.0f;
 
 	// Setup the IMU (ICM20948)
 	icm20948_init(); // Accelerometer & gyroscope
 	//ak09916_init();  // Magnetometer
 
 	// Init filters
-	m_lpfAccelX.init(m_lpf_acc_gain);
-	m_lpfAccelY.init(m_lpf_acc_gain);
-	m_lpfAccelZ.init(m_lpf_acc_gain);
+	float paramsAccelAhrs[1] = {lpfAccelAhrsCutoffFrequency};
+	m_lpfBiquadAhrsAccelX.init(dataAcquisitionRate, paramsAccelAhrs);
+	m_lpfBiquadAhrsAccelY.init(dataAcquisitionRate, paramsAccelAhrs);
+	m_lpfBiquadAhrsAccelZ.init(dataAcquisitionRate, paramsAccelAhrs);
 
-	float params[1] = {lpfCutoffFrequency};
-	m_lpfBiquadGyroX.init(dataAcquisitionRate, params);
-	m_lpfBiquadGyroY.init(dataAcquisitionRate, params);
-	m_lpfBiquadGyroZ.init(dataAcquisitionRate, params);
+	float paramsRates[1] = {lpfGyroRatesCutoffFrequency};
+	m_lpfBiquadRatesGyroX.init(dataAcquisitionRate, paramsRates);
+	m_lpfBiquadRatesGyroY.init(dataAcquisitionRate, paramsRates);
+	m_lpfBiquadRatesGyroZ.init(dataAcquisitionRate, paramsRates);
+
+	float paramsAhrs[1] = {lpfGyroAhrsCutoffFrequency};
+	m_lpfBiquadAhrsGyroX.init(dataAcquisitionRate, paramsAhrs);
+	m_lpfBiquadAhrsGyroY.init(dataAcquisitionRate, paramsAhrs);
+	m_lpfBiquadAhrsGyroZ.init(dataAcquisitionRate, paramsAhrs);
 
 	/*m_lpfGyroX.init(dataAcquisitionRate, lpfCutoffFrequency);
 	m_lpfGyroY.init(dataAcquisitionRate, lpfCutoffFrequency);
@@ -102,14 +110,20 @@ void IMU::readAndFilterIMU_gdps()
 
 
 	// Butterworth biquad LPFs on gyroscope data
-	m_gyro.m_x = m_lpfBiquadGyroX.apply(rawGyro.x);
-	m_gyro.m_y = m_lpfBiquadGyroY.apply(rawGyro.y);
-	m_gyro.m_z = m_lpfBiquadGyroZ.apply(rawGyro.z);
+	// For pid rates
+	m_gyroFilterRates.m_x = m_lpfBiquadRatesGyroX.apply(rawGyro.x);
+	m_gyroFilterRates.m_y = m_lpfBiquadRatesGyroY.apply(rawGyro.y);
+	m_gyroFilterRates.m_z = m_lpfBiquadRatesGyroZ.apply(rawGyro.z);
+	// For AHRS
+	m_gyroFilterAhrs.m_x = m_lpfBiquadAhrsGyroX.apply(rawGyro.x);
+	m_gyroFilterAhrs.m_y = m_lpfBiquadAhrsGyroY.apply(rawGyro.y);
+	m_gyroFilterAhrs.m_z = m_lpfBiquadAhrsGyroZ.apply(rawGyro.z);
 
 	//m_gyroRaw.m_z = m_gyro.m_y;
 
 	// Remove gyro's offset
-	m_gyro -= m_gyroOffset;
+	m_gyroFilterRates -= m_gyroOffset;
+	m_gyroFilterAhrs -= m_gyroOffset;
 
 	// Notch filter accelerometer
 	//rawAccel.x = m_notchAccelX.apply(rawAccel.x);
@@ -117,12 +131,12 @@ void IMU::readAndFilterIMU_gdps()
 	//rawAccel.z = m_notchAccelZ.apply(rawAccel.z);
 
 	// LPF accelerometer data
-	m_accel.m_x = m_lpfAccelX.apply(rawAccel.x);
-	m_accel.m_y = m_lpfAccelY.apply(rawAccel.y);
-	m_accel.m_z = m_lpfAccelZ.apply(rawAccel.z);
+	m_accelFilterAhrs.m_x = m_lpfBiquadAhrsAccelX.apply(rawAccel.x);
+	m_accelFilterAhrs.m_y = m_lpfBiquadAhrsAccelY.apply(rawAccel.y);
+	m_accelFilterAhrs.m_z = m_lpfBiquadAhrsAccelZ.apply(rawAccel.z);
 
 	// Remove accel's offset
-	m_accel -= m_accelOffset;
+	m_accelFilterAhrs -= m_accelOffset;
 }
 
 

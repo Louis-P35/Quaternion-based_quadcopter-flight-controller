@@ -22,12 +22,12 @@ template<typename T>
 class MadgwickFilter
 {
 public:
-	Quaternion<T> m_qEst = Quaternion<T>::iddentity();
+	Quaternion<T> m_qEst = Quaternion<T>::identity();
 
 public:
 	MadgwickFilter()
 	{
-		m_qEst = Quaternion<T>::iddentity();
+		m_qEst = Quaternion<T>::identity();
 	}
 
 	void compute(

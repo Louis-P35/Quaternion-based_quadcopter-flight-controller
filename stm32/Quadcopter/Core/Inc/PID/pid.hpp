@@ -10,6 +10,7 @@
 // Include from project
 #include "Utils/quaternion.hpp"
 #include "Filters/lowPassFilter.hpp"
+#include "Filters/lpfBiquadButterworth.hpp"
 
 enum class DerivativeMode
 {
@@ -114,6 +115,8 @@ public:
 	float m_measure = 0.0f;
 	float m_target = 0.0f;
 	float m_output = 0.0f;
+
+	BiquadLPF<float> m_filteredOutput;
 
 	PIDBlock() : PID() {}
 

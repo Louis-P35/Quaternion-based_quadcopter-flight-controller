@@ -43,7 +43,7 @@ public:
 
 	constexpr Quaternion() noexcept = default;
 
-	constexpr static Quaternion iddentity()
+	constexpr static Quaternion identity()
 	{
 		return Quaternion(T(1.0), T(0.0), T(0.0), T(0.0));
 	};

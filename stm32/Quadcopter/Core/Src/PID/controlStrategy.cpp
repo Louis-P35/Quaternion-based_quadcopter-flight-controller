@@ -5,86 +5,24 @@
  *      Author: louis
  */
 
+// Includes from project
 #include "PID/controlStrategy.hpp"
 
 
 /*
- * Set the angles target according to the flight mode
- */
-void ControlStrategy::setAngleTarget()
-{
-	switch (m_flightMode)
-	{
-	case StabilizationMode::STAB:
-		m_angleLoop[0].m_target = 0.0f; // Radio roll
-		m_angleLoop[1].m_target = 0.0f; // Radio pitch
-		m_angleLoop[2].m_target = 0.0f; // Radio yaw
-		break;
-
-	case StabilizationMode::ACRO:
-		// None
-		break;
-
-	case StabilizationMode::HORIZON:
-		// TODO
-		break;
-
-	case StabilizationMode::POSHOLD:
-		m_angleLoop[0].m_target = m_posLoop[0].m_output;
-		m_angleLoop[1].m_target = m_posLoop[1].m_output;
-		m_angleLoop[2].m_target = m_posLoop[2].m_output;
-		break;
-
-	default:
-		break;
-	}
-}
-
-/*
- * Set the rates target according to the flight mode
- */
-void ControlStrategy::setRateTarget(const Radio& radio)
-{
-	switch (m_flightMode)
-	{
-	case StabilizationMode::STAB:
-	case StabilizationMode::POSHOLD:
-		m_rateLoop[0].m_target = m_angleLoop[0].m_output;
-		m_rateLoop[1].m_target = m_angleLoop[1].m_output;
-		m_rateLoop[2].m_target = m_angleLoop[2].m_output;
-		break;
-
-	case StabilizationMode::ACRO:
-		m_rateLoop[0].m_target = radio.m_targetRateRoll;	// Radio
-		m_rateLoop[1].m_target = radio.m_targetRatePitch;	// Radio
-		m_rateLoop[2].m_target = radio.m_targetRateYaw;		// Radio
-		break;
-
-	case StabilizationMode::HORIZON:
-		// TODO
-		break;
-
-	default:
-		break;
-	}
-}
-
-
-/*
- *
- * runPosLoop: Run the position hold loop each time it is true
- * runAngleLoop: Run the attitude hold loop each time it is true
  *
  * return the rotation axis. It's norm is the rotation magnitude
  */
-void ControlStrategy::rateControlLoop(const float& dt, const Vector3<float>& gyro, const Radio& radio)
+void ControlStrategy::rateControlLoop(const float& dt, const Vector3<float>& gyro, const SetPoint<float>& setPoint)
 {
 	m_rateLoop[0].m_measure = gyro.m_x;
 	m_rateLoop[1].m_measure = gyro.m_y;
 	m_rateLoop[2].m_measure = gyro.m_z;
 
-	// Set the rates target according to the flight mode
-	setRateTarget(radio);
+	// Set the rates target according to the setPoint
+	m_rateLoop[0].m_target = setPoint.m_targetRateRoll;
+	m_rateLoop[1].m_target = setPoint.m_targetRatePitch;
+	m_rateLoop[2].m_target = setPoint.m_targetRateYaw;
 
 	for (int i = 0; i < 3; ++i)
 	{
@@ -93,19 +31,23 @@ void ControlStrategy::rateControlLoop(const float& dt, const Vector3<float>& gyr
 	}
 }
 
-void ControlStrategy::angleControlLoop(const float& dt)
+void ControlStrategy::angleControlLoop(
+		const float& dt,
+		const Vector3<float>& gyro,
+		const std::array<float, 3>& error,
+		const bool& integrate
+		)
 {
-	m_rateLoop[0].m_measure = 0.0f; // TODO: From gyro
-	m_rateLoop[1].m_measure = 0.0f; // TODO: From gyro
-	m_rateLoop[2].m_measure = 0.0f; // TODO: From gyro
-
-	// Set the angles target according to the flight mode
-	setAngleTarget();
+	m_rateLoop[0].m_measure = gyro.m_x;
+	m_rateLoop[1].m_measure = gyro.m_y;
+	m_rateLoop[2].m_measure = gyro.m_z;
 
 	for (int i = 0; i < 3; ++i)
 	{
-		// TODO: fix error calculation
-		//m_angleLoop[i].run(dt);
+		// measure = 0.0f because the derivative is on the error here
+		// target = 0.0f because no feedforward here
+		float pidOut = m_angleLoop[i].computePID(error[i], 0.0f, 0.0f, dt, integrate);
+		m_angleLoop[i].m_output = m_angleLoop[i].m_filteredOutput.apply(pidOut);
 	}
 }
 

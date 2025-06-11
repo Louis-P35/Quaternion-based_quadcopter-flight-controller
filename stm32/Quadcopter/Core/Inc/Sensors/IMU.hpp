@@ -24,16 +24,22 @@ private:
 	Vector3<float> m_accelOffset = Vector3<float>(0.0f, 0.0f, 0.0f);
 	Vector3<float> m_gyroOffset = Vector3<float>(0.0f, 0.0f, 0.0f);
 
-	static constexpr float m_lpf_gyro_gain = 0.05f;
-	static constexpr float m_lpf_acc_gain = 0.1f;
+	//static constexpr float m_lpf_gyro_gain = 0.05f;
+	//static constexpr float m_lpf_acc_gain = 0.1f;
 
-	LPF<float> m_lpfAccelX;
-	LPF<float> m_lpfAccelY;
-	LPF<float> m_lpfAccelZ;
+	// Filters for AHRS
+	BiquadLPF<float> m_lpfBiquadAhrsAccelX;
+	BiquadLPF<float> m_lpfBiquadAhrsAccelY;
+	BiquadLPF<float> m_lpfBiquadAhrsAccelZ;
 
-	BiquadLPF<float> m_lpfBiquadGyroX;
-	BiquadLPF<float> m_lpfBiquadGyroY;
-	BiquadLPF<float> m_lpfBiquadGyroZ;
+	BiquadLPF<float> m_lpfBiquadAhrsGyroX;
+	BiquadLPF<float> m_lpfBiquadAhrsGyroY;
+	BiquadLPF<float> m_lpfBiquadAhrsGyroZ;
+
+	// Filters for PID rates
+	BiquadLPF<float> m_lpfBiquadRatesGyroX;
+	BiquadLPF<float> m_lpfBiquadRatesGyroY;
+	BiquadLPF<float> m_lpfBiquadRatesGyroZ;
 
 	/*LPF<float> m_lpfGyroX;
 	LPF<float> m_lpfGyroY;
@@ -56,8 +62,9 @@ private:
 	NotchFilter<float> m_notchAccelZ;*/
 
 public:
-	Vector3<float> m_accel = {0.0f};
-	Vector3<float> m_gyro = {0.0f};
+	Vector3<float> m_accelFilterAhrs = {0.0f};
+	Vector3<float> m_gyroFilterRates = {0.0f};
+	Vector3<float> m_gyroFilterAhrs = {0.0f};
 	Vector3<float> m_gyroRaw = {0.0f};
 
 	Vector3<float> m_gyroDebug[5000];
