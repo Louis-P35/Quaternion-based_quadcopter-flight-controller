@@ -7,6 +7,9 @@
 
 #pragma once
 
+// Includes from project
+#include "Filters/lowPassFilter.hpp"
+
 
 /*
  * Optical flow sensor base class.
@@ -14,11 +17,21 @@
  */
 class OpticalFlowSensor
 {
+protected:
+	LPF<float> m_lpfLidar;
+	LPF<float> m_lpfVelX;
+	LPF<float> m_lpfVelY;
+
+public:
+	float m_lidarDist = 0.0f;
+	float m_xVelocity = 0.0f;
+	float m_yVelocity = 0.0f;
+
 public:
 	OpticalFlowSensor() = default;
 
 	virtual bool init() = 0;
-	virtual void readSensor() noexcept override = 0;
+	virtual void readSensor() noexcept = 0;
 
 	virtual float getLidarDist() const noexcept = 0;
 	virtual float getXVelocity() const noexcept = 0;

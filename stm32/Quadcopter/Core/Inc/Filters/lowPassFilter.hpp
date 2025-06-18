@@ -7,6 +7,9 @@
 
 #pragma once
 
+// Includes form STL
+#include "cmath"
+
 
 template<typename T>
 class LPF

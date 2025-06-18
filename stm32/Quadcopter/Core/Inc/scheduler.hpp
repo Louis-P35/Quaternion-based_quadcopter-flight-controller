@@ -19,6 +19,7 @@
 #include "Utils/vector.hpp"
 #include "BlackboxSD/blackbox.hpp"
 #include "setPoints.hpp"
+#include "Sensors/mtf01.hpp"
 
 
 // DO not change this unless change the timer 2 settings accordingly
@@ -50,6 +51,9 @@ public:
 
 	// Radio
 	Radio m_radio;
+
+	// Optical flow sensor
+	Mtf01 m_opticalflow;
 
 	// Target state (input of the PIDs controller)
 	// Driven by the radio or autonomous control
