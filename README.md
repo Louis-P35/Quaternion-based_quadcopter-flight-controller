@@ -14,6 +14,15 @@ This repository contains the source code for a quadcopter drone flight controlle
 - **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation
 - **PID Controllers**: For various flight modes including stabilized, acrobatic, and GPS position mode
 
+## Architecture Diagram
+[![Diagram overview](docs/DroneArchitectureDiagram.drawio.svg)](docs/DroneArchitectureDiagram.drawio.svg)
+<details>
+<summary>See the full size diagram here (clic to unroll)</summary>
+
+<img src="docs/DroneArchitectureDiagram.drawio.svg" alt="Architectur diagram of the flight controller">
+
+</details>
+
 
 ## Quaternions
 
