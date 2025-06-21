@@ -15,13 +15,20 @@ This repository contains the source code for a quadcopter drone flight controlle
 - **PID Controllers**: For various flight modes including stabilized, acrobatic, and GPS position mode
 
 ## Architecture Diagram
-[![Diagram overview](docs/DroneArchitectureDiagram.drawio.svg)](docs/DroneArchitectureDiagram.drawio.svg)
+<!--[![Diagram overview](docs/DroneArchitectureDiagram.drawio.svg)](docs/DroneArchitectureDiagram.drawio.svg)-->
+<a href="docs/DroneArchitectureDiagram.svg?raw=true" target="_blank">
+  <img src="docs/DroneArchitectureDiagram.svg" alt="Aperçu du diagramme" />
+</a>
 <details>
 <summary>See the full size diagram here (clic to unroll)</summary>
 
-<img src="docs/DroneArchitectureDiagram.drawio.svg" alt="Architectur diagram of the flight controller">
+<!-- <img src="docs/DroneArchitectureDiagram.drawio.svg" alt="Architectur diagram of the flight controller">-->
+<a href="docs/DroneArchitectureDiagram.svg?raw=true" target="_blank">
+  <img src="docs/DroneArchitectureDiagram.svg" alt="Architectur diagram of the flight controller" />
+</a>
 
 </details>
+
 
 
 ## Quaternions
