@@ -14,9 +14,9 @@ This repository contains the source code for a quadcopter drone flight controlle
 - **AHRS (Attitude Estimation)**: Use a Madgwick filter (sensor fusion) for stabilized flight mode.
 - **Quaternion Calculations**: To avoid gimbal lock pitfall and enable efficient spherical rotation interpolation, quaternions are used in the entire control loop.
 - **PID Controllers**: 3 PID controllers can be chained for various flight modes including stabilized, acrobatic, and position hold mode. PID coefficients can be tuned.
-- **Filtering**: First order and second order low pass filter are used to filter out the noise. CutOff frequencys can be tuned.
+- **Filtering**: First order and second order low pass filter are used to filter out the noise. Cutoff frequencys can be tuned.
 - **Blackbox**: Data logging asynchronousely (over UART), data logging on SD card comming soon.
-- **Battery Voltage Compensation**: The motors power is constently ajusted according to the battery level. Avoiding power drop at low battery.
+- **Battery Voltage Compensation**: The motors power is constently ajusted according to the battery level. Avoiding to loose thrust at low battery.
 
 Coming soon:
 - **CLI**: Command line interface to tune radio input, PID coefficient and filters.
