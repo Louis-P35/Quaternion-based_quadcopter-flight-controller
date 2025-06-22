@@ -20,7 +20,7 @@ def plot_fft(signal, sample_rate):
 
     plt.figure(figsize=(12, 6))
     plt.plot(freqs, fft_vals, color='navy')
-    plt.title('FFT of Signal')
+    plt.title('FFT of filtered gyroscope signal')
     plt.xlabel('Frequency (Hz)')
     plt.ylabel('Amplitude')
     plt.grid(True)

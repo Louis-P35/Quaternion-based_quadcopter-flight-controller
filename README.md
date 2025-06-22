@@ -12,7 +12,7 @@ This repository contains the source code for a quadcopter drone flight controlle
 - **ESC Control**: Generating 500Hz PWM signals for brushless motors' ESCs
 - **AHRS (Attitude Estimation)**: Madgwick filter
 - **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation
-- **PID Controllers**: For various flight modes including stabilized, acrobatic, and GPS position mode
+- **PID Controllers**: 3 PID controllers can be chained for various flight modes including stabilized, acrobatic, and position hold mode
 
 ## Architecture Diagram
 
@@ -48,6 +48,18 @@ The project utilizes chained PID controllers to manage motor power in different 
 
 
 ## Finite State Machines
+
+
+## Filtering
+Filtering noise is a crutial part of a flight controler. Motors and propellers generates a lot of vibrations that propagate to the IMU that is hightly sensitiv to it. Silent blocs help mecanicaly reduce it but a proper filtering is still mandatory.
+The graph below show the raw gyroscope data (blue line) of the pitch axis with the motors running at around 40% of their power, and the filtered data (orange line).
+The filter is a second order low pass filter (biquad Butterworth) with a 75Hz cutoff frequency. 
+![Gyro signal](docs/gyroFiltering.png)
+
+
+The two graphs below are the fast Fourrier transform (FFT) of the gyroscope data of the pitch axis with the motors at 40% of power. On the left the FFT of the raw unfiltered data is shown, on the right the FFT of the filtered data.
+![FFT Of Gyro signal](docs/rawAndFilteredGyroFFT.png)
+The big spike at 0-20 Hz is due to the drone's movement. The spikes at around 100Hz and beyond are noise and its harmonics. The second order low pass filter show a huge effect.
 
 
 ## Hardware
