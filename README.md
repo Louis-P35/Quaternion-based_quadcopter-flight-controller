@@ -47,15 +47,15 @@ The project utilizes chained PID controllers to manage motor power in different 
 
 - **Stabilized Mode**:
   - **Cascaded PIDs for Attitude Control**:
-    Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+    - Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
     - The attitude error is processed by a PID controller to produce an angular rate target. This target is then used as the input for another PID controller, which compute the torque vector.
 
 - **Acrobatic Mode**:
-  Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+  - Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
   - The angular rate error is processed by a PID controller to directly compute the torque vector.
 
 - **Position Hold Mode**:
-  Position Setpoint -> [PID Position] -> Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+  - Position Setpoint -> [PID Position] -> Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
   - The position error is processed by a PID controller to produce an attitude target. Then the attitude error is processed by a PID controller to produce an angular rate target. Finally this rate target is used as the input for rate PID controller, which compute the torque vector.
 
 
