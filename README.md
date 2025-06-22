@@ -1,4 +1,4 @@
-# Quadcopter Drone Flight Controller
+# MicroFlight - a quadcopter drone flight controller
 
 ## Overview
 
@@ -8,10 +8,11 @@ This repository contains the source code for a quadcopter drone flight controlle
 
 - **Microcontroller**: STM32H7 running at 480 MHz
 - **IMU Sensor**: ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer)
+- **Optical Flow & Lidar**: MTF-01 sensor provide horizontal velocity and ground distance to enable position holding.
 - **Radio Receiver**: Reading Sbus signals
 - **ESC Control**: Generating 500Hz PWM signals for brushless motors' ESCs
-- **AHRS (Attitude Estimation)**: Madgwick filter
-- **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation
+- **AHRS (Attitude Estimation)**: Madgwick filter, for stabilized flight mode
+- **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation, quaternions are used
 - **PID Controllers**: 3 PID controllers can be chained for various flight modes including stabilized, acrobatic, and position hold mode
 
 ## Architecture Diagram
@@ -24,13 +25,14 @@ Click on it to open it on fullscreen
 
 ## Quaternions
 
-Quaternion is use through the entire control loop.
+Quaternions are used through the entire control loop.
 Quaternions avoid singularities (like gimbal lock) that can occur with Euler angles, making them a robust choice for representing 3D rotations, especially in drones that can maneuver aggressively.
 
 
 ## AHRS (Attitude and Heading Reference System)
 
-The AHRS fuses data from the accelerometer, gyroscope, and magnetometer using a Maggwick filter to estimate the attitude of the quadcopter.
+The AHRS fuses data from the accelerometer and gyroscope using a Madgwick filter to estimate the attitude of the quadcopter.
+Madgwick filter is fast (use a gradient descent algorithm) and directly output a quaternion.
 
 ## PID Control
 
@@ -51,15 +53,15 @@ The project utilizes chained PID controllers to manage motor power in different 
 
 
 ## Filtering
-Filtering noise is a crutial part of a flight controler. Motors and propellers generates a lot of vibrations that propagate to the IMU that is hightly sensitiv to it. Silent blocs help mecanicaly reduce it but a proper filtering is still mandatory.
+Filtering noise is a crucial part of a flight controler. Motors and propellers generates a lot of vibrations that propagate to the IMU that is highly sensitive to it. Silent blocks help mechanicaly reduce it but a proper filtering is still mandatory.
 The graph below show the raw gyroscope data (blue line) of the pitch axis with the motors running at around 40% of their power, and the filtered data (orange line).
 The filter is a second order low pass filter (biquad Butterworth) with a 75Hz cutoff frequency. 
 ![Gyro signal](docs/gyroFiltering.png)
 
 
-The two graphs below are the fast Fourrier transform (FFT) of the gyroscope data of the pitch axis with the motors at 40% of power. On the left the FFT of the raw unfiltered data is shown, on the right the FFT of the filtered data.
+The two graphs below are the fast Fourier transform (FFT) of the gyroscope data of the pitch axis with the motors at 40% of power. On the left the FFT of the raw unfiltered data is shown, on the right the FFT of the filtered data.
 ![FFT Of Gyro signal](docs/rawAndFilteredGyroFFT.png)
-The big spike at 0-20 Hz is due to the drone's movement. The spikes at around 100Hz and beyond are noise and its harmonics. The second order low pass filter show a huge effect.
+The big spike at 0-20 Hz is due to the drone's movement. The spikes at around 100Hz and beyond are noise and its harmonics. The second order low pass filter show a huge effect at reducing the noise.
 
 
 ## Hardware
