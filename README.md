@@ -6,14 +6,21 @@ This repository contains the source code for a quadcopter drone flight controlle
 
 ## Features
 
-- **Microcontroller**: STM32H7 running at 480 MHz
-- **IMU Sensor**: ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer)
-- **Optical Flow & Lidar**: MTF-01 sensor provide horizontal velocity and ground distance to enable position holding.
-- **Radio Receiver**: Reading Sbus signals
-- **ESC Control**: Generating 500Hz PWM signals for brushless motors' ESCs
-- **AHRS (Attitude Estimation)**: Madgwick filter, for stabilized flight mode
-- **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation, quaternions are used
-- **PID Controllers**: 3 PID controllers can be chained for various flight modes including stabilized, acrobatic, and position hold mode
+- **Microcontroller**: Support the STM32H7 microcontroler, running at 480 MHz.
+- **IMU Sensor**: Support the ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer) IMU with SPI for fast communication.
+- **Optical Flow & Lidar**: Support the MTF-01 sensor, it provide horizontal velocity and ground distance to enable position and altitude holding.
+- **Radio Receiver**: Support PWM signals and Sbus protocol.
+- **ESC Control**: Support 500Hz PWM generation to command the brushless motors' ESCs.
+- **AHRS (Attitude Estimation)**: Use a Madgwick filter (sensor fusion) for stabilized flight mode.
+- **Quaternion Calculations**: To avoid gimbal lock pitfall and enable efficient spherical rotation interpolation, quaternions are used in the entire control loop.
+- **PID Controllers**: 3 PID controllers can be chained for various flight modes including stabilized, acrobatic, and position hold mode. PID coefficients can be tuned.
+- **Filtering**: First order and second order low pass filter are used to filter out the noise. CutOff frequencys can be tuned.
+- **Blackbox**: Data logging asynchronousely (over UART), data logging on SD card comming soon.
+- **Battery Voltage Compensation**: The motors power is constently ajusted according to the battery level. Avoiding power drop at low battery.
+
+Coming soon:
+- **CLI**: Command line interface to tune radio input, PID coefficient and filters.
+- **Crash Recovery**: Freefal detection and recover from it.
 
 ## Architecture Diagram
 
@@ -40,14 +47,31 @@ The project utilizes chained PID controllers to manage motor power in different 
 
 - **Stabilized Mode**:
   - **Cascaded PIDs for Attitude Control**:
+    Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
     - The attitude error is processed by a PID controller to produce an angular rate target. This target is then used as the input for another PID controller, which compute the torque vector.
 
 - **Acrobatic Mode**:
+  Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
   - The angular rate error is processed by a PID controller to directly compute the torque vector.
+
+- **Position Hold Mode**:
+  Position Setpoint -> [PID Position] -> Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+  - The position error is processed by a PID controller to produce an attitude target. Then the attitude error is processed by a PID controller to produce an angular rate target. Finally this rate target is used as the input for rate PID controller, which compute the torque vector.
 
 
 ## Mixer
 
+The mixer is responsible for translating the desired thrust and torque commands into individual motor power levels. This is achieved through a linear transformation that accounts for the drone's geometry and motor configuration.
+
+### X-Configuration Mixing
+In the X-quad configuration, the mixer computes the motor outputs based on a target thrust (T) and torques around the three body axes (tx, ty, tz).
+
+### Voltage Compensation
+Motor commands are adjusted based on the battery voltage to maintain consistent thrust even as the battery discharges. Since thrust is proportional to the square of the voltage, a quadratic compensation is applied. A low-pass filter smooths the ADC readings to avoid abrupt changes.
+
+### Clamping and Rescaling
+To ensure motor outputs remain within the valid range [0, 1000], the mixer applies a rescaling procedure. If any motor command falls outside this range, all outputs are linearly scaled to preserve the relative distribution while ensuring no negative or overdriven values.
+This ensures the drone maintains maneuverability even when operating at or near full throttle, by preserving control authority through motor power rescaling.
 
 ## Finite State Machines
 
