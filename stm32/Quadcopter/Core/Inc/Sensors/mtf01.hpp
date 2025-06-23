@@ -63,16 +63,71 @@ class OpticalFlowProtocole
 public:
 	OpticalFlowProtocole() = default;
 
-	virtual bool decodeBuffer(const std::array<uint8_t, MTF01_FRAME_SIZE>& pRxBuffer, float& flowX, float& flowY, float& height) = 0;
+	virtual bool decodeBuffer() = 0;
 };
 
 
+/*
+ * Handle the rx frame with a state machine, as it is received byte per byte.
+ */
 class MavlinkProtocole : public OpticalFlowProtocole
 {
+private:
+	// Sensor data
+	float m_flowX;    	// X optical flow (m/s)
+	float m_flowY;    	// Y optical flow (m/s)
+	float m_height;   	// Height (meters)
+	uint8_t m_quality; 	// Flow quality
+	bool m_dataValid; 	// True if latest data is valid
+
+	// Receive buffer
+	static constexpr size_t RX_BUFFER_SIZE = 64; // Large enough for MAVLink packets
+	std::array<uint8_t, RX_BUFFER_SIZE> m_rxBuffer;
+	uint8_t m_rxByte; // Single byte for interrupt reception
+
+	// MAVLink parsing state
+	enum class ParseState
+	{
+		WAITING_FOR_STX,
+		LEN,
+		SEQ,
+		SYSID,
+		COMPID,
+		MSGID,
+		PAYLOAD,
+		CRC_L,
+		CRC_H
+	};
+	ParseState m_parseState;
+
+	size_t m_rxIndex;
+	size_t m_payloadLength;
+	static constexpr uint8_t MAVLINK_STX_V1 = 0xFE; // MAVLink v1 start byte
+	static constexpr uint8_t OPTICAL_FLOW_MSG_ID = 100; // MAVLink OPTICAL_FLOW message ID
+	static constexpr uint8_t OPTICAL_FLOW_CRC_EXTRA = 175; // CRC seed for OPTICAL_FLOW
+
+	// MAVLink packet structure
+	struct MavlinkPacket_t
+	{
+		uint8_t len;
+		uint8_t seq;
+		uint8_t sysid;
+		uint8_t compid;
+		uint8_t msgid;
+		std::array<uint8_t, 255> payload; // Max payload size
+		uint16_t crc;
+	};
+	MavlinkPacket_t m_packet;
+
 public:
 	MavlinkProtocole() = default;
 
-	virtual bool decodeBuffer(const std::array<uint8_t, MTF01_FRAME_SIZE>& pRxBuffer, float& flowX, float& flowY, float& height) override;
+	void handleByte(const uint8_t& byte);
+	virtual bool decodeBuffer() override;
+
+private:
+	uint16_t calculateCrc(const uint8_t* pBuffer, const size_t& len, const uint8_t& crcExtra) const; // MAVLink CRC
+
 };
 
 
@@ -86,6 +141,10 @@ public:
 	static constexpr float m_lidarRangeMeterMax = 8.0f;
 	static constexpr float m_lidarRangeMeterMin = 0.02f;
 	static constexpr float m_opticalFlowMinWorkingDistance = 0.08f;
+
+	float m_flowX = 0.0f;
+	float m_flowY = 0.0f;
+	float m_height = 0.0f;
 
 public:
 	Mtf01() = default;

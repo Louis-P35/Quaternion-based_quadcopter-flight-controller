@@ -15,7 +15,7 @@ extern "C" {
 #include <stdint.h>
 
 
-#define MTF01_FRAME_SIZE 64
+#define MTF01_FRAME_SIZE 128
 
 void mtf01CopyFrame();
 
