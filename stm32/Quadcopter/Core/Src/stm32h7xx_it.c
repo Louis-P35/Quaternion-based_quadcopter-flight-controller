@@ -23,6 +23,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Radio/pwmWrapperC.h"
+#include "Radio/sbusWrapperC.h"
+#include "Sensors/mtf01WrapperC.h"
 #include "orchestrator.h"
 /* USER CODE END Includes */
 
@@ -306,6 +308,13 @@ void USART2_IRQHandler(void)
 void UART4_IRQHandler(void)
 {
   /* USER CODE BEGIN UART4_IRQn 0 */
+	// Check IDLE
+	if (__HAL_UART_GET_FLAG(&huart4, UART_FLAG_IDLE))
+	{
+		__HAL_UART_CLEAR_IDLEFLAG(&huart4);
+
+		mtf01CopyFrame();
+	}
 
   /* USER CODE END UART4_IRQn 0 */
   HAL_UART_IRQHandler(&huart4);

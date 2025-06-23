@@ -7,6 +7,7 @@ This repository contains the source code for a quadcopter drone flight controlle
 ## Features
 
 - **Microcontroller**: Support the STM32H7 microcontroler, running at 480 MHz.
+- **High frequency loop**: IMU data acquisition and filtering at 4khz, PID rate running at 2khz.
 - **IMU Sensor**: Support the ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer) IMU with SPI for fast communication.
 - **Optical Flow & Lidar**: Support the MTF-01 sensor, it provide horizontal velocity and ground distance to enable position and altitude holding.
 - **Radio Receiver**: Support PWM signals and Sbus protocol.
@@ -21,6 +22,7 @@ This repository contains the source code for a quadcopter drone flight controlle
 Coming soon:
 - **CLI**: Command line interface to tune radio input, PID coefficient and filters.
 - **Crash Recovery**: Freefal detection and recover from it.
+- **FFT and Notch filters**: Run a FFT in real time to detect noise frequency and precisely cut it with Notch filters.
 
 ## Architecture Diagram
 

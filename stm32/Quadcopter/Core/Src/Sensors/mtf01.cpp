@@ -8,6 +8,23 @@
 // Includes from project
 #include "Sensors/mtf01.hpp"
 
+// Includes from HAL
+#include "stm32h7xx_hal.h"
+
+extern UART_HandleTypeDef huart4;
+extern uint8_t mtf01BufCopy[];
+
+
+/*
+ *
+ */
+bool MavlinkProtocole::decodeBuffer(
+		const std::array<uint8_t, MTF01_FRAME_SIZE>& pRxBuffer,
+		float& flowX, float& flowY, float& height)
+{
+	return false;
+}
+
 
 /*
  * Init low pass filters
@@ -20,6 +37,8 @@ bool Mtf01::init()
 	m_lpfLidar.init(m_outputFrequency, cutoffFrequency);
 	m_lpfVelX.init(m_outputFrequency, cutoffFrequency);
 	m_lpfVelY.init(m_outputFrequency, cutoffFrequency);
+
+	return true;
 }
 
 

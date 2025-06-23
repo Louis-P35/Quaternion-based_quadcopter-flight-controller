@@ -9,6 +9,24 @@
 
 // Includes from project
 #include "Filters/lowPassFilter.hpp"
+#include "Sensors/mtf01WrapperC.h"
+
+// Includes from STL
+#include <stdint.h>
+#include <array>
+
+
+/*struct MavlinkOpticalFlow_t
+{
+    uint64_t timeUsec;		// Timestamp (microseconds)
+    float flowCompMX;		// Flow in meters/sec (X-axis, body frame)
+    float flowCompMY;		// Flow in meters/sec (Y-axis, body frame)
+    float groundDistance;	// Ground distance in meters
+    int16_t flowX;			// Raw flow in pixels (X-axis)
+    int16_t flowY;			// Raw flow in pixels (Y-axis)
+    uint8_t sensorId;		// Sensor ID
+    uint8_t quality;		// Flow quality (0–255)
+};*/
 
 
 /*
@@ -39,10 +57,29 @@ public:
 };
 
 
+
+class OpticalFlowProtocole
+{
+public:
+	OpticalFlowProtocole() = default;
+
+	virtual bool decodeBuffer(const std::array<uint8_t, MTF01_FRAME_SIZE>& pRxBuffer, float& flowX, float& flowY, float& height) = 0;
+};
+
+
+class MavlinkProtocole : public OpticalFlowProtocole
+{
+public:
+	MavlinkProtocole() = default;
+
+	virtual bool decodeBuffer(const std::array<uint8_t, MTF01_FRAME_SIZE>& pRxBuffer, float& flowX, float& flowY, float& height) override;
+};
+
+
 /*
  * MTF-01 optical flow and lidar sensor.
  */
-class Mtf01 : public OpticalFlowSensor
+class Mtf01 : public OpticalFlowSensor, public MavlinkProtocole
 {
 public:
 	static constexpr int m_outputFrequency = 100;
