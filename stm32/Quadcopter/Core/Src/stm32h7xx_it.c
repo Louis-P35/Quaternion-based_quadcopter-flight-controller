@@ -47,6 +47,7 @@
 /* USER CODE BEGIN PV */
 
 extern volatile int uart2TxBusy;
+extern volatile uint8_t rxByteMtf01;
 
 /* USER CODE END PV */
 
@@ -57,6 +58,19 @@ extern volatile int uart2TxBusy;
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+
+/* USER CODE END 0 */
+
+/* External variables --------------------------------------------------------*/
+extern TIM_HandleTypeDef htim2;
+extern DMA_HandleTypeDef hdma_uart4_rx;
+extern DMA_HandleTypeDef hdma_usart2_tx;
+extern DMA_HandleTypeDef hdma_usart6_rx;
+extern UART_HandleTypeDef huart4;
+extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart6;
+/* USER CODE BEGIN EV */
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
@@ -79,18 +93,27 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
     }
 }
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == UART4)
+    {
+        // Process rxByteMtf01
+        HAL_UART_Receive_IT(&huart4, &rxByteMtf01, 1); // Restart reception
+    }
+}
 
-/* USER CODE END 0 */
-
-/* External variables --------------------------------------------------------*/
-extern TIM_HandleTypeDef htim2;
-extern DMA_HandleTypeDef hdma_uart4_rx;
-extern DMA_HandleTypeDef hdma_usart2_tx;
-extern DMA_HandleTypeDef hdma_usart6_rx;
-extern UART_HandleTypeDef huart4;
-extern UART_HandleTypeDef huart2;
-extern UART_HandleTypeDef huart6;
-/* USER CODE BEGIN EV */
+void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == UART4)
+    {
+        // Clear error flags
+        __HAL_UART_CLEAR_OREFLAG(huart);
+        __HAL_UART_CLEAR_NEFLAG(huart);
+        __HAL_UART_CLEAR_FEFLAG(huart);
+        // Restart reception
+        HAL_UART_Receive_IT(huart, &rxByteMtf01, 1);
+    }
+}
 
 /* USER CODE END EV */
 
@@ -313,7 +336,10 @@ void UART4_IRQHandler(void)
 	{
 		__HAL_UART_CLEAR_IDLEFLAG(&huart4);
 
-		mtf01CopyFrame();
+		// Get the buffer size read before it got idle
+		size_t dmaPos = MTF01_FRAME_SIZE - __HAL_DMA_GET_COUNTER(huart4.hdmarx);
+
+		mtf01CopyFrame(dmaPos);
 	}
 
   /* USER CODE END UART4_IRQn 0 */

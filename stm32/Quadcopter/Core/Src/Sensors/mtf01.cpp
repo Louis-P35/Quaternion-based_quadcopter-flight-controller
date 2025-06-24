@@ -168,9 +168,39 @@ void MavlinkProtocole::handleByte(const uint8_t& byte)
  */
 bool MavlinkProtocole::decodeBuffer()
 {
-	// TODO
+	if (m_packet.msgid != OPTICAL_FLOW_MSG_ID)
+	{
+		return false;
+	}
 
-	return false;
+	if (m_payloadLength < 26) // Ensure payload has at least 26 bytes
+	{
+		return false;
+	}
+
+	const uint8_t* p = m_packet.payload.data();
+
+	// Little-endian decode
+	uint32_t time_usec_lo = p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+	uint32_t time_usec_hi = p[4] | (p[5] << 8) | (p[6] << 16) | (p[7] << 24);
+	uint64_t time_usec = ((uint64_t)time_usec_hi << 32) | time_usec_lo;
+
+	int16_t flowX = p[8] | (p[9] << 8);
+	int16_t flowY = p[10] | (p[11] << 8);
+
+	float flowCompMX = *reinterpret_cast<const float*>(&p[12]);
+	float flowCompMY = *reinterpret_cast<const float*>(&p[16]);
+	float groundDistance = *reinterpret_cast<const float*>(&p[20]);
+
+	uint8_t quality = p[24];
+
+	// Save values
+	m_flowX = flowCompMX;
+	m_flowY = flowCompMY;
+	m_height = groundDistance;
+	m_quality = quality;
+
+	return true;
 }
 
 

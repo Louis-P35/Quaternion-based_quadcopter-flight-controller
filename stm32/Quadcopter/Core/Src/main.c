@@ -60,6 +60,8 @@ DMA_HandleTypeDef hdma_usart6_rx;
 extern uint8_t sbusBuf[];
 extern uint8_t mtf01Buf[];
 
+volatile uint8_t rxByteMtf01 = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -137,9 +139,14 @@ int main(void)
 	// Enable the UART IDLE interrupt so we know when a full frame has arrived
 	__HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
 
+	// Start uart4 reception
+	/*if (HAL_UART_Receive_IT(&huart4, &rxByteMtf01, 1) != HAL_OK)
+	{
+	    Error_Handler();
+	}*/
 	// Clear any pending IDLE flag
 	__HAL_UART_CLEAR_IDLEFLAG(&huart4);
-	// Kick off the circular DMA transfer into the 32-byte buffer
+	// Kick off the circular DMA transfer into the buffer
 	HAL_UART_Receive_DMA(&huart4, mtf01Buf, MTF01_FRAME_SIZE);
 	// Enable the UART IDLE interrupt so we know when a full frame has arrived
 	__HAL_UART_ENABLE_IT(&huart4, UART_IT_IDLE);
@@ -536,7 +543,8 @@ static void MX_UART4_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN UART4_Init 2 */
-
+  HAL_NVIC_SetPriority(UART4_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(UART4_IRQn);
   /* USER CODE END UART4_Init 2 */
 
 }
@@ -655,7 +663,7 @@ static void MX_DMA_Init(void)
   HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
   /* DMA1_Stream2_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 2, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream2_IRQn);
 
 }
