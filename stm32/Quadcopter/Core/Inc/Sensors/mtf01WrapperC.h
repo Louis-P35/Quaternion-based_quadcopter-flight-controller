@@ -18,6 +18,7 @@ extern "C" {
 #define MTF01_FRAME_SIZE 255
 
 void mtf01CopyFrame(const size_t dmaPos);
+void mtf01WrapperSetInstance(void* pInstance);
 
 
 #ifdef __cplusplus

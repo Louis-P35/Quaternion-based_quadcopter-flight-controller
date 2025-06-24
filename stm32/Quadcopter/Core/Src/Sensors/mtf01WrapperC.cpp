@@ -7,9 +7,13 @@
 
 // Includes from project
 #include "Sensors/mtf01WrapperC.h"
+#include "Sensors/mtf01.hpp"
 
 // Includes from STL
 #include <cstring>
+
+
+static void* g_mtf01Instance = NULL;
 
 
 // Place the DMA receive buffer into AXI-SRAM (D2) so the DMA engine can write to it.
@@ -18,6 +22,15 @@ uint8_t mtf01Buf[MTF01_FRAME_SIZE] __attribute__((section(".axisram_bss")));
 uint8_t mtf01BufCopy[MTF01_FRAME_SIZE];
 size_t mtf01BufLen = 0;
 bool g_mtf01NewFrameReady = false;
+
+
+/*
+ * Store the Mtf01 class instance
+ */
+void mtf01WrapperSetInstance(void* pInstance)
+{
+    g_mtf01Instance = pInstance;
+}
 
 
 /*
@@ -60,7 +73,14 @@ void mtf01CopyFrame(const size_t dmaPos)
 		maxLen = dataLength;
 	}
 
-	//g_mtf01NewFrameReady = true;
+	// Call C++ method
+	if (g_mtf01Instance)
+	{
+		for (size_t i = 0; i < dataLength; ++i)
+		{
+			((MavlinkProtocole*)g_mtf01Instance)->handleByte(mtf01BufCopy[i]);
+		}
+	}
 }
 
 
