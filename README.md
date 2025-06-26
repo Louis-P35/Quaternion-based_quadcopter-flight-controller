@@ -9,8 +9,8 @@ This repository contains the source code for a quadcopter drone flight controlle
 - **Microcontroller**: Support the STM32H7 microcontroler, running at 480 MHz.
 - **High frequency loop**: IMU data acquisition and filtering at 4khz, PID rate running at 2khz.
 - **IMU Sensor**: Support the ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer) IMU with SPI for fast communication.
-- **Optical Flow & Lidar**: Support the MTF-01 sensor, it provide horizontal velocity and ground distance to enable position and altitude holding.
-- **Radio Receiver**: Support PWM signals and Sbus protocol.
+- **Optical Flow & Lidar**: Support the MTF-01 sensor, it provide horizontal velocity and ground distance to enable position and altitude holding. Use UART with the DMA for non-blocking reading.
+- **Radio Receiver**: Support PWM signals and Sbus protocol. Read the Sbus signal over UART with the DMA for non-blocking reading.
 - **ESC Control**: Support 500Hz PWM generation to command the brushless motors' ESCs.
 - **AHRS (Attitude Estimation)**: Use a Madgwick filter (sensor fusion) for stabilized flight mode.
 - **Quaternion Calculations**: To avoid gimbal lock pitfall and enable efficient spherical rotation interpolation, quaternions are used in the entire control loop.
@@ -48,17 +48,19 @@ Madgwick filter is fast (use a gradient descent algorithm) and directly output a
 The project utilizes chained PID controllers to manage motor power in different flight modes.
 
 - **Stabilized Mode**:
-  - **Cascaded PIDs for Attitude Control**:
+  - **Two Cascaded PIDs for Attitude Control**:
     - Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
     - The attitude error is processed by a PID controller to produce an angular rate target. This target is then used as the input for another PID controller, which compute the torque vector.
 
 - **Acrobatic Mode**:
-  - Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
-  - The angular rate error is processed by a PID controller to directly compute the torque vector.
+  - **Single PID for Rate Control**:
+    - Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+    - The angular rate error is processed by a PID controller to directly compute the torque vector.
 
 - **Position Hold Mode**:
-  - Position Setpoint -> [PID Position] -> Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
-  - The position error is processed by a PID controller to produce an attitude target. Then the attitude error is processed by a PID controller to produce an angular rate target. Finally this rate target is used as the input for rate PID controller, which compute the torque vector.
+  - **Three Cascaded PIDs for Position Control**:
+    - Position Setpoint -> [PID Position] -> Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+    - The position error is processed by a PID controller to produce an attitude target. Then the attitude error is processed by a PID controller to produce an angular rate target. Finally this rate target is used as the input for rate PID controller, which compute the torque vector.
 
 
 ## Mixer
