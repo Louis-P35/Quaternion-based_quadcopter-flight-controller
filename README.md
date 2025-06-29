@@ -110,3 +110,8 @@ To do this, use the MicroAssistant tool form https://github.com/micoair/MTF-01_U
 - **PCB**: A custom PCB board is made to best fit in the chassis. The IMU is solder on this PCB that plugged as a shield on the microcontroller development board.
 
 ![Electronics](pictures/electronics.jpg)
+
+
+- **MTF-01**: The Optical Flow & Lidar sensor (MTF-01), below the drone, facing the ground.
+
+![MTF-01](pictures/mtf-01.jpg)
