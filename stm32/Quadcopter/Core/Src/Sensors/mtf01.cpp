@@ -58,8 +58,6 @@ uint16_t MavlinkProtocole::calculateCrc(const uint8_t* pBuffer, const size_t& le
  */
 void MavlinkProtocole::handleByte(const uint8_t& byte)
 {
-	uint16_t ttmp;
-
     switch (m_parseState)
     {
         case ParseState::WAITING_FOR_STX:
@@ -117,14 +115,12 @@ void MavlinkProtocole::handleByte(const uint8_t& byte)
 
         case ParseState::CRC_L:
         	m_packet.crc = byte;
-        	ttmp = m_packet.crc;
         	m_rxBuffer[m_rxIndex++] = byte;
         	m_parseState = ParseState::CRC_H;
             break;
 
         case ParseState::CRC_H:
         	m_packet.crc |= (uint16_t)byte << 8;
-        	ttmp = m_packet.crc;
         	m_rxBuffer[m_rxIndex++] = byte;
 
         	/*for (int i = 0; i < m_rxIndex; ++i)
@@ -177,13 +173,14 @@ void MavlinkProtocole::handleByte(const uint8_t& byte)
 
 
 /*
- *
+ *	Decode the read Mavlink packets.
+ *	Can be Optical Flow packet or Lidar packet.
  */
 bool MavlinkProtocole::decodeBuffer()
 {
     switch (m_packet.msgid)
     {
-    /* OPTICAL_FLOW  (26 bytes) */
+    // Optical Flow (26 bytes)
     case OPTICAL_FLOW_MSG_ID:
         if (m_payloadLength != 26)
         {
@@ -215,7 +212,7 @@ bool MavlinkProtocole::decodeBuffer()
         }
         return true;
 
-    /* DISTANCE_SENSOR  (14 bytes) */
+    // Lidar (14 bytes)
     case DISTANCE_MSG_ID:
         if (m_payloadLength != 14)
         {
@@ -265,7 +262,7 @@ bool Mtf01::init()
  */
 void Mtf01::readSensor()
 {
-	// Read data from sensor TODO
+	// Read data from sensor TODO next
 	float lidarRaw = 0.0f;
 	float xVelRaw = 0.0f;
 	float yVelRaw = 0.0f;
@@ -282,7 +279,8 @@ void Mtf01::readSensor()
  */
 float Mtf01::getLidarDist() const
 {
-
+	// TODO next
+	return 0.0f;
 }
 
 
@@ -291,7 +289,8 @@ float Mtf01::getLidarDist() const
  */
 float Mtf01::getXVelocity() const
 {
-
+	// TODO next
+	return 0.0f;
 }
 
 
@@ -300,5 +299,6 @@ float Mtf01::getXVelocity() const
  */
 float Mtf01::getYVelocity() const
 {
-
+	// TODO next
+	return 0.0f;
 }
