@@ -63,7 +63,7 @@ class OpticalFlowProtocole
 public:
 	OpticalFlowProtocole() = default;
 
-	virtual bool decodeBuffer() = 0;
+	//virtual bool decodeBuffer() = 0;
 };
 
 
@@ -74,6 +74,8 @@ class MavlinkProtocole : public OpticalFlowProtocole
 {
 private:
 	// Sensor data
+	float m_flowRawX;    	// X optical flow
+	float m_flowRawY;    	// Y optical flow
 	float m_flowX;    	// X optical flow (m/s)
 	float m_flowY;    	// Y optical flow (m/s)
 	float m_height;   	// Height (meters)
@@ -98,13 +100,15 @@ private:
 		CRC_L,
 		CRC_H
 	};
-	ParseState m_parseState;
+	ParseState m_parseState = ParseState::WAITING_FOR_STX;
 
 	size_t m_rxIndex;
 	size_t m_payloadLength;
 	static constexpr uint8_t MAVLINK_STX_V1 = 0xFE; // MAVLink v1 start byte
 	static constexpr uint8_t OPTICAL_FLOW_MSG_ID = 100; // MAVLink OPTICAL_FLOW message ID
+	static constexpr uint8_t DISTANCE_MSG_ID = 132; // MAVLink DISTANCE message ID
 	static constexpr uint8_t OPTICAL_FLOW_CRC_EXTRA = 175; // CRC seed for OPTICAL_FLOW
+	static constexpr uint8_t DISTANCE_SENSOR_CRC_EXTRA =  85; // CRC seed for DISTANCE
 
 	// MAVLink packet structure
 	struct MavlinkPacket_t
@@ -123,7 +127,8 @@ public:
 	MavlinkProtocole() = default;
 
 	void handleByte(const uint8_t& byte);
-	virtual bool decodeBuffer() override;
+
+	bool decodeBuffer();
 
 private:
 	uint16_t calculateCrc(const uint8_t* pBuffer, const size_t& len, const uint8_t& crcExtra) const; // MAVLink CRC

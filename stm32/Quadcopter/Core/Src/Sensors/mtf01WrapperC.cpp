@@ -42,6 +42,9 @@ void mtf01CopyFrame(const size_t dmaPos)
 	static size_t oldPos = 0;
 	static size_t maxLen = 0;
 
+	static int cnter = 0;
+	cnter++;
+
 	if (dmaPos == oldPos)
 	{
 		return;

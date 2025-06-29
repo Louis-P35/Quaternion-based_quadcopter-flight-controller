@@ -7,6 +7,7 @@
 
 // Includes from project
 #include "Sensors/mtf01.hpp"
+#include "logManager.hpp"
 
 // Includes from HAL
 #include "stm32h7xx_hal.h"
@@ -32,36 +33,23 @@ extern uint8_t mtf01BufCopy[];
  */
 uint16_t MavlinkProtocole::calculateCrc(const uint8_t* pBuffer, const size_t& len, const uint8_t& crcExtra) const
 {
-    uint16_t crc = 0xFFFF;
-    for (size_t i = 0; i < len; ++i)
-    {
-        crc ^= (uint16_t)pBuffer[i] << 8;
-        for (uint8_t j = 0; j < 8; ++j)
-        {
-            if (crc & 0x8000)
-            {
-                crc = (crc << 1) ^ 0x1021; // X25 polynomial
-            }
-            else
-            {
-                crc <<= 1;
-            }
-        }
-    }
-    crc ^= (uint16_t)crcExtra << 8;
-    for (uint8_t j = 0; j < 8; ++j)
-    {
-        if (crc & 0x8000)
-        {
-            crc = (crc << 1) ^ 0x1021;
-        }
-        else
-        {
-            crc <<= 1;
-        }
-    }
+	uint16_t crc = 0xFFFF;
 
-    return crc;
+	auto acc = [&](uint8_t b){
+		uint8_t tmp = b ^ (crc & 0xFF);
+		tmp ^= (tmp << 4);
+		crc = (crc >> 8) ^ (uint16_t(tmp) << 8)
+						^ (uint16_t(tmp) << 3)
+						^ (uint16_t(tmp) >> 4);
+	};
+
+	for (size_t i = 0; i < len; ++i)
+	{
+		acc(pBuffer[i]);
+	}
+	acc(crcExtra);
+
+	return crc;
 }
 
 
@@ -70,6 +58,8 @@ uint16_t MavlinkProtocole::calculateCrc(const uint8_t* pBuffer, const size_t& le
  */
 void MavlinkProtocole::handleByte(const uint8_t& byte)
 {
+	uint16_t ttmp;
+
     switch (m_parseState)
     {
         case ParseState::WAITING_FOR_STX:
@@ -127,20 +117,38 @@ void MavlinkProtocole::handleByte(const uint8_t& byte)
 
         case ParseState::CRC_L:
         	m_packet.crc = byte;
+        	ttmp = m_packet.crc;
         	m_rxBuffer[m_rxIndex++] = byte;
         	m_parseState = ParseState::CRC_H;
             break;
 
         case ParseState::CRC_H:
         	m_packet.crc |= (uint16_t)byte << 8;
+        	ttmp = m_packet.crc;
         	m_rxBuffer[m_rxIndex++] = byte;
+
+        	/*for (int i = 0; i < m_rxIndex; ++i)
+        	{
+        		LogManager::getInstance().serialPrint((int)m_rxBuffer[i]);
+        		LogManager::getInstance().serialPrint(" ");
+        	}
+        	LogManager::getInstance().serialPrint("\r\n");*/
 
             // Validate and parse packet
             if (m_rxIndex == m_payloadLength + 8)
             {
+            	uint8_t extra = 0;
+            	if (m_packet.msgid == OPTICAL_FLOW_MSG_ID)
+            	{
+            		extra = OPTICAL_FLOW_CRC_EXTRA;
+            	}
+            	else if (m_packet.msgid == DISTANCE_MSG_ID)
+            	{
+            		extra = DISTANCE_SENSOR_CRC_EXTRA;
+            	}
+
             	// Full packet: STX + LEN + SEQ + SYSID + COMPID + MSGID + PAYLOAD + CRC
-                uint16_t expectedCrc = calculateCrc(&m_rxBuffer[1], m_payloadLength + 5, // LEN to PAYLOAD
-                		m_packet.msgid == OPTICAL_FLOW_MSG_ID ? OPTICAL_FLOW_CRC_EXTRA : 0);
+                uint16_t expectedCrc = calculateCrc(&m_rxBuffer[1], m_payloadLength + 5, extra);
                 if (expectedCrc == m_packet.crc)
                 {
                 	m_dataValid = decodeBuffer();
@@ -159,6 +167,11 @@ void MavlinkProtocole::handleByte(const uint8_t& byte)
             m_parseState = ParseState::WAITING_FOR_STX;
             m_rxIndex = 0;
             break;
+
+        default:
+        	// Reset state
+        	m_parseState = ParseState::WAITING_FOR_STX;
+        	break;
     }
 }
 
@@ -168,39 +181,66 @@ void MavlinkProtocole::handleByte(const uint8_t& byte)
  */
 bool MavlinkProtocole::decodeBuffer()
 {
-	if (m_packet.msgid != OPTICAL_FLOW_MSG_ID)
-	{
-		return false;
-	}
+    switch (m_packet.msgid)
+    {
+    /* OPTICAL_FLOW  (26 bytes) */
+    case OPTICAL_FLOW_MSG_ID:
+        if (m_payloadLength != 26)
+        {
+        	return false;
+        }
 
-	if (m_payloadLength < 26) // Ensure payload has at least 26 bytes
-	{
-		return false;
-	}
+        {
+            const uint8_t* p = m_packet.payload.data();
 
-	const uint8_t* p = m_packet.payload.data();
+            uint64_t time_usec = 0;
+            for (int i = 7; i >= 0; --i)
+            {
+            	time_usec = (time_usec << 8) | p[i];
+            }
 
-	// Little-endian decode
-	uint32_t time_usec_lo = p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-	uint32_t time_usec_hi = p[4] | (p[5] << 8) | (p[6] << 16) | (p[7] << 24);
-	uint64_t time_usec = ((uint64_t)time_usec_hi << 32) | time_usec_lo;
+            uint8_t qual   =  p[25];
+            int16_t flowX =  p[20] | (p[21] << 8);
+            int16_t flowY =  p[22] | (p[23] << 8);
 
-	int16_t flowX = p[8] | (p[9] << 8);
-	int16_t flowY = p[10] | (p[11] << 8);
+            /*LogManager::getInstance().serialPrint((int)flowX);
+            LogManager::getInstance().serialPrint("\t");
+            LogManager::getInstance().serialPrint((int)flowY);*/
+            /*LogManager::getInstance().serialPrint((int)qual);
+            LogManager::getInstance().serialPrint("\r\n");*/
 
-	float flowCompMX = *reinterpret_cast<const float*>(&p[12]);
-	float flowCompMY = *reinterpret_cast<const float*>(&p[16]);
-	float groundDistance = *reinterpret_cast<const float*>(&p[20]);
+            m_flowRawX = flowX;
+            m_flowRawY = flowY;
+            m_quality = qual;
+        }
+        return true;
 
-	uint8_t quality = p[24];
+    /* DISTANCE_SENSOR  (14 bytes) */
+    case DISTANCE_MSG_ID:
+        if (m_payloadLength != 14)
+        {
+        	return false;
+        }
 
-	// Save values
-	m_flowX = flowCompMX;
-	m_flowY = flowCompMY;
-	m_height = groundDistance;
-	m_quality = quality;
+        {
+            const uint8_t* p = m_packet.payload.data();
 
-	return true;
+            uint32_t time_ms   =  p[0] | (p[1] << 8) | (p[2]  << 16) | (p[3]  << 24);
+
+            uint16_t current = p[8] | (p[9] << 8);      // Current distance (in cm)
+            uint16_t minDist = p[4] | (p[5] << 8);      // Min distance the sensor is capable (in cm)
+            uint16_t maxDist = p[6] | (p[7] << 8);      // Max distance the sensor is capable (in cm)
+
+            if (current != 0xFFFF) // If dist is valid
+            {
+                m_height = 0.01f * current;  // Meter conversion
+            }
+        }
+        return true;
+
+    default:
+        return false;   // Unhandled message
+    }
 }
 
 

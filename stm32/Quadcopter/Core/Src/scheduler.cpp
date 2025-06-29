@@ -149,6 +149,9 @@ void Scheduler::mainSetup()
 	// Setup PWM reading for radio receiver
 	setupRadio();
 
+	// Setup optical flow sensor
+	mtf01WrapperSetInstance((void*)&m_opticalflow);
+
 	// Set Startup state
 	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());
 
