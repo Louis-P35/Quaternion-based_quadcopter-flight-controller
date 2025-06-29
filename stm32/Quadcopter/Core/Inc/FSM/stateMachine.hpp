@@ -18,6 +18,8 @@ class FSMState
 public:
 	virtual ~FSMState() = default;
 	virtual void handleState(Scheduler& dc) = 0;
+	virtual void enterState() = 0;
+	virtual void exitState() = 0;
 };
 
 
@@ -32,12 +34,20 @@ public:
 	StateMachineBase() = default;
 	virtual ~StateMachineBase() = default;
 
-	void setState(FSMState& nextState) noexcept
+	void setState(FSMState& nextState)
 	{
+		if (&nextState != m_pState)
+		{
+			if (m_pState)
+			{
+				m_pState->exitState();
+			}
+			nextState.enterState();
+		}
 		m_pState = &nextState;
 	};
 
-	void run(Scheduler& dc) noexcept
+	void run(Scheduler& dc)
 	{
 		if (m_pState)
 		{
@@ -53,6 +63,8 @@ class FullRadioControlState : public FSMState
 public:
 	~FullRadioControlState() override = default;
 	virtual void handleState(Scheduler& dc) override;
+	virtual void enterState() override {};
+	virtual void exitState() override {};
 };
 
 
@@ -77,6 +89,8 @@ private:
 public:
 	~StartupSequenceState() override = default;
 	virtual void handleState(Scheduler& dc) override;
+	virtual void enterState() override {};
+	virtual void exitState() override {};
 };
 
 
@@ -90,6 +104,8 @@ class IdleState : public FSMState
 public:
 	~IdleState() override = default;
 	virtual void handleState(Scheduler& dc) override;
+	virtual void enterState() override {};
+	virtual void exitState() override {};
 };
 
 
@@ -105,6 +121,8 @@ class ReadyToTakeOffState : public FSMState
 public:
 	~ReadyToTakeOffState() override = default;
 	virtual void handleState(Scheduler& dc) override;
+	virtual void enterState() override {};
+	virtual void exitState() override {};
 };
 
 
@@ -120,6 +138,8 @@ private:
 public:
 	~FlyingState() override = default;
 	virtual void handleState(Scheduler& dc) override;
+	virtual void enterState() override {};
+	virtual void exitState() override {};
 };
 
 

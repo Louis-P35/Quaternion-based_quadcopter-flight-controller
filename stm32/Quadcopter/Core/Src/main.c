@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Radio/sbusWrapperC.h"
+#include "Sensors/mtf01WrapperC.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -47,14 +48,19 @@ SPI_HandleTypeDef hspi1;
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
 
+UART_HandleTypeDef huart4;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart6;
+DMA_HandleTypeDef hdma_uart4_rx;
 DMA_HandleTypeDef hdma_usart2_tx;
 DMA_HandleTypeDef hdma_usart6_rx;
 
 /* USER CODE BEGIN PV */
 
 extern uint8_t sbusBuf[];
+extern uint8_t mtf01Buf[];
+
+volatile uint8_t rxByteMtf01 = 0;
 
 /* USER CODE END PV */
 
@@ -70,6 +76,7 @@ static void MX_TIM1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART6_UART_Init(void);
 static void MX_ADC3_Init(void);
+static void MX_UART4_Init(void);
 /* USER CODE BEGIN PFP */
 extern void interfaceMain();
 /* USER CODE END PFP */
@@ -122,14 +129,23 @@ int main(void)
   MX_TIM2_Init();
   MX_USART6_UART_Init();
   MX_ADC3_Init();
+  MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
-  // Clear any pending IDLE flag
-  __HAL_UART_CLEAR_IDLEFLAG(&huart6);
-  // Kick off the circular DMA transfer into the 25-byte buffer
-  HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
-  // Enable the UART IDLE interrupt so we know when a full frame has arrived
-  __HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
+	// Clear any pending IDLE flag
+	__HAL_UART_CLEAR_IDLEFLAG(&huart6);
+	// Kick off the circular DMA transfer into the 25-byte buffer
+	HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
+	// Enable the UART IDLE interrupt so we know when a full frame has arrived
+	__HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
+
+
+	// Clear any pending IDLE flag
+	__HAL_UART_CLEAR_IDLEFLAG(&huart4);
+	// Kick off the circular DMA transfer into the buffer
+	HAL_UART_Receive_DMA(&huart4, mtf01Buf, MTF01_FRAME_SIZE);
+	// Enable the UART IDLE interrupt so we know when a full frame has arrived
+	__HAL_UART_ENABLE_IT(&huart4, UART_IT_IDLE);
 
   // Start timer 2
   HAL_TIM_Base_Start_IT(&htim2);
@@ -225,17 +241,8 @@ void PeriphCommonClock_Config(void)
 
   /** Initializes the peripherals clock
   */
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_SPI1;
-  PeriphClkInitStruct.PLL2.PLL2M = 32;
-  PeriphClkInitStruct.PLL2.PLL2N = 129;
-  PeriphClkInitStruct.PLL2.PLL2P = 2;
-  PeriphClkInitStruct.PLL2.PLL2Q = 2;
-  PeriphClkInitStruct.PLL2.PLL2R = 2;
-  PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_1;
-  PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOWIDE;
-  PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
-  PeriphClkInitStruct.Spi123ClockSelection = RCC_SPI123CLKSOURCE_PLL2;
-  PeriphClkInitStruct.AdcClockSelection = RCC_ADCCLKSOURCE_PLL2;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_CKPER;
+  PeriphClkInitStruct.CkperClockSelection = RCC_CLKPSOURCE_HSI;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -490,6 +497,55 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief UART4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_UART4_Init(void)
+{
+
+  /* USER CODE BEGIN UART4_Init 0 */
+
+  /* USER CODE END UART4_Init 0 */
+
+  /* USER CODE BEGIN UART4_Init 1 */
+
+  /* USER CODE END UART4_Init 1 */
+  huart4.Instance = UART4;
+  huart4.Init.BaudRate = 115200;
+  huart4.Init.WordLength = UART_WORDLENGTH_8B;
+  huart4.Init.StopBits = UART_STOPBITS_1;
+  huart4.Init.Parity = UART_PARITY_NONE;
+  huart4.Init.Mode = UART_MODE_TX_RX;
+  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
+  huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+  huart4.Init.ClockPrescaler = UART_PRESCALER_DIV1;
+  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+  if (HAL_UART_Init(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetTxFifoThreshold(&huart4, UART_TXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_SetRxFifoThreshold(&huart4, UART_RXFIFO_THRESHOLD_1_8) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_UARTEx_DisableFifoMode(&huart4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN UART4_Init 2 */
+  HAL_NVIC_SetPriority(UART4_IRQn, 2, 0);
+  HAL_NVIC_EnableIRQ(UART4_IRQn);
+  /* USER CODE END UART4_Init 2 */
+
+}
+
+/**
   * @brief USART2 Initialization Function
   * @param None
   * @retval None
@@ -597,11 +653,14 @@ static void MX_DMA_Init(void)
 
   /* DMA interrupt init */
   /* DMA1_Stream0_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 0, 0);
+  HAL_NVIC_SetPriority(DMA1_Stream0_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream0_IRQn);
   /* DMA1_Stream1_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(DMA1_Stream1_IRQn, 2, 0);
   HAL_NVIC_EnableIRQ(DMA1_Stream1_IRQn);
+  /* DMA1_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream2_IRQn);
 
 }
 

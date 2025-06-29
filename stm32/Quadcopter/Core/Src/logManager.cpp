@@ -48,12 +48,9 @@ LogManager& LogManager::getInstance()
  */
 void LogManager::serialPrint(const int val)
 {
-	/*char pBuffer[256];
-	int numBytes;
+	std::string tmp = std::to_string(val);
 
-	numBytes = sprintf(pBuffer, "%d\r\n", val);
-	//HAL_UART_Transmit(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes, 100);
-	HAL_UART_Transmit_DMA(&m_huart, reinterpret_cast<uint8_t*>(pBuffer), numBytes);*/
+	serialPrint((char*)tmp.c_str());
 }
 
 

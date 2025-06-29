@@ -91,7 +91,7 @@ constexpr float Scheduler::m_radioDt;
 //#define COMPUTE_HOVER_OFFSET 1
 
 // Uncomment this to disable motors
-//#define DEBUG_DISABLE_MOTORS 1
+#define DEBUG_DISABLE_MOTORS 1
 //#define PID_TESTING_MODE 1
 
 
@@ -148,6 +148,9 @@ void Scheduler::mainSetup()
 
 	// Setup PWM reading for radio receiver
 	setupRadio();
+
+	// Setup optical flow sensor
+	mtf01WrapperSetInstance((void*)&m_opticalflow);
 
 	// Set Startup state
 	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());

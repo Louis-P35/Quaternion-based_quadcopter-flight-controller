@@ -1,4 +1,4 @@
-# Quadcopter Drone Flight Controller
+# MicroFlight - a quadcopter drone flight controller
 
 ## Overview
 
@@ -6,41 +6,101 @@ This repository contains the source code for a quadcopter drone flight controlle
 
 ## Features
 
-- **Microcontroller**: STM32H7 running at 480 MHz
-- **IMU Sensor**: ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer)
-- **Radio Receiver**: Reading Sbus signals
-- **ESC Control**: Generating 500Hz PWM signals for brushless motors' ESCs
-- **AHRS (Attitude Estimation)**: Madgwick filter
-- **Quaternion Calculations**: To avoid gimbal lock and enable efficient spherical rotation interpolation
-- **PID Controllers**: For various flight modes including stabilized, acrobatic, and GPS position mode
+- **Microcontroller**: Support the STM32H7 microcontroler, running at 480 MHz.
+- **High frequency loop**: IMU data acquisition and filtering at 4khz, PID rate running at 2khz.
+- **IMU Sensor**: Support the ICM20948  (3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer) IMU with SPI for fast communication.
+- **Optical Flow & Lidar**: Support the MTF-01 sensor, it provide horizontal velocity and ground distance to enable position and altitude holding. Use UART with the DMA for non-blocking reading.
+- **Radio Receiver**: Support PWM signals and Sbus protocol. Read the Sbus signal over UART with the DMA for non-blocking reading.
+- **ESC Control**: Support 500Hz PWM generation to command the brushless motors' ESCs.
+- **AHRS (Attitude Estimation)**: Use a Madgwick filter (sensor fusion) for stabilized flight mode.
+- **Quaternion Calculations**: To avoid gimbal lock pitfall and enable efficient spherical rotation interpolation, quaternions are used in the entire control loop.
+- **PID Controllers**: 3 PID controllers can be chained for various flight modes including stabilized, acrobatic, and position hold mode. PID coefficients can be tuned.
+- **Filtering**: First order and second order low pass filter are used to filter out the noise. Cutoff frequencys can be tuned.
+- **Blackbox**: Data logging asynchronousely (over UART), data logging on SD card comming soon.
+- **Battery Voltage Compensation**: The motors power is constently ajusted according to the battery level. Avoiding to loose thrust at low battery.
+
+Coming soon:
+- **CLI**: Command line interface to tune radio input, PID coefficient and filters.
+- **Crash Recovery**: Freefal detection and recover from it.
+- **FFT and Notch filters**: Run a FFT in real time to detect noise frequency and precisely cut it with Notch filters.
+
+## Architecture Diagram
+
+Click on it to open it on fullscreen
+<a href="docs/DroneArchitectureDiagram.drawio.svg?raw=true" target="_blank">
+  <img src="docs/DroneArchitectureDiagram.drawio.svg" alt="Diagram overview" />
+</a>
 
 
 ## Quaternions
 
-Quaternion is use through the entire control loop.
+Quaternions are used through the entire control loop.
 Quaternions avoid singularities (like gimbal lock) that can occur with Euler angles, making them a robust choice for representing 3D rotations, especially in drones that can maneuver aggressively.
 
 
 ## AHRS (Attitude and Heading Reference System)
 
-The AHRS fuses data from the accelerometer, gyroscope, and magnetometer using a Maggwick filter to estimate the attitude of the quadcopter.
+The AHRS fuses data from the accelerometer and gyroscope using a Madgwick filter to estimate the attitude of the quadcopter.
+Madgwick filter is fast (use a gradient descent algorithm) and directly output a quaternion.
 
 ## PID Control
 
 The project utilizes chained PID controllers to manage motor power in different flight modes.
 
 - **Stabilized Mode**:
-  - **Cascaded PIDs for Attitude Control**:
+  - **Two Cascaded PIDs for Attitude Control**:
+    - Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
     - The attitude error is processed by a PID controller to produce an angular rate target. This target is then used as the input for another PID controller, which compute the torque vector.
 
 - **Acrobatic Mode**:
-  - The angular rate error is processed by a PID controller to directly compute the torque vector.
+  - **Single PID for Rate Control**:
+    - Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+    - The angular rate error is processed by a PID controller to directly compute the torque vector.
+
+- **Position Hold Mode**:
+  - **Three Cascaded PIDs for Position Control**:
+    - Position Setpoint -> [PID Position] -> Attitude setpoint -> [PID Attitude] -> Rate setpoint -> [PID Rate] -> Torque vector -> [Mixer]
+    - The position error is processed by a PID controller to produce an attitude target. Then the attitude error is processed by a PID controller to produce an angular rate target. Finally this rate target is used as the input for rate PID controller, which compute the torque vector.
 
 
 ## Mixer
 
+The mixer is responsible for translating the desired thrust and torque commands into individual motor power levels. This is achieved through a linear transformation that accounts for the drone's geometry and motor configuration.
+
+### X-Configuration Mixing
+In the X-quad configuration, the mixer computes the motor outputs based on a target thrust (T) and torques around the three body axes (tx, ty, tz).
+
+### Voltage Compensation
+Motor commands are adjusted based on the battery voltage to maintain consistent thrust even as the battery discharges. Since thrust is proportional to the square of the voltage, a quadratic compensation is applied. A low-pass filter smooths the ADC readings to avoid abrupt changes.
+
+### Clamping and Rescaling
+To ensure motor outputs remain within the valid range [0, 1000], the mixer applies a rescaling procedure. If any motor command falls outside this range, all outputs are linearly scaled to preserve the relative distribution while ensuring no negative or overdriven values.
+This ensures the drone maintains maneuverability even when operating at or near full throttle, by preserving control authority through motor power rescaling.
 
 ## Finite State Machines
+- This section's documentation is work in progress
+
+
+## Filtering
+Filtering noise is a crucial part of a flight controler. Motors and propellers generates a lot of vibrations that propagate to the IMU that is highly sensitive to it. Silent blocks help mechanicaly reduce it but a proper filtering is still mandatory.
+The graph below show the raw gyroscope data (blue line) of the pitch axis with the motors running at around 40% of their power, and the filtered data (orange line).
+The filter is a second order low pass filter (biquad Butterworth) with a 75Hz cutoff frequency. 
+![Gyro signal](docs/gyroFiltering.png)
+
+
+The two graphs below are the fast Fourier transform (FFT) of the gyroscope data of the pitch axis with the motors at 40% of power. On the left the FFT of the raw unfiltered data is shown, on the right the FFT of the filtered data.
+![FFT Of Gyro signal](docs/rawAndFilteredGyroFFT.png)
+The big spike at 0-20 Hz is due to the drone's movement. The spikes at around 100Hz and beyond are noise and its harmonics. The second order low pass filter show a huge effect at reducing the noise.
+
+
+## Optical Flow & Lidar sensor (MTF-01)
+The MTF-01 optical flow & lidar sensor can use differents comunication protocols (over UART), this software (MicroFlight) handle the Mavlink protocole.
+Thus, it must be configured as follow:
+![MTF-01 conf](docs/mtf-01_conf.png)
+To do this, use the MicroAssistant tool form https://github.com/micoair/MTF-01_USER_MANUAL
+
+The data (flow X/Y & height) are read at 100Hz over UART (Mavlink protocole) using the DMA. This way it does not block the high frequency loop.
+
 
 
 ## Hardware
@@ -52,3 +112,8 @@ The project utilizes chained PID controllers to manage motor power in different 
 - **PCB**: A custom PCB board is made to best fit in the chassis. The IMU is solder on this PCB that plugged as a shield on the microcontroller development board.
 
 ![Electronics](pictures/electronics.jpg)
+
+
+- **MTF-01**: The Optical Flow & Lidar sensor (MTF-01), below the drone, facing the ground.
+
+![MTF-01](pictures/mtf-01.jpg)
