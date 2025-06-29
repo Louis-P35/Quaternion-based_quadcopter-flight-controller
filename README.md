@@ -78,6 +78,7 @@ To ensure motor outputs remain within the valid range [0, 1000], the mixer appli
 This ensures the drone maintains maneuverability even when operating at or near full throttle, by preserving control authority through motor power rescaling.
 
 ## Finite State Machines
+- This section's documentation is work in progress
 
 
 ## Filtering
