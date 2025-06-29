@@ -7,7 +7,7 @@
 
 #pragma once
 
-// Includes form STL
+// Includes frorm STL
 #include "cmath"
 
 

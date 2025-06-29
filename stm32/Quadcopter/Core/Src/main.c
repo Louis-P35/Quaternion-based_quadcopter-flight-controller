@@ -139,11 +139,7 @@ int main(void)
 	// Enable the UART IDLE interrupt so we know when a full frame has arrived
 	__HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
 
-	// Start uart4 reception
-	/*if (HAL_UART_Receive_IT(&huart4, &rxByteMtf01, 1) != HAL_OK)
-	{
-	    Error_Handler();
-	}*/
+
 	// Clear any pending IDLE flag
 	__HAL_UART_CLEAR_IDLEFLAG(&huart4);
 	// Kick off the circular DMA transfer into the buffer
