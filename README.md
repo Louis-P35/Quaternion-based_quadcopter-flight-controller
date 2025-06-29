@@ -94,10 +94,12 @@ The big spike at 0-20 Hz is due to the drone's movement. The spikes at around 10
 
 
 ## Optical Flow & Lidar sensor (MTF-01)
-The MTF-01 optical flow & lidar sensor can use differents comunication protocols, this software (MicroFlight) handle the Mavlink protocole.
+The MTF-01 optical flow & lidar sensor can use differents comunication protocols (over UART), this software (MicroFlight) handle the Mavlink protocole.
 Thus, it must be configured as follow:
 ![MTF-01 conf](docs/mtf-01_conf.png)
 To do this, use the MicroAssistant tool form https://github.com/micoair/MTF-01_USER_MANUAL
+
+The data (flow X/Y & height) are read at 100Hz over UART (Mavlink protocole) using the DMA. This way it does not block the high frequency loop.
 
 
 
