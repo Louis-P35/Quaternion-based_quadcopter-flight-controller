@@ -206,6 +206,7 @@ uint32_t radioTicks = 0;
  * Called at 4khz by timer 2 overflow interrupt
  * This is the main loop of this software
  */
+// TODO: Need to remove the heavy code from this ISR and implement the proper scheduler system !
 void orchestrator_highestFrequencyLoop()
 {
 	static uint32_t ticks = 0;
