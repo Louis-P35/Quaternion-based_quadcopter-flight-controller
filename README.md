@@ -4,6 +4,9 @@
 
 This repository contains the source code for a quadcopter drone flight controller developed in C++ on an STM32H7 microcontroller. Various sensors and control algorithms are used to achieve stable and responsive flight.
 
+## Demo
+![First flight](pictures/flight1.gif)
+
 ## Features
 
 - **Microcontroller**: Support the STM32H7 microcontroler, running at 480 MHz.
