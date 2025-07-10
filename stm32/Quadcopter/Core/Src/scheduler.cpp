@@ -9,6 +9,7 @@
 #include <orchestrator.h>
 #include <string.h>  // Include for memcpy
 #include <algorithm>
+#include <limits>
 
 // Includes from Project
 #include "scheduler.hpp"
@@ -83,6 +84,8 @@ constexpr float Scheduler::m_ahrsDt;
 constexpr float Scheduler::m_angleDt;
 constexpr float Scheduler::m_posDt;
 constexpr float Scheduler::m_radioDt;
+
+constexpr uint16_t Scheduler::m_nbMaxTasks;
 
 //#define CALIBRATE_IMU 1
 
@@ -266,6 +269,138 @@ void orchestrator_highestFrequencyLoop()
 			//pidRateTicks++;
 		}
 	}
+}
+
+
+/*
+ * Run all the tasks in the task queue according to their priority
+ */
+void Scheduler::runTasks()
+{
+	Task* pCurrentTask = m_pTasksPool;
+
+	const uint32_t ticksNow = m_ticksCounter;
+
+	// Loop through the list of tasks
+	while (pCurrentTask != nullptr)
+	{
+		// Evaluate if the current task need to be run,
+		// if so, run it and exit since tasks are sorted by priority
+		// with signed integer, (ticksNow - pCurrentTask->lastRunTicks) handle overflow by itself
+		if ((ticksNow - pCurrentTask->lastRunTicks) >= pCurrentTask->periodTicks)
+		{
+			if (pCurrentTask->fn != nullptr)
+			{
+				// Run task
+				pCurrentTask->fn();
+
+				// Update last run ticks
+				pCurrentTask->lastRunTicks = ticksNow;
+			}
+
+			// Exit the loop, this ensure higher priority tasks are always executed first
+			break;
+		}
+
+		pCurrentTask = pCurrentTask->pNext;
+	}
+}
+
+
+/*
+ * Find the first empty slot in the array of tasks.
+ * Return it's address or nullptr if no empty slot are available.
+ */
+Task* Scheduler::allocateTask()
+{
+	static uint32_t tasksId = 0;
+
+	for (size_t i = 0; i < m_nbMaxTasks; ++i)
+	{
+		if (m_tasksMemory[i].isFree)
+		{
+			m_tasksMemory[i].isFree = false; // Mark slot as allocated
+
+			m_tasksMemory[i].pNext = nullptr;
+			m_tasksMemory[i].taskId = tasksId++;
+			m_tasksMemory[i].taskType = TaskType::eNone;
+			m_tasksMemory[i].fn = nullptr;
+			m_tasksMemory[i].priority = 0;
+			m_tasksMemory[i].lastRunTicks = 0;
+
+			return &m_tasksMemory[i];
+		}
+	}
+
+	// Allocation failed
+	return nullptr;
+}
+
+
+/*
+ * Add a task to the task queue.
+ * The queue will remain sorted by tasks's priority
+ */
+bool Scheduler::addTask(Task* const pTask)
+{
+	if (!pTask)
+	{
+		return false;
+	}
+
+	// Empty queue
+	if (m_pTasksPool == nullptr)
+	{
+		pTask->pNext = nullptr;
+		m_pTasksPool = pTask;
+
+		return true;
+	}
+
+	// Sorted insertion by priority
+	Task** ppCurrentTask = &m_pTasksPool;
+	while (*ppCurrentTask != nullptr && (*ppCurrentTask)->priority <= pTask->priority)
+	{
+		ppCurrentTask = &((*ppCurrentTask)->pNext);
+	}
+
+	pTask->pNext = *ppCurrentTask;
+	*ppCurrentTask = pTask;
+
+	return true;
+}
+
+
+/*
+ * Remove a task form the task queue.
+ * Return the address of the removed task.
+ * Also mark the task as free in the static pre-allocated buffer.
+ */
+Task* Scheduler::removeAndFreeTask(Task* const pTask)
+{
+	if (!pTask)
+	{
+		return nullptr;
+	}
+
+	Task** ppCurrentTask = &m_pTasksPool;
+
+	while (*ppCurrentTask != nullptr)
+	{
+		if (*ppCurrentTask == pTask)
+		{
+			*ppCurrentTask = (*ppCurrentTask)->pNext;
+
+			*pTask = {}; // Write all fields at 0
+			pTask->isFree = true; // Mark the task as free in the static pre-allocated buffer
+
+			return pTask;
+		}
+
+		ppCurrentTask = &((*ppCurrentTask)->pNext);
+	}
+
+	return nullptr;
 }
 
 

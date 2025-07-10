@@ -21,6 +21,10 @@
 #include "setPoints.hpp"
 #include "Sensors/mtf01.hpp"
 
+//Includes from STL
+#include <stdint.h>
+//#include <functional>
+
 
 // DO not change this unless change the timer 2 settings accordingly
 // IMU_SAMPLE_FREQUENCY must be a round multiple of 1000
@@ -33,10 +37,43 @@
 
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
+enum class TaskType {eNone, ePID_rate, ePID_att, ePID_pos, eRead_sensor, eMain_fsm};
+
+
+/*
+ * Definition of a task that can be handled by the scheduler
+ */
+struct Task
+{
+	// Is free or allocated
+	bool isFree = true;
+
+	// Task type
+	TaskType taskType = TaskType::eNone;
+
+	// Task id
+	uint32_t taskId = 0;
+
+	// Period in ticks
+	uint32_t periodTicks;
+
+	// The last time it was executed (in ticks)
+	uint32_t lastRunTicks = 0;
+
+	// Priority of the task ([0 - 255], 0 = higher priority)
+	uint8_t priority = 0;
+
+	// Task to be executed
+	void (*fn)() = nullptr;
+
+	// Next task in the list
+	Task* pNext = nullptr;
+};
 
 
 /*
  * This class is the main class of this flight controller
+ * It is the scheduler of the tasks queue
  * The 'mainSetup' method is called once by the main function
  * The 'mainLoop' is called in an infinite loop by the main function
  */
@@ -86,6 +123,12 @@ public:
 	bool m_angleLoop = false;
 	bool m_posLoop = false;
 
+private:
+	static constexpr uint16_t m_nbMaxTasks = 50;
+	volatile uint32_t m_ticksCounter = 0;
+	std::array<Task, m_nbMaxTasks> m_tasksMemory;
+	Task* m_pTasksPool = nullptr;
+
 public:
 	Scheduler(
 			uint16_t spi_cs_pin,
@@ -103,6 +146,13 @@ public:
 	float readBatteryVoltage();
 
 private:
+	void runTasks();
+	Task* allocateTask();
+	bool addTask(Task* const pTask);
+	Task* removeAndFreeTask(Task* const pTask);
+	Task* removeAndFreeTask(const TaskType& type);
+	Task* removeAndFreeTask(const uint32_t& taskId);
+
 	void readIMU();
 	void gyroAccelCalibration();
 	void calibrateHoverOffset();
