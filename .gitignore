@@ -1,5 +1,6 @@
 *.mp4
 *.gcode
+*.mov
 
 stm32/Quadcopter/Debug/
 stm32/Quadcopter/Release/
