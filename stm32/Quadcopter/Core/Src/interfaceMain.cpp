@@ -6,10 +6,13 @@
  */
 
 
-#include "main.h"
+// Includes from HAL
 #include "stm32h7xx_hal.h"
 
-#include "scheduler.hpp"
+// Includes from project
+#include "main.h"
+#include "Scheduler/scheduler.hpp"
+#include "flightCore.hpp"
 #include "Utils/utilsTimer.hpp"
 #include "FSM/stateMachine.hpp"
 
@@ -21,7 +24,8 @@ extern DMA_HandleTypeDef hdma_usart2_tx;
 
 extern "C"
 {
-Scheduler g_scheduler(SPI_CS_Pin, SPI_CS_GPIO_Port);
+extern Scheduler g_scheduler();
+FlightCore g_flightCore(SPI_CS_Pin, SPI_CS_GPIO_Port);
 }
 
 extern "C" void interfaceMain()
@@ -33,7 +37,7 @@ extern "C" void interfaceMain()
 	timerCounterReset();
 
 
-	g_scheduler.mainSetup();
+	g_flightCore.mainSetup();
 
     uint32_t start = timerCounterGetCycles();
     HAL_Delay(1);
@@ -42,7 +46,7 @@ extern "C" void interfaceMain()
     {
         const double dt = getEllapsedTime_s(start);
         start = timerCounterGetCycles();
-        g_scheduler.mainLoop(dt);
+        mainLoop(dt);
     }
 }
 

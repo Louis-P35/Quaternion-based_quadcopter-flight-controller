@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include "scheduler.hpp"
-
 
 /*
  * Abstract base class for FSM states
@@ -17,7 +15,7 @@ class FSMState
 {
 public:
 	virtual ~FSMState() = default;
-	virtual void handleState(Scheduler& dc) = 0;
+	virtual void handleState(const float& dt) = 0;
 	virtual void enterState() = 0;
 	virtual void exitState() = 0;
 };
@@ -47,11 +45,11 @@ public:
 		m_pState = &nextState;
 	};
 
-	void run(Scheduler& dc)
+	void run(const float& dt)
 	{
 		if (m_pState)
 		{
-			m_pState->handleState(dc);
+			m_pState->handleState(dt);
 		}
 	};
 };
@@ -62,7 +60,7 @@ class FullRadioControlState : public FSMState
 {
 public:
 	~FullRadioControlState() override = default;
-	virtual void handleState(Scheduler& dc) override;
+	virtual void handleState(const float& dt) override;
 	virtual void enterState() override {};
 	virtual void exitState() override {};
 };
@@ -84,11 +82,11 @@ public:
 class StartupSequenceState : public FSMState
 {
 private:
-	double m_time = 0.0;
+	float m_time = 0.0;
 
 public:
 	~StartupSequenceState() override = default;
-	virtual void handleState(Scheduler& dc) override;
+	virtual void handleState(const float& dt) override;
 	virtual void enterState() override {};
 	virtual void exitState() override {};
 };
@@ -103,7 +101,7 @@ class IdleState : public FSMState
 {
 public:
 	~IdleState() override = default;
-	virtual void handleState(Scheduler& dc) override;
+	virtual void handleState(const float& dt) override;
 	virtual void enterState() override {};
 	virtual void exitState() override {};
 };
@@ -120,7 +118,7 @@ class ReadyToTakeOffState : public FSMState
 {
 public:
 	~ReadyToTakeOffState() override = default;
-	virtual void handleState(Scheduler& dc) override;
+	virtual void handleState(const float& dt) override;
 	virtual void enterState() override {};
 	virtual void exitState() override {};
 };
@@ -137,7 +135,7 @@ private:
 
 public:
 	~FlyingState() override = default;
-	virtual void handleState(Scheduler& dc) override;
+	virtual void handleState(const float& dt) override;
 	virtual void enterState() override {};
 	virtual void exitState() override {};
 };

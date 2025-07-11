@@ -1,0 +1,102 @@
+/*
+ * flightCore.hpp
+ *
+ *  Created on: Jul 10, 2025
+ *      Author: louis
+ */
+
+#pragma once
+
+
+// Includes from driver
+#include "stm32h7xx_hal.h"
+
+// Includes from project
+#include "Sensors/IMU.hpp"
+#include "PID/controlStrategy.hpp"
+#include "AHRS/madgwick.hpp"
+#include "Radio/radio.hpp"
+#include "Motors/motorMixer.hpp"
+#include "Utils/vector.hpp"
+#include "BlackboxSD/blackbox.hpp"
+#include "setPoints.hpp"
+#include "Sensors/mtf01.hpp"
+
+//Includes from STL
+#include <stdint.h>
+
+
+void mainLoop(const double dt);
+
+enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
+
+
+/*
+ * This class is the main class of this flight controller
+ * It is the scheduler of the tasks queue
+ * The 'mainSetup' method is called once by the main function
+ * The 'mainLoop' is called in an infinite loop by the main function
+ */
+class FlightCore
+{
+public:
+	// Blackbox logger on SD card
+	//Blackbox<36> m_18BytesBlackbox;
+
+	// IMU
+	IMU m_imu;
+
+	// Radio
+	Radio m_radio;
+
+	// Optical flow sensor
+	Mtf01 m_opticalflow;
+
+	// Target state (input of the PIDs controller)
+	// Driven by the radio or autonomous control
+	SetPoint<float> m_setPoint;
+
+	// ARHR (Madgwick)
+	MadgwickFilter<float> m_madgwickFilter;
+	Quaternion<float> m_qAttitudeCorrected = Quaternion<float>::identity();
+	Quaternion<float> m_qHoverOffset = Quaternion<float>(0.9999743f, 0.0035298f, -0.0062408f, 0.0000220f);
+
+	// Motors power
+	float m_thrust = 0.0f;
+	float m_torqueX = 0.0f;
+	float m_torqueY = 0.0f;
+	float m_torqueZ = 0.0f;
+	XquadMixer m_motorMixer;
+
+	ControlStrategy m_ctrlStrat;
+
+	volatile float m_batteryVoltage = 12.6f;
+
+	bool m_isFlying = false;
+
+	bool m_angleLoop = false;
+	bool m_posLoop = false;
+
+public:
+	FlightCore(
+			uint16_t spi_cs_pin,
+			GPIO_TypeDef* spi_cs_gpio_port
+			);
+	void mainSetup();
+
+	void pidRateLoop(const float& dt);
+	void ahrsLoop(const float& dt);
+	void escLoop(const float& dt);
+	void radioLoop(const float& dt);
+
+	void setMotorPower(const Motor& motor, const float& power);
+	float readBatteryVoltage();
+
+private:
+	void readIMU();
+	void gyroAccelCalibration();
+	void calibrateHoverOffset();
+
+	// Debug logging
+	void pidDebugStream();
+};

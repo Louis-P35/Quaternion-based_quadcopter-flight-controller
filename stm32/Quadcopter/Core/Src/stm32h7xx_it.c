@@ -81,7 +81,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM2)
 	{
-		orchestrator_highestFrequencyLoop();
+		systemTicksScheduler();
 	}
 }
 

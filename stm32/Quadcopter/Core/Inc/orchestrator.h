@@ -12,7 +12,7 @@ extern "C" {
 #endif
 
 
-void orchestrator_highestFrequencyLoop();
+void systemTicksScheduler();
 
 
 #ifdef __cplusplus
