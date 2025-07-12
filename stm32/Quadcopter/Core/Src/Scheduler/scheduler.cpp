@@ -6,12 +6,12 @@
  */
 
 // Includes from STL
-#include <orchestrator.h>
 #include <string.h>  // Include for memcpy
 #include <algorithm>
 #include <limits>
 
 // Includes from Project
+#include "orchestrator.h"
 #include "Scheduler/scheduler.hpp"
 
 
@@ -26,8 +26,6 @@ std::array<FrequencySlot, NUMBER_TASKS_FREQUENCY_SLOTS> Scheduler::m_pTasksPoolA
  */
 void systemTicksScheduler()
 {
-	//static uint32_t ticks = 0;
-
 	g_scheduler.m_ticksCounter++;
 
 	if ((g_scheduler.m_ticksCounter % DIVIDER_4KHZ) == 0)

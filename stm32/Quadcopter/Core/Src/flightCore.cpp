@@ -215,29 +215,37 @@ void FlightCore::mainSetup()
 	// Setup the tasks
 	// addAllTasks(g_scheduler); // Unit test
 
+	bool taskAddSuccess = true;
+
 	// 4 KHz tasks
-	g_scheduler.addTask(TaskType::eRead_IMU, 0, readIMU_task, FREQUENCY_SLOT::e_4KHZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_IMU, 0, readIMU_task, FREQUENCY_SLOT::e_4KHZ);
 
 	// 2 KHz tasks
-	g_scheduler.addTask(TaskType::ePID_rate, 0, pidRate_task, FREQUENCY_SLOT::e_2KHZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_rate, 0, pidRate_task, FREQUENCY_SLOT::e_2KHZ);
 
 	// 1 KHz tasks
-	g_scheduler.addTask(TaskType::eAHRS, 0, AHRS_task, FREQUENCY_SLOT::e_1KHZ);
-	g_scheduler.addTask(TaskType::ePID_att, 1, pidAtt_task, FREQUENCY_SLOT::e_1KHZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eAHRS, 0, AHRS_task, FREQUENCY_SLOT::e_1KHZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_att, 1, pidAtt_task, FREQUENCY_SLOT::e_1KHZ);
 
 	// 500 Hz tasks
-	g_scheduler.addTask(TaskType::eESCs, 0, ESCs_task, FREQUENCY_SLOT::e_500HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eESCs, 0, ESCs_task, FREQUENCY_SLOT::e_500HZ);
 
 	// 100 Hz tasks
-	g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
-	g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
 
 	// 50 Hz tasks
-	g_scheduler.addTask(TaskType::eRead_radio, 0, readRadio_task, FREQUENCY_SLOT::e_50HZ);
-	g_scheduler.addTask(TaskType::eMain_fsm, 1, mainFSM_task, FREQUENCY_SLOT::e_50HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_radio, 0, readRadio_task, FREQUENCY_SLOT::e_50HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eMain_fsm, 1, mainFSM_task, FREQUENCY_SLOT::e_50HZ);
 
 	// 10 Hz tasks
-	g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
+
+	// Error
+	if (!taskAddSuccess)
+	{
+		// TODO: Handle task add error
+	}
 
 	// Start the loop
 	g_start = true;
