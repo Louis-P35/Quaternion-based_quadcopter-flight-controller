@@ -67,15 +67,6 @@ enum class FREQUENCY_SLOT {
 #define DIVIDER_1HZ 	(SYSTICKS_SAMPLE_FREQUENCY)
 
 
-// IMU_SAMPLE_FREQUENCY must be a round multiple of 1000
-#define IMU_SAMPLE_FREQUENCY (4000) // TODO remove that
-#define RATE_DIVIDER 2 // TODO remove that
-#define AHRS_DIVIDER 4 // TODO remove that
-#define ESC_DIVIDER 8 // TODO remove that
-#define POS_HOLD_DIVIDER 40 // TODO remove that
-#define RADIO_DIVIDER 80 // TODO remove that
-
-
 
 /*
  * It is the scheduler of the tasks queue.
@@ -93,8 +84,12 @@ public:
 public:
 	uint32_t runTasks();
 
-private:
-	bool addTask(Task* const pTask, const FREQUENCY_SLOT& frequencySlot);
+	bool addTask(
+			const TaskType& type,
+			const uint8_t& priority,
+			void (*function)(),
+			const FREQUENCY_SLOT& frequencySlot
+			);
 	Task* removeAndFreeTask(Task* const pTask);
 	Task* removeAndFreeTask(const TaskType& type);
 	Task* removeAndFreeTask(const uint32_t& taskId);

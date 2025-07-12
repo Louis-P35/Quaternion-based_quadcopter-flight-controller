@@ -6,6 +6,10 @@
  */
 
 
+/*
+ * This file is an interface between main.c witch is generated .c and flightCore.cpp
+ */
+
 // Includes from HAL
 #include "stm32h7xx_hal.h"
 
@@ -24,8 +28,8 @@ extern DMA_HandleTypeDef hdma_usart2_tx;
 
 extern "C"
 {
-extern Scheduler g_scheduler();
-FlightCore g_flightCore(SPI_CS_Pin, SPI_CS_GPIO_Port);
+extern Scheduler g_scheduler;
+FlightCore* g_pFlightCore = nullptr;
 }
 
 extern "C" void interfaceMain()
@@ -36,8 +40,10 @@ extern "C" void interfaceMain()
 	timerCounterInit();
 	timerCounterReset();
 
+	FlightCore flightCoreInstance(SPI_CS_Pin, SPI_CS_GPIO_Port);
+	g_pFlightCore = &flightCoreInstance;
 
-	g_flightCore.mainSetup();
+	g_pFlightCore->mainSetup();
 
     uint32_t start = timerCounterGetCycles();
     HAL_Delay(1);

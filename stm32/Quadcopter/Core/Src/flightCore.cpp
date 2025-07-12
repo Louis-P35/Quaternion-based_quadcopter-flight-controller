@@ -15,6 +15,10 @@
 #include "Radio/radio.hpp"
 #include "FSM/stateMachine.hpp"
 
+#ifndef DISABLE_UNIT_TESTING
+#include "UnitTests/schedulerUnitTests.hpp"
+#endif
+
 // Includes from STL
 #include <algorithm>
 
@@ -115,8 +119,6 @@ volatile bool g_startPrint = false;
 
 
 
-
-
 FlightCore::FlightCore(uint16_t spi_cs_pin, GPIO_TypeDef* spi_cs_gpio_port) :
 		m_radio(THROTTLE_HOVER_OFFSET, THROTTLE_EXPO, TARGET_ANGLE_MAX, TARGET_RATE_MAX)
 {
@@ -191,6 +193,15 @@ void FlightCore::mainSetup()
 
 	// Set the control mode
 	m_ctrlStrat.m_flightMode = StabilizationMode::STAB;
+
+	// Setup the tasks
+	addAllTasks(g_scheduler);
+	/*g_scheduler.addTask(TaskType::eMain_fsm, 0, task1, FREQUENCY_SLOT::e_4KHZ);
+	g_scheduler.addTask(TaskType::eMain_fsm, 1, task2, FREQUENCY_SLOT::e_4KHZ);
+	g_scheduler.addTask(TaskType::eMain_fsm, 0, task3, FREQUENCY_SLOT::e_2KHZ);
+	g_scheduler.addTask(TaskType::eMain_fsm, 1, task4, FREQUENCY_SLOT::e_2KHZ);
+	g_scheduler.addTask(TaskType::eMain_fsm, 0, task5, FREQUENCY_SLOT::e_1KHZ);
+	g_scheduler.addTask(TaskType::eMain_fsm, 1, task6, FREQUENCY_SLOT::e_1KHZ);*/
 
 	// Start the loop
 	g_start = true;

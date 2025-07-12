@@ -67,7 +67,7 @@ public:
 	Vector3<float> m_gyroFilterAhrs = {0.0f};
 	Vector3<float> m_gyroRaw = {0.0f};
 
-	Vector3<float> m_gyroDebug[5000];
+	//Vector3<float> m_gyroDebug[5000];
 	int m_gyroDebugIndex = 0;
 
 public:

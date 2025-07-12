@@ -13,7 +13,7 @@
 #include <array>
 
 
-#define MAX_TASKS_NUMBER (250)
+#define MAX_TASKS_NUMBER (50)
 
 
 enum class TaskType {eNone, ePID_rate, ePID_att, ePID_pos, eRead_sensor, eMain_fsm};

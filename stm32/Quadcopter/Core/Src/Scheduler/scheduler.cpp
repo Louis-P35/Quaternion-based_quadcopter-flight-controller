@@ -141,10 +141,12 @@ uint32_t Scheduler::runTasks()
 	for (size_t i = 0; i < NUMBER_TASKS_FREQUENCY_SLOTS; ++i)
 	{
 		// Evaluate if this tasks' frequency slot need to be run
-		if (!((m_loops_frequencies_bit_fields >> uint16_t(i)) & 1u))
+		if (!((m_loops_frequencies_bit_fields >> i) & 1u))
 		{
 			continue;
 		}
+
+
 
 		Task* pCurrentTask = m_ppTasksPoolArray[i];
 
@@ -173,12 +175,21 @@ uint32_t Scheduler::runTasks()
  * The queue will remain sorted by tasks's priority.
  * Return false if insertion failed, true otherwise.
  */
-bool Scheduler::addTask(Task* const pTask, const FREQUENCY_SLOT& frequencySlot)
+bool Scheduler::addTask(
+		const TaskType& type,
+		const uint8_t& priority,
+		void (*function)(),
+		const FREQUENCY_SLOT& frequencySlot)
 {
+	// Allocate a task from the pre-allocated memory array
+	Task* pTask = Task::allocateTask();
 	if (!pTask || frequencySlot >= FREQUENCY_SLOT::count)
 	{
 		return false;
 	}
+
+	// Init the task
+	pTask->setup(type, priority, function);
 
 	// Get the address of the root of the linked list of the right frequency slot
 	Task** ppCurrentTask = &m_ppTasksPoolArray[static_cast<size_t>(frequencySlot)];
