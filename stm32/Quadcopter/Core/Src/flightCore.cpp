@@ -273,7 +273,7 @@ void AHRS_task(const float& dt)
  */
 void ESCs_task(const float& dt)
 {
-	g_pFlightCore->escLoop(dt);
+	g_pFlightCore->escLoop();
 }
 
 /*
@@ -281,7 +281,7 @@ void ESCs_task(const float& dt)
  */
 void pidPos_task(const float& dt)
 {
-
+	g_pFlightCore->pidPosLoop(dt);
 }
 
 /*
@@ -289,46 +289,7 @@ void pidPos_task(const float& dt)
  */
 void pidAtt_task(const float& dt)
 {
-	if (!g_pFlightCore->m_angleLoopEnable)
-	{
-		return;
-	}
-
-	// Correct the physical offset IMU -> drone
-	g_pFlightCore->m_qAttitudeCorrected = g_pFlightCore->m_qHoverOffset * g_pFlightCore->m_madgwickFilter.m_qEst;
-	g_pFlightCore->m_qAttitudeCorrected.normalize();
-
-	// A quaternion q and -q represent the same rotation.
-	// Here, canonical() make a sign choice (q.w >= 0).
-	Quaternion<float> qEst = Quaternion<float>::canonical(g_pFlightCore->m_qAttitudeCorrected);
-	Quaternion<float> qTarget = Quaternion<float>::canonical(g_pFlightCore->m_setPoint.m_targetQuaternion);
-
-	// Get attitude error
-	Quaternion<float> qError = PID::getError(qEst, qTarget);
-
-	// Test
-	//Quaternion qTest = qError * qEst;
-	//qTest.normalize();
-
-	// Get the angle and axis of rotation
-	Vector3<float> rotAxis;
-	float angleRad = 0.0f;
-	qError.toAxisAngle(rotAxis, angleRad);
-
-	// Projection of the rotation axis onto the 3 axis of the drone
-	// It is NOT Euler angles here, so no singularity
-	std::array<float, 3> error;
-	error[0] = rotAxis.m_x * angleRad * RAD_TO_DEG;
-	error[1] = rotAxis.m_y * angleRad * RAD_TO_DEG;
-	error[2] = rotAxis.m_z * angleRad * RAD_TO_DEG;
-
-	// Run angle PID
-	g_pFlightCore->m_ctrlStrat.angleControlLoop(
-			dt,
-			g_pFlightCore->m_imu.m_gyroFilterRates,
-			error,
-			g_pFlightCore->m_isFlying
-			);
+	g_pFlightCore->pidAttLoop(dt);
 }
 
 /*
@@ -336,22 +297,7 @@ void pidAtt_task(const float& dt)
  */
 void pidRate_task(const float& dt)
 {
-	if (!g_pFlightCore->m_rateLoopEnable)
-	{
-		return;
-	}
-
-	// Run rate PID
-	g_pFlightCore->m_ctrlStrat.rateControlLoop(
-			dt,
-			g_pFlightCore->m_imu.m_gyroFilterRates,
-			g_pFlightCore->m_setPoint
-			);
-
-	g_pFlightCore->m_thrust = g_pFlightCore->m_radio.m_targetThrust * 4.0f;
-	g_pFlightCore->m_torqueX = g_pFlightCore->m_ctrlStrat.m_rateLoop[0].m_output;
-	g_pFlightCore->m_torqueY = g_pFlightCore->m_ctrlStrat.m_rateLoop[1].m_output;
-	g_pFlightCore->m_torqueZ = g_pFlightCore->m_ctrlStrat.m_rateLoop[2].m_output;
+	g_pFlightCore->pidRateLoop(dt);
 }
 
 /*
@@ -371,20 +317,16 @@ void subFSM_task(const float& dt)
 }
 
 /*
- *
+ * Read battery task.
+ * Read the battery voltage with ADC.
  */
 void readBattery_task(const float& dt)
 {
-	// Read battery voltage
-	// It is a blocking function !!
-	g_pFlightCore->m_batteryVoltage = g_pFlightCore->readBatteryVoltage();
-
-	// Compute voltage compensation
-	g_pFlightCore->m_motorMixer.computeVoltageCompensation(g_pFlightCore->m_batteryVoltage);
+	g_pFlightCore->batteryLoop();
 }
 
 /*
- * Read the radio receiver.
+ * Read radio receiver task.
  */
 void readRadio_task(const float& dt)
 {
@@ -397,6 +339,22 @@ void readRadio_task(const float& dt)
 void readOpticalFlow_task(const float& dt)
 {
 
+}
+
+
+
+/*
+ * Read battery.
+ * Read the battery voltage with ADC.
+ */
+void FlightCore::batteryLoop()
+{
+	// Read battery voltage
+	// It is a blocking function !!
+	m_batteryVoltage = readBatteryVoltage();
+
+	// Compute voltage compensation
+	m_motorMixer.computeVoltageCompensation(m_batteryVoltage);
 }
 
 
@@ -428,9 +386,95 @@ void FlightCore::ahrsLoop(const float& dt)
 
 
 /*
+ * Run the PID rate.
+ */
+void FlightCore::pidRateLoop(const float& dt)
+{
+	if (!m_rateLoopEnable)
+	{
+		return;
+	}
+
+	// Run rate PID
+	m_ctrlStrat.rateControlLoop(
+			dt,
+			m_imu.m_gyroFilterRates,
+			m_setPoint
+			);
+
+	m_thrust = m_radio.m_targetThrust * 4.0f;
+	m_torqueX = m_ctrlStrat.m_rateLoop[0].m_output;
+	m_torqueY = m_ctrlStrat.m_rateLoop[1].m_output;
+	m_torqueZ = m_ctrlStrat.m_rateLoop[2].m_output;
+}
+
+
+/*
+ * Run the attitude (angle) PID.
+ */
+void FlightCore::pidAttLoop(const float& dt)
+{
+	if (!m_angleLoopEnable)
+	{
+		return;
+	}
+
+	// Correct the physical offset IMU -> drone
+	m_qAttitudeCorrected = m_qHoverOffset * m_madgwickFilter.m_qEst;
+	m_qAttitudeCorrected.normalize();
+
+	// A quaternion q and -q represent the same rotation.
+	// Here, canonical() make a sign choice (q.w >= 0).
+	Quaternion<float> qEst = Quaternion<float>::canonical(m_qAttitudeCorrected);
+	Quaternion<float> qTarget = Quaternion<float>::canonical(m_setPoint.m_targetQuaternion);
+
+	// Get attitude error
+	Quaternion<float> qError = PID::getError(qEst, qTarget);
+
+	// Test
+	//Quaternion qTest = qError * qEst;
+	//qTest.normalize();
+
+	// Get the angle and axis of rotation
+	Vector3<float> rotAxis;
+	float angleRad = 0.0f;
+	qError.toAxisAngle(rotAxis, angleRad);
+
+	// Projection of the rotation axis onto the 3 axis of the drone
+	// It is NOT Euler angles here, so no singularity
+	std::array<float, 3> error;
+	error[0] = rotAxis.m_x * angleRad * RAD_TO_DEG;
+	error[1] = rotAxis.m_y * angleRad * RAD_TO_DEG;
+	error[2] = rotAxis.m_z * angleRad * RAD_TO_DEG;
+
+	// Run angle PID
+	m_ctrlStrat.angleControlLoop(
+			dt,
+			m_imu.m_gyroFilterRates,
+			error,
+			m_isFlying
+			);
+}
+
+
+/*
+ * Run the position (xyz) PID.
+ */
+void FlightCore::pidPosLoop(const float& dt)
+{
+	if (!m_posLoopEnable)
+	{
+		return;
+	}
+
+	// TODO
+}
+
+
+/*
  * Motors update
  */
-void FlightCore::escLoop(const float& dt)
+void FlightCore::escLoop()
 {
 	m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
 	m_motorMixer.applyVoltageCompensation();

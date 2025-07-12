@@ -97,8 +97,12 @@ public:
 	void mainSetup();
 
 	void ahrsLoop(const float& dt);
-	void escLoop(const float& dt);
+	void escLoop();
 	void radioLoop(const float& dt);
+	void pidRateLoop(const float& dt);
+	void pidAttLoop(const float& dt);
+	void pidPosLoop(const float& dt);
+	void batteryLoop();
 
 	void setMotorPower(const Motor& motor, const float& power);
 	float readBatteryVoltage();
