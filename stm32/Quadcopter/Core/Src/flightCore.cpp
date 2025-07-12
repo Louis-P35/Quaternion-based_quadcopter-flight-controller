@@ -24,6 +24,7 @@
 
 
 #define DEGREE_TO_RAD (M_PI/180.0)
+#define RAD_TO_DEG (180.0/M_PI)
 
 
 /*
@@ -80,7 +81,7 @@ extern ADC_HandleTypeDef hadc3;
 
 
 extern Scheduler g_scheduler;
-extern FlightCore g_flightCore;
+extern FlightCore* g_pFlightCore;
 
 
 volatile bool g_enableRadioLoop = false;
@@ -194,45 +195,200 @@ void FlightCore::mainSetup()
 	// Set the control mode
 	m_ctrlStrat.m_flightMode = StabilizationMode::STAB;
 
+	// Enable PID angle loop
+	// Enable it only in certain flight mode
+	if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
+			m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+	{
+		m_angleLoopEnable = true; // TODO: Need to be done in the state machine
+	}
+
+	// Enable PID position hold loop (that will run in the state machine)
+	// Enable it only in certain flight mode
+	if (g_pFlightCore->m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+	{
+		g_pFlightCore->m_posLoopEnable = true; // TODO: Need to be done in the state machine
+	}
+
+
+
 	// Setup the tasks
-	addAllTasks(g_scheduler);
-	/*g_scheduler.addTask(TaskType::eMain_fsm, 0, task1, FREQUENCY_SLOT::e_4KHZ);
-	g_scheduler.addTask(TaskType::eMain_fsm, 1, task2, FREQUENCY_SLOT::e_4KHZ);
-	g_scheduler.addTask(TaskType::eMain_fsm, 0, task3, FREQUENCY_SLOT::e_2KHZ);
-	g_scheduler.addTask(TaskType::eMain_fsm, 1, task4, FREQUENCY_SLOT::e_2KHZ);
-	g_scheduler.addTask(TaskType::eMain_fsm, 0, task5, FREQUENCY_SLOT::e_1KHZ);
-	g_scheduler.addTask(TaskType::eMain_fsm, 1, task6, FREQUENCY_SLOT::e_1KHZ);*/
+	// addAllTasks(g_scheduler); // Unit test
+
+	// 4 KHz tasks
+	g_scheduler.addTask(TaskType::eRead_IMU, 0, readIMU_task, FREQUENCY_SLOT::e_4KHZ);
+
+	// 2 KHz tasks
+	g_scheduler.addTask(TaskType::ePID_rate, 0, pidRate_task, FREQUENCY_SLOT::e_2KHZ);
+
+	// 1 KHz tasks
+	g_scheduler.addTask(TaskType::eAHRS, 0, AHRS_task, FREQUENCY_SLOT::e_1KHZ);
+	g_scheduler.addTask(TaskType::ePID_att, 1, pidAtt_task, FREQUENCY_SLOT::e_1KHZ);
+
+	// 500 Hz tasks
+	g_scheduler.addTask(TaskType::eESCs, 0, ESCs_task, FREQUENCY_SLOT::e_500HZ);
+
+	// 100 Hz tasks
+	g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
+	g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
+
+	// 50 Hz tasks
+	g_scheduler.addTask(TaskType::eRead_radio, 0, readRadio_task, FREQUENCY_SLOT::e_50HZ);
+	g_scheduler.addTask(TaskType::eMain_fsm, 1, mainFSM_task, FREQUENCY_SLOT::e_50HZ);
+
+	// 10 Hz tasks
+	g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
 
 	// Start the loop
 	g_start = true;
 }
 
 
-
+/*
+ * Task read and filter IMU.
+ */
+void readIMU_task(const float& dt)
+{
+	g_pFlightCore->m_imu.readAndFilterIMU_gdps();
+}
 
 /*
- * Handle drone behavior according to the current state (state machine)
- * Run all the PID loops
+ * Compute the AHRS (Madgwick filter).
  */
-void FlightCore::pidRateLoop(const float& dt)
+void AHRS_task(const float& dt)
 {
-	// Run the state machine
-	MainStateMachine::getInstance().run(dt);
+	g_pFlightCore->ahrsLoop(dt);
+}
 
-	// Reset angle & position hold flag here because they are executed in the state machine
-	m_angleLoop = false;
-	m_posLoop = false;
+/*
+ * Send command signals to ESCs.
+ */
+void ESCs_task(const float& dt)
+{
+	g_pFlightCore->escLoop(dt);
+}
 
-	/*if (g_startRecord && m_imu.m_gyroDebugIndex < 5000)
+/*
+ * Run the PID position (xyz).
+ */
+void pidPos_task(const float& dt)
+{
+
+}
+
+/*
+ * Run the PID attitude (angle).
+ */
+void pidAtt_task(const float& dt)
+{
+	if (!g_pFlightCore->m_angleLoopEnable)
 	{
-		m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_imu.m_gyroRaw;
-		m_imu.m_gyroDebugIndex++;
+		return;
 	}
-	else if (m_imu.m_gyroDebugIndex == 5000)
+
+	// Correct the physical offset IMU -> drone
+	g_pFlightCore->m_qAttitudeCorrected = g_pFlightCore->m_qHoverOffset * g_pFlightCore->m_madgwickFilter.m_qEst;
+	g_pFlightCore->m_qAttitudeCorrected.normalize();
+
+	// A quaternion q and -q represent the same rotation.
+	// Here, canonical() make a sign choice (q.w >= 0).
+	Quaternion<float> qEst = Quaternion<float>::canonical(g_pFlightCore->m_qAttitudeCorrected);
+	Quaternion<float> qTarget = Quaternion<float>::canonical(g_pFlightCore->m_setPoint.m_targetQuaternion);
+
+	// Get attitude error
+	Quaternion<float> qError = PID::getError(qEst, qTarget);
+
+	// Test
+	//Quaternion qTest = qError * qEst;
+	//qTest.normalize();
+
+	// Get the angle and axis of rotation
+	Vector3<float> rotAxis;
+	float angleRad = 0.0f;
+	qError.toAxisAngle(rotAxis, angleRad);
+
+	// Projection of the rotation axis onto the 3 axis of the drone
+	// It is NOT Euler angles here, so no singularity
+	std::array<float, 3> error;
+	error[0] = rotAxis.m_x * angleRad * RAD_TO_DEG;
+	error[1] = rotAxis.m_y * angleRad * RAD_TO_DEG;
+	error[2] = rotAxis.m_z * angleRad * RAD_TO_DEG;
+
+	// Run angle PID
+	g_pFlightCore->m_ctrlStrat.angleControlLoop(
+			dt,
+			g_pFlightCore->m_imu.m_gyroFilterRates,
+			error,
+			g_pFlightCore->m_isFlying
+			);
+}
+
+/*
+ * Run the PID rate.
+ */
+void pidRate_task(const float& dt)
+{
+	if (!g_pFlightCore->m_rateLoopEnable)
 	{
-		g_startPrint = true;
-		m_imu.m_gyroDebugIndex++;
-	}*/
+		return;
+	}
+
+	// Run rate PID
+	g_pFlightCore->m_ctrlStrat.rateControlLoop(
+			dt,
+			g_pFlightCore->m_imu.m_gyroFilterRates,
+			g_pFlightCore->m_setPoint
+			);
+
+	g_pFlightCore->m_thrust = g_pFlightCore->m_radio.m_targetThrust * 4.0f;
+	g_pFlightCore->m_torqueX = g_pFlightCore->m_ctrlStrat.m_rateLoop[0].m_output;
+	g_pFlightCore->m_torqueY = g_pFlightCore->m_ctrlStrat.m_rateLoop[1].m_output;
+	g_pFlightCore->m_torqueZ = g_pFlightCore->m_ctrlStrat.m_rateLoop[2].m_output;
+}
+
+/*
+ * Run the main finite state machine.
+ */
+void mainFSM_task(const float& dt)
+{
+	MainStateMachine::getInstance().run(dt);
+}
+
+/*
+ *
+ */
+void subFSM_task(const float& dt)
+{
+
+}
+
+/*
+ *
+ */
+void readBattery_task(const float& dt)
+{
+	// Read battery voltage
+	// It is a blocking function !!
+	g_pFlightCore->m_batteryVoltage = g_pFlightCore->readBatteryVoltage();
+
+	// Compute voltage compensation
+	g_pFlightCore->m_motorMixer.computeVoltageCompensation(g_pFlightCore->m_batteryVoltage);
+}
+
+/*
+ * Read the radio receiver.
+ */
+void readRadio_task(const float& dt)
+{
+	g_pFlightCore->radioLoop(dt);
+}
+
+/*
+ *
+ */
+void readOpticalFlow_task(const float& dt)
+{
+
 }
 
 
@@ -260,14 +416,6 @@ void FlightCore::ahrsLoop(const float& dt)
 	// Compute the hover offset (must be done once after each teardown/build of the drone)
 	calibrateHoverOffset();
 #endif
-
-	// Enable PID angle loop (that will run in the state machine)
-	// Enable it only in certain flight mode
-	if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
-			m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
-	{
-		m_angleLoop = true;
-	}
 }
 
 
@@ -321,10 +469,6 @@ void mainLoop(const double dt)
 	// Run the scheduler
 	g_scheduler.runTasks(timeSinceBoot);
 
-
-	// Read battery voltage
-	// It is a blocking function that is not critical for real time loop
-	//g_flightCore.m_batteryVoltage = g_flightCore.readBatteryVoltage(); // TODO
 
 #ifdef PID_TESTING_MODE
 	g_flightCore.pidDebugStream();

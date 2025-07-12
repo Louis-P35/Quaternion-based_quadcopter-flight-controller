@@ -87,8 +87,8 @@ private:
 public:
 	~StartupSequenceState() override = default;
 	virtual void handleState(const float& dt) override;
-	virtual void enterState() override {};
-	virtual void exitState() override {};
+	virtual void enterState() override;
+	virtual void exitState() override;
 };
 
 
@@ -102,8 +102,8 @@ class IdleState : public FSMState
 public:
 	~IdleState() override = default;
 	virtual void handleState(const float& dt) override;
-	virtual void enterState() override {};
-	virtual void exitState() override {};
+	virtual void enterState() override;
+	virtual void exitState() override;
 };
 
 
@@ -119,8 +119,8 @@ class ReadyToTakeOffState : public FSMState
 public:
 	~ReadyToTakeOffState() override = default;
 	virtual void handleState(const float& dt) override;
-	virtual void enterState() override {};
-	virtual void exitState() override {};
+	virtual void enterState() override;
+	virtual void exitState() override;
 };
 
 
@@ -136,8 +136,8 @@ private:
 public:
 	~FlyingState() override = default;
 	virtual void handleState(const float& dt) override;
-	virtual void enterState() override {};
-	virtual void exitState() override {};
+	virtual void enterState() override;
+	virtual void exitState() override;
 };
 
 
@@ -152,10 +152,7 @@ private:
 	FlyingState m_flyingState;
 
 public:
-	MainStateMachine()
-	{
-		m_pState = &m_startupSequenceState;
-	};
+	MainStateMachine() {};
 
 public:
 	// Delete copy constructor and copy assignment operator

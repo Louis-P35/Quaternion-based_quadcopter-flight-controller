@@ -29,7 +29,14 @@ Radio::Radio(
 bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 {
 	/* Read the radio receiver */
-	m_radioProtocole.parseSbusFrame();
+	if (!m_radioProtocole.parseSbusFrame())
+	{
+		m_lostFrameCnter++;
+	}
+	else
+	{
+		m_lostFrameCnter = 0;
+	}
 	/*m_radioChannel1 = PWM_GetPulse(0); // Roll
 	m_radioChannel2 = PWM_GetPulse(1); // Pitch
 	m_radioChannel3 = PWM_GetPulse(2); // Yaw
@@ -44,11 +51,13 @@ bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 #ifndef DEBUG_NO_RADIO
 	// Handle signal lost
 	//if (m_radioChannel1 == 0 || m_radioChannel2 == 0 || m_radioChannel3 == 0 || m_radioChannel4 == 0)
-	if (m_radioProtocole.getSignalLost())
+	if (m_radioProtocole.getSignalLost() || m_lostFrameCnter > 25)
 	{
 		m_signalLost = true;
+
 		return true;
 	}
+
 	m_signalLost = false;
 #else
 	m_radioChannel1 = 1500;

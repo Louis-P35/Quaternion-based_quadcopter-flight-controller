@@ -27,6 +27,17 @@
 
 
 void mainLoop(const double dt);
+void readIMU_task(const float& dt);
+void AHRS_task(const float& dt);
+void ESCs_task(const float& dt);
+void pidPos_task(const float& dt);
+void pidAtt_task(const float& dt);
+void pidRate_task(const float& dt);
+void mainFSM_task(const float& dt);
+void subFSM_task(const float& dt);
+void readBattery_task(const float& dt);
+void readRadio_task(const float& dt);
+void readOpticalFlow_task(const float& dt);
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
 
@@ -74,8 +85,9 @@ public:
 
 	bool m_isFlying = false;
 
-	bool m_angleLoop = false;
-	bool m_posLoop = false;
+	bool m_rateLoopEnable = false;
+	bool m_angleLoopEnable = false;
+	bool m_posLoopEnable = false;
 
 public:
 	FlightCore(
@@ -84,7 +96,6 @@ public:
 			);
 	void mainSetup();
 
-	void pidRateLoop(const float& dt);
 	void ahrsLoop(const float& dt);
 	void escLoop(const float& dt);
 	void radioLoop(const float& dt);

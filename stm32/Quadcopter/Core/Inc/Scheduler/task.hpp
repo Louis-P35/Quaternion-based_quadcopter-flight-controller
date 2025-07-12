@@ -16,7 +16,19 @@
 #define MAX_TASKS_NUMBER (50)
 
 
-enum class TaskType {eNone, ePID_rate, ePID_att, ePID_pos, eRead_sensor, eMain_fsm};
+enum class TaskType {
+	eNone,
+	ePID_rate,
+	ePID_att,
+	ePID_pos,
+	eAHRS,
+	eESCs,
+	eRead_IMU,
+	eRead_opticalFlow,
+	eMain_fsm,
+	eRead_radio,
+	eRead_battery
+};
 
 
 /*
