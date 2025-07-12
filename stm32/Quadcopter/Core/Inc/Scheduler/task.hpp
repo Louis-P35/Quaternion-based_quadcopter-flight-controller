@@ -35,7 +35,7 @@ public:
 	uint8_t m_priority = 0;
 
 	// Task to be executed
-	void (*m_fn)() = nullptr;
+	void (*m_fn)(const float&) = nullptr;
 
 	// Next task in the list
 	Task* m_pNext = nullptr;
@@ -48,7 +48,7 @@ private:
 	uint32_t m_taskId = 0;
 
 public:
-	void setup(const TaskType& type, const uint8_t& priority, void (*function)());
+	void setup(const TaskType& type, const uint8_t& priority, void (*function)(const float&));
 
 	static Task* allocateTask();
 };

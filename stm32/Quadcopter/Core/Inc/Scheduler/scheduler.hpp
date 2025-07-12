@@ -67,6 +67,16 @@ enum class FREQUENCY_SLOT {
 #define DIVIDER_1HZ 	(SYSTICKS_SAMPLE_FREQUENCY)
 
 
+/*
+ * Root of a specified frequency linked list of tasks.
+ */
+struct FrequencySlot
+{
+	float dt = 0.01f;
+	float allTasksAvgTime = 0.0f;
+	Task* pRootTask = nullptr;
+};
+
 
 /*
  * It is the scheduler of the tasks queue.
@@ -75,19 +85,23 @@ class Scheduler
 {
 private:
 	// Array of linked list of tasks. Each array's element correspond to a specific frequency
-	static std::array<Task*, NUMBER_TASKS_FREQUENCY_SLOTS> m_ppTasksPoolArray;
+	static std::array<FrequencySlot, NUMBER_TASKS_FREQUENCY_SLOTS> m_pTasksPoolArray;
+
+	// Deadline until the next iteration of the highest frequency loop
+	float m_deadline = 0.0f;
 
 public:
 	volatile uint32_t m_ticksCounter = 0;					// Main tick counter
 	volatile uint16_t m_loops_frequencies_bit_fields = 0;	// Each bit enable a specified frequency loop
 
 public:
-	uint32_t runTasks();
+	Scheduler();
+	void runTasks(const float& timeSinceBoot);
 
 	bool addTask(
 			const TaskType& type,
 			const uint8_t& priority,
-			void (*function)(),
+			void (*function)(const float&),
 			const FREQUENCY_SLOT& frequencySlot
 			);
 	Task* removeAndFreeTask(Task* const pTask);

@@ -14,7 +14,7 @@
 /*
  * Task initialization.
  */
-void Task::setup(const TaskType& type, const uint8_t& priority, void (*function)())
+void Task::setup(const TaskType& type, const uint8_t& priority, void (*function)(const float&))
 {
 	m_taskType = type;
 	m_priority = priority;

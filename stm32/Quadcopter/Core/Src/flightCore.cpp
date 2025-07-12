@@ -311,9 +311,17 @@ void FlightCore::radioLoop(const float& dt)
 
 /*
  * Called indefinitely in a loop.
+ * Run the tasks scheduler.
  */
 void mainLoop(const double dt)
 {
+	static float timeSinceBoot = 0.0f;
+	timeSinceBoot += static_cast<float>(dt);
+
+	// Run the scheduler
+	g_scheduler.runTasks(timeSinceBoot);
+
+
 	// Read battery voltage
 	// It is a blocking function that is not critical for real time loop
 	//g_flightCore.m_batteryVoltage = g_flightCore.readBatteryVoltage(); // TODO
@@ -323,9 +331,6 @@ void mainLoop(const double dt)
 #endif
 
 	//HAL_Delay(20);
-
-
-	g_scheduler.runTasks();
 
 
 	/* DEBUG PRINT */

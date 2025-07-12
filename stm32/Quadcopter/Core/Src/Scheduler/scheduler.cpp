@@ -17,7 +17,7 @@
 
 Scheduler g_scheduler;
 
-std::array<Task*, NUMBER_TASKS_FREQUENCY_SLOTS> Scheduler::m_ppTasksPoolArray = {nullptr};
+std::array<FrequencySlot, NUMBER_TASKS_FREQUENCY_SLOTS> Scheduler::m_pTasksPoolArray;
 
 
 /*
@@ -130,15 +130,31 @@ void systemTicksScheduler()
 }
 
 
+Scheduler::Scheduler()
+{
+	uint32_t freq = 32000;
+
+	// Initialize the dt of each slot
+	for (size_t i = 0; i < NUMBER_TASKS_FREQUENCY_SLOTS; ++i)
+	{
+		m_pTasksPoolArray[i].dt = 1.0f / static_cast<float>(freq);
+		freq /= 2;
+
+		m_pTasksPoolArray[i].allTasksAvgTime = 0.0f;
+	}
+}
+
 
 /*
  * Run all the tasks in the task queue array according to their priority.
- * TODO: If no tasks has been ran, return the wait time before the next task.
+ * timeSinceBoot is the elapsed time in second since the beginning of the program.
  */
-uint32_t Scheduler::runTasks()
+void Scheduler::runTasks(const float& timeSinceBoot)
 {
+	static constexpr size_t highestFreqLoopIndex = 3; // 4Khz
+
 	// Loop through all the slots of fixed frequency tasks linked list
-	for (size_t i = 0; i < NUMBER_TASKS_FREQUENCY_SLOTS; ++i)
+	for (size_t i = highestFreqLoopIndex; i < NUMBER_TASKS_FREQUENCY_SLOTS; ++i)
 	{
 		// Evaluate if this tasks' frequency slot need to be run
 		if (!((m_loops_frequencies_bit_fields >> i) & 1u))
@@ -146,9 +162,19 @@ uint32_t Scheduler::runTasks()
 			continue;
 		}
 
+		// Possibility of missing deadline check
+		if (i == highestFreqLoopIndex)
+		{
+			// Compute the deadline of the current tasks list
+			m_deadline = timeSinceBoot + m_pTasksPoolArray[highestFreqLoopIndex].dt;
+		}
+		else if (i > highestFreqLoopIndex)
+		{
+			// Postpone all the remaining tasks lists for the next iteration if it will miss the deadline
+			// TODO
+		}
 
-
-		Task* pCurrentTask = m_ppTasksPoolArray[i];
+		Task* pCurrentTask = m_pTasksPoolArray[i].pRootTask;
 
 		// Loop through the list of tasks
 		while (pCurrentTask != nullptr)
@@ -156,17 +182,15 @@ uint32_t Scheduler::runTasks()
 			if (pCurrentTask->m_fn != nullptr)
 			{
 				// Run the task
-				pCurrentTask->m_fn();
+				pCurrentTask->m_fn(m_pTasksPoolArray[i].dt);
 			}
 
 			pCurrentTask = pCurrentTask->m_pNext;
 		}
 
 		// Clear bit field
-		m_loops_frequencies_bit_fields &= ~(1u << uint16_t(i));
+		m_loops_frequencies_bit_fields &= ~(1u << i);
 	}
-
-	return 0;
 }
 
 
@@ -178,7 +202,7 @@ uint32_t Scheduler::runTasks()
 bool Scheduler::addTask(
 		const TaskType& type,
 		const uint8_t& priority,
-		void (*function)(),
+		void (*function)(const float&),
 		const FREQUENCY_SLOT& frequencySlot)
 {
 	// Allocate a task from the pre-allocated memory array
@@ -192,7 +216,7 @@ bool Scheduler::addTask(
 	pTask->setup(type, priority, function);
 
 	// Get the address of the root of the linked list of the right frequency slot
-	Task** ppCurrentTask = &m_ppTasksPoolArray[static_cast<size_t>(frequencySlot)];
+	Task** ppCurrentTask = &m_pTasksPoolArray[static_cast<size_t>(frequencySlot)].pRootTask;
 
 	// Empty queue, insert as first element
 	if (*ppCurrentTask == nullptr)
@@ -231,7 +255,7 @@ Task* Scheduler::removeAndFreeTask(Task* const pTask)
 	// Loop through all the slots of fixed frequency tasks linked list
 	for (size_t i = 0; i < NUMBER_TASKS_FREQUENCY_SLOTS; ++i)
 	{
-		Task** ppCurrentTask = &m_ppTasksPoolArray[i];
+		Task** ppCurrentTask = &m_pTasksPoolArray[i].pRootTask;
 
 		while (*ppCurrentTask != nullptr)
 		{

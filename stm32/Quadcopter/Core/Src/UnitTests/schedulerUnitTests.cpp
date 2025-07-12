@@ -14,310 +14,310 @@
 
 // 4 kHz tasks
 uint32_t g_task_4khz_1Cntr = 0;
-void task_4khz_1()
+void task_4khz_1(const float& dt)
 {
     g_task_4khz_1Cntr++;
 }
 
 uint32_t g_task_4khz_2Cntr = 0;
-void task_4khz_2()
+void task_4khz_2(const float& dt)
 {
     g_task_4khz_2Cntr++;
 }
 
 uint32_t g_task_4khz_3Cntr = 0;
-void task_4khz_3()
+void task_4khz_3(const float& dt)
 {
     g_task_4khz_3Cntr++;
 }
 
 uint32_t g_task_4khz_4Cntr = 0;
-void task_4khz_4()
+void task_4khz_4(const float& dt)
 {
     g_task_4khz_4Cntr++;
 }
 
 uint32_t g_task_4khz_5Cntr = 0;
-void task_4khz_5()
+void task_4khz_5(const float& dt)
 {
     g_task_4khz_5Cntr++;
 }
 
 // 2 kHz tasks
 uint32_t g_task_2khz_1Cntr = 0;
-void task_2khz_1()
+void task_2khz_1(const float& dt)
 {
     g_task_2khz_1Cntr++;
 }
 
 uint32_t g_task_2khz_2Cntr = 0;
-void task_2khz_2()
+void task_2khz_2(const float& dt)
 {
     g_task_2khz_2Cntr++;
 }
 
 uint32_t g_task_2khz_3Cntr = 0;
-void task_2khz_3()
+void task_2khz_3(const float& dt)
 {
     g_task_2khz_3Cntr++;
 }
 
 uint32_t g_task_2khz_4Cntr = 0;
-void task_2khz_4()
+void task_2khz_4(const float& dt)
 {
     g_task_2khz_4Cntr++;
 }
 
 uint32_t g_task_2khz_5Cntr = 0;
-void task_2khz_5()
+void task_2khz_5(const float& dt)
 {
     g_task_2khz_5Cntr++;
 }
 
 // 1 kHz tasks
 uint32_t g_task_1khz_1Cntr = 0;
-void task_1khz_1()
+void task_1khz_1(const float& dt)
 {
     g_task_1khz_1Cntr++;
 }
 
 uint32_t g_task_1khz_2Cntr = 0;
-void task_1khz_2()
+void task_1khz_2(const float& dt)
 {
     g_task_1khz_2Cntr++;
 }
 
 uint32_t g_task_1khz_3Cntr = 0;
-void task_1khz_3()
+void task_1khz_3(const float& dt)
 {
     g_task_1khz_3Cntr++;
 }
 
 uint32_t g_task_1khz_4Cntr = 0;
-void task_1khz_4()
+void task_1khz_4(const float& dt)
 {
     g_task_1khz_4Cntr++;
 }
 
 uint32_t g_task_1khz_5Cntr = 0;
-void task_1khz_5()
+void task_1khz_5(const float& dt)
 {
     g_task_1khz_5Cntr++;
 }
 
 // 500 Hz tasks
 uint32_t g_task_500hz_1Cntr = 0;
-void task_500hz_1()
+void task_500hz_1(const float& dt)
 {
     g_task_500hz_1Cntr++;
 }
 
 uint32_t g_task_500hz_2Cntr = 0;
-void task_500hz_2()
+void task_500hz_2(const float& dt)
 {
     g_task_500hz_2Cntr++;
 }
 
 uint32_t g_task_500hz_3Cntr = 0;
-void task_500hz_3()
+void task_500hz_3(const float& dt)
 {
     g_task_500hz_3Cntr++;
 }
 
 uint32_t g_task_500hz_4Cntr = 0;
-void task_500hz_4()
+void task_500hz_4(const float& dt)
 {
     g_task_500hz_4Cntr++;
 }
 
 uint32_t g_task_500hz_5Cntr = 0;
-void task_500hz_5()
+void task_500hz_5(const float& dt)
 {
     g_task_500hz_5Cntr++;
 }
 
 // 250 Hz tasks
 uint32_t g_task_250hz_1Cntr = 0;
-void task_250hz_1()
+void task_250hz_1(const float& dt)
 {
     g_task_250hz_1Cntr++;
 }
 
 uint32_t g_task_250hz_2Cntr = 0;
-void task_250hz_2()
+void task_250hz_2(const float& dt)
 {
     g_task_250hz_2Cntr++;
 }
 
 uint32_t g_task_250hz_3Cntr = 0;
-void task_250hz_3()
+void task_250hz_3(const float& dt)
 {
     g_task_250hz_3Cntr++;
 }
 
 uint32_t g_task_250hz_4Cntr = 0;
-void task_250hz_4()
+void task_250hz_4(const float& dt)
 {
     g_task_250hz_4Cntr++;
 }
 
 uint32_t g_task_250hz_5Cntr = 0;
-void task_250hz_5()
+void task_250hz_5(const float& dt)
 {
     g_task_250hz_5Cntr++;
 }
 
 // 100 Hz tasks
 uint32_t g_task_100hz_1Cntr = 0;
-void task_100hz_1()
+void task_100hz_1(const float& dt)
 {
     g_task_100hz_1Cntr++;
 }
 
 uint32_t g_task_100hz_2Cntr = 0;
-void task_100hz_2()
+void task_100hz_2(const float& dt)
 {
     g_task_100hz_2Cntr++;
 }
 
 uint32_t g_task_100hz_3Cntr = 0;
-void task_100hz_3()
+void task_100hz_3(const float& dt)
 {
     g_task_100hz_3Cntr++;
 }
 
 uint32_t g_task_100hz_4Cntr = 0;
-void task_100hz_4()
+void task_100hz_4(const float& dt)
 {
     g_task_100hz_4Cntr++;
 }
 
 uint32_t g_task_100hz_5Cntr = 0;
-void task_100hz_5()
+void task_100hz_5(const float& dt)
 {
     g_task_100hz_5Cntr++;
 }
 
 // 50 Hz tasks
 uint32_t g_task_50hz_1Cntr = 0;
-void task_50hz_1()
+void task_50hz_1(const float& dt)
 {
     g_task_50hz_1Cntr++;
 }
 
 uint32_t g_task_50hz_2Cntr = 0;
-void task_50hz_2()
+void task_50hz_2(const float& dt)
 {
     g_task_50hz_2Cntr++;
 }
 
 uint32_t g_task_50hz_3Cntr = 0;
-void task_50hz_3()
+void task_50hz_3(const float& dt)
 {
     g_task_50hz_3Cntr++;
 }
 
 uint32_t g_task_50hz_4Cntr = 0;
-void task_50hz_4()
+void task_50hz_4(const float& dt)
 {
     g_task_50hz_4Cntr++;
 }
 
 uint32_t g_task_50hz_5Cntr = 0;
-void task_50hz_5()
+void task_50hz_5(const float& dt)
 {
     g_task_50hz_5Cntr++;
 }
 
 // 10 Hz tasks
 uint32_t g_task_10hz_1Cntr = 0;
-void task_10hz_1()
+void task_10hz_1(const float& dt)
 {
     g_task_10hz_1Cntr++;
 }
 
 uint32_t g_task_10hz_2Cntr = 0;
-void task_10hz_2()
+void task_10hz_2(const float& dt)
 {
     g_task_10hz_2Cntr++;
 }
 
 uint32_t g_task_10hz_3Cntr = 0;
-void task_10hz_3()
+void task_10hz_3(const float& dt)
 {
     g_task_10hz_3Cntr++;
 }
 
 uint32_t g_task_10hz_4Cntr = 0;
-void task_10hz_4()
+void task_10hz_4(const float& dt)
 {
     g_task_10hz_4Cntr++;
 }
 
 uint32_t g_task_10hz_5Cntr = 0;
-void task_10hz_5()
+void task_10hz_5(const float& dt)
 {
     g_task_10hz_5Cntr++;
 }
 
 // 5 Hz tasks
 uint32_t g_task_5hz_1Cntr = 0;
-void task_5hz_1()
+void task_5hz_1(const float& dt)
 {
     g_task_5hz_1Cntr++;
 }
 
 uint32_t g_task_5hz_2Cntr = 0;
-void task_5hz_2()
+void task_5hz_2(const float& dt)
 {
     g_task_5hz_2Cntr++;
 }
 
 uint32_t g_task_5hz_3Cntr = 0;
-void task_5hz_3()
+void task_5hz_3(const float& dt)
 {
     g_task_5hz_3Cntr++;
 }
 
 uint32_t g_task_5hz_4Cntr = 0;
-void task_5hz_4()
+void task_5hz_4(const float& dt)
 {
     g_task_5hz_4Cntr++;
 }
 
 uint32_t g_task_5hz_5Cntr = 0;
-void task_5hz_5()
+void task_5hz_5(const float& dt)
 {
     g_task_5hz_5Cntr++;
 }
 
 // 1 Hz tasks
 uint32_t g_task_1hz_1Cntr = 0;
-void task_1hz_1()
+void task_1hz_1(const float& dt)
 {
     g_task_1hz_1Cntr++;
 }
 
 uint32_t g_task_1hz_2Cntr = 0;
-void task_1hz_2()
+void task_1hz_2(const float& dt)
 {
     g_task_1hz_2Cntr++;
 }
 
 uint32_t g_task_1hz_3Cntr = 0;
-void task_1hz_3()
+void task_1hz_3(const float& dt)
 {
     g_task_1hz_3Cntr++;
 }
 
 uint32_t g_task_1hz_4Cntr = 0;
-void task_1hz_4()
+void task_1hz_4(const float& dt)
 {
     g_task_1hz_4Cntr++;
 }
 
 uint32_t g_task_1hz_5Cntr = 0;
-void task_1hz_5()
+void task_1hz_5(const float& dt)
 {
 	g_task_1hz_5Cntr++;
 }

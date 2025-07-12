@@ -29,6 +29,9 @@ extern DMA_HandleTypeDef hdma_usart2_tx;
 extern "C"
 {
 extern Scheduler g_scheduler;
+
+// FlightCore instance is a pointer, because some constructor it call need
+// some hardware to be initialized, so we must instantiate it later.
 FlightCore* g_pFlightCore = nullptr;
 }
 
