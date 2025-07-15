@@ -117,7 +117,7 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
     // Optical Flow sensor
     if (huart->Instance == USART6)
     {
-    	if (huart->ErrorCode & HAL_UART_ERROR_ORE)
+    	if (huart->ErrorCode & HAL_UART_ERROR_ORE) // TODO: validate this
 		{
 			__HAL_UART_CLEAR_OREFLAG(huart);   // Clear RDR + Clear ORE
 		}
