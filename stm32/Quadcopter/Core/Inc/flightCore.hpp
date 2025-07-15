@@ -26,6 +26,9 @@
 #include <stdint.h>
 
 
+/*
+ * C wrapper functions.
+ */
 void mainLoop(const double dt);
 void readIMU_task(const float& dt);
 void AHRS_task(const float& dt);
@@ -38,6 +41,7 @@ void subFSM_task(const float& dt);
 void readBattery_task(const float& dt);
 void readRadio_task(const float& dt);
 void readOpticalFlow_task(const float& dt);
+void debugPrint_task(const float& dt);
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
 
@@ -103,6 +107,7 @@ public:
 	void pidAttLoop(const float& dt);
 	void pidPosLoop(const float& dt);
 	void batteryLoop();
+	void debugPrintLoop();
 
 	void setMotorPower(const Motor& motor, const float& power);
 	float readBatteryVoltage();

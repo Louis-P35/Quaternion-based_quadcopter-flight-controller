@@ -113,6 +113,19 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         // Restart reception
         HAL_UART_Receive_IT(huart, &rxByteMtf01, 1);
     }
+
+    // Optical Flow sensor
+    if (huart->Instance == USART6)
+    {
+    	if (huart->ErrorCode & HAL_UART_ERROR_ORE)
+		{
+			__HAL_UART_CLEAR_OREFLAG(huart);   // Clear RDR + Clear ORE
+		}
+
+		// Stop and relaunch the DMA properly
+		//HAL_UART_DMAStop(huart);
+		//HAL_UARTEx_ReceiveToIdle_DMA(huart, rxBuf, RX_SZ);
+    }
 }
 
 /* USER CODE END EV */

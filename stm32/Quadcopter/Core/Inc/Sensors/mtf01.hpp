@@ -14,6 +14,7 @@
 // Includes from STL
 #include <stdint.h>
 #include <array>
+#include <atomic>
 
 
 /*struct MavlinkOpticalFlow_t
@@ -72,16 +73,17 @@ public:
  */
 class MavlinkProtocole : public OpticalFlowProtocole
 {
-private:
+protected:
 	// Sensor data
-	float m_flowRawX;    	// X optical flow
-	float m_flowRawY;    	// Y optical flow
-	float m_flowX;    	// X optical flow (m/s)
-	float m_flowY;    	// Y optical flow (m/s)
-	float m_height;   	// Height (meters)
-	uint8_t m_quality; 	// Flow quality
-	bool m_dataValid; 	// True if latest data is valid
+	volatile int16_t m_flowRawX;    	// X optical flow
+	volatile int16_t m_flowRawY;    	// Y optical flow
+	volatile uint16_t m_heightRaw;
 
+public:
+	volatile uint8_t m_quality; 	// Flow quality
+	volatile bool m_dataValid; 		// True if latest data is valid
+
+private:
 	// Receive buffer
 	static constexpr size_t RX_BUFFER_SIZE = 64; // Large enough for MAVLink packets
 	std::array<uint8_t, RX_BUFFER_SIZE> m_rxBuffer;
@@ -147,9 +149,9 @@ public:
 	static constexpr float m_lidarRangeMeterMin = 0.02f;
 	static constexpr float m_opticalFlowMinWorkingDistance = 0.08f;
 
-	float m_flowX = 0.0f;
-	float m_flowY = 0.0f;
-	float m_height = 0.0f;
+	float m_flowX = 0.0f;	// X optical flow (m/s)
+	float m_flowY = 0.0f;	// Y optical flow (m/s)
+	float m_height = 0.0f;	// Height (meters)
 
 public:
 	Mtf01() = default;

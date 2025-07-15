@@ -27,7 +27,8 @@ enum class TaskType {
 	eRead_opticalFlow,
 	eMain_fsm,
 	eRead_radio,
-	eRead_battery
+	eRead_battery,
+	eDebugPrint
 };
 
 

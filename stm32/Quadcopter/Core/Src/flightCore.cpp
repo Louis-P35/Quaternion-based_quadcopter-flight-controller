@@ -128,11 +128,12 @@ FlightCore::FlightCore(uint16_t spi_cs_pin, GPIO_TypeDef* spi_cs_gpio_port) :
 
 
 /*
- * Called once at the beginning of the software
+ * Called once at the beginning of the software.
  */
 void FlightCore::mainSetup()
 {
 	constexpr float pidAngleOutputCutOffFreq = 15.0f;
+
 	// Setup the serial print
 	LogManager::getInstance().setup();
 
@@ -154,7 +155,7 @@ void FlightCore::mainSetup()
 	setupRadio();
 
 	// Setup optical flow sensor
-	mtf01WrapperSetInstance((void*)&m_opticalflow);
+	mtf01WrapperSetInstance(static_cast<void*>(&m_opticalflow));
 
 	// Set Startup state
 	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());
@@ -179,9 +180,9 @@ void FlightCore::mainSetup()
 	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
 
 	// D term filters for PID rate loop
-	const float rateLoopFreq = 2000.0f; // TODO hardcoded...
-	const float angleLoopFreq = 1000.0f; // TODO hardcoded...
-	float paramsPIDAngleCutOff[1] = {pidAngleOutputCutOffFreq};
+	constexpr float rateLoopFreq = 2000.0f; // TODO hardcoded...
+	constexpr float angleLoopFreq = 1000.0f; // TODO hardcoded...
+	constexpr float paramsPIDAngleCutOff[1] = {pidAngleOutputCutOffFreq};
 
 	for (size_t i = 0; i < 3; ++i)
 	{
@@ -209,7 +210,6 @@ void FlightCore::mainSetup()
 	{
 		g_pFlightCore->m_posLoopEnable = true; // TODO: Need to be done in the state machine
 	}
-
 
 
 	// Setup the tasks
@@ -240,6 +240,7 @@ void FlightCore::mainSetup()
 
 	// 10 Hz tasks
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eDebugPrint, 1, debugPrint_task, FREQUENCY_SLOT::e_10HZ);
 
 	// Error
 	if (!taskAddSuccess)
@@ -254,91 +255,122 @@ void FlightCore::mainSetup()
 
 /*
  * Task read and filter IMU.
+ * C wrapper function.
  */
 void readIMU_task(const float& dt)
 {
 	g_pFlightCore->m_imu.readAndFilterIMU_gdps();
 }
 
+
 /*
  * Compute the AHRS (Madgwick filter).
+ * C wrapper function.
  */
 void AHRS_task(const float& dt)
 {
 	g_pFlightCore->ahrsLoop(dt);
 }
 
+
 /*
  * Send command signals to ESCs.
+ * C wrapper function.
  */
 void ESCs_task(const float& dt)
 {
 	g_pFlightCore->escLoop();
 }
 
+
 /*
  * Run the PID position (xyz).
+ * C wrapper function.
  */
 void pidPos_task(const float& dt)
 {
 	g_pFlightCore->pidPosLoop(dt);
 }
 
+
 /*
  * Run the PID attitude (angle).
+ * C wrapper function.
  */
 void pidAtt_task(const float& dt)
 {
 	g_pFlightCore->pidAttLoop(dt);
 }
 
+
 /*
  * Run the PID rate.
+ * C wrapper function.
  */
 void pidRate_task(const float& dt)
 {
 	g_pFlightCore->pidRateLoop(dt);
 }
 
+
 /*
  * Run the main finite state machine.
+ * C wrapper function.
  */
 void mainFSM_task(const float& dt)
 {
 	MainStateMachine::getInstance().run(dt);
 }
 
+
 /*
  *
+ * C wrapper function.
  */
 void subFSM_task(const float& dt)
 {
 
 }
 
+
 /*
  * Read battery task.
  * Read the battery voltage with ADC.
+ * C wrapper function.
  */
 void readBattery_task(const float& dt)
 {
 	g_pFlightCore->batteryLoop();
 }
 
+
 /*
  * Read radio receiver task.
+ * C wrapper function.
  */
 void readRadio_task(const float& dt)
 {
 	g_pFlightCore->radioLoop(dt);
 }
 
+
 /*
- *
+ * Read the optical flow and lidar sensor (MTF-01).
+ * C wrapper function.
  */
 void readOpticalFlow_task(const float& dt)
 {
+	g_pFlightCore->m_opticalflow.readSensor();
+}
 
+
+/*
+ * Print over UART.
+ * C wrapper function.
+ */
+void debugPrint_task(const float& dt)
+{
+	g_pFlightCore->debugPrintLoop();
 }
 
 
@@ -359,7 +391,25 @@ void FlightCore::batteryLoop()
 
 
 /*
- * Run Madgwick filter
+ * Print over UART.
+ */
+void FlightCore::debugPrintLoop()
+{
+	LogManager::getInstance().serialPrint(m_opticalflow.m_flowX);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_flowY);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_height);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_quality);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_dataValid);
+	LogManager::getInstance().serialPrint("\r\n");
+}
+
+
+/*
+ * Run Madgwick filter.
  */
 void FlightCore::ahrsLoop(const float& dt)
 {
