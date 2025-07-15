@@ -7,7 +7,7 @@
 
 
 /*
- * This file is an interface between main.c witch is generated .c and flightCore.cpp
+ * This file is an interface between main.c which is generated .c and flightCore.cpp
  */
 
 // Includes from HAL
