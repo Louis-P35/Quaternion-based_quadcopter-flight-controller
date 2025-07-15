@@ -81,7 +81,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM2)
 	{
-		orchestrator_highestFrequencyLoop();
+		systemTicksScheduler();
 	}
 }
 
@@ -112,6 +112,19 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *huart)
         __HAL_UART_CLEAR_FEFLAG(huart);
         // Restart reception
         HAL_UART_Receive_IT(huart, &rxByteMtf01, 1);
+    }
+
+    // Optical Flow sensor
+    if (huart->Instance == USART6)
+    {
+    	if (huart->ErrorCode & HAL_UART_ERROR_ORE) // TODO: validate this
+		{
+			__HAL_UART_CLEAR_OREFLAG(huart);   // Clear RDR + Clear ORE
+		}
+
+		// Stop and relaunch the DMA properly
+		//HAL_UART_DMAStop(huart);
+		//HAL_UARTEx_ReceiveToIdle_DMA(huart, rxBuf, RX_SZ);
     }
 }
 

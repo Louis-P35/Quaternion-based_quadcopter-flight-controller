@@ -17,6 +17,9 @@
 
 class Radio
 {
+private:
+	uint16_t m_lostFrameCnter = 0;
+
 public:
 	// Thrust params
 	float m_throttleHoverOffset = 0.0f;

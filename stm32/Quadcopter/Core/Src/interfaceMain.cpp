@@ -6,10 +6,17 @@
  */
 
 
-#include "main.h"
+/*
+ * This file is an interface between main.c which is generated .c and flightCore.cpp
+ */
+
+// Includes from HAL
 #include "stm32h7xx_hal.h"
 
-#include "scheduler.hpp"
+// Includes from project
+#include "main.h"
+#include "Scheduler/scheduler.hpp"
+#include "flightCore.hpp"
 #include "Utils/utilsTimer.hpp"
 #include "FSM/stateMachine.hpp"
 
@@ -21,7 +28,11 @@ extern DMA_HandleTypeDef hdma_usart2_tx;
 
 extern "C"
 {
-Scheduler g_scheduler(SPI_CS_Pin, SPI_CS_GPIO_Port);
+extern Scheduler g_scheduler;
+
+// FlightCore instance is a pointer, because some constructor it call need
+// some hardware to be initialized, so we must instantiate it later.
+FlightCore* g_pFlightCore = nullptr;
 }
 
 extern "C" void interfaceMain()
@@ -32,8 +43,10 @@ extern "C" void interfaceMain()
 	timerCounterInit();
 	timerCounterReset();
 
+	FlightCore flightCoreInstance(SPI_CS_Pin, SPI_CS_GPIO_Port);
+	g_pFlightCore = &flightCoreInstance;
 
-	g_scheduler.mainSetup();
+	g_pFlightCore->mainSetup();
 
     uint32_t start = timerCounterGetCycles();
     HAL_Delay(1);
@@ -42,7 +55,7 @@ extern "C" void interfaceMain()
     {
         const double dt = getEllapsedTime_s(start);
         start = timerCounterGetCycles();
-        g_scheduler.mainLoop(dt);
+        mainLoop(dt);
     }
 }
 

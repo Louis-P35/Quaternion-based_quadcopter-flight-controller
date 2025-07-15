@@ -15,7 +15,6 @@
 extern UART_HandleTypeDef huart4;
 extern uint8_t mtf01BufCopy[];
 
-
 // Mavlink packet structure:
 // [STX=0xFE][LEN][SEQ][SYSID][COMPID][MSGID][PAYLOAD][CRC_L][CRC_H]
 // STX : Start byte (0xFE for MAVLink v1).
@@ -196,9 +195,9 @@ bool MavlinkProtocole::decodeBuffer()
             	time_usec = (time_usec << 8) | p[i];
             }
 
-            uint8_t qual   =  p[25];
-            int16_t flowX =  p[20] | (p[21] << 8);
-            int16_t flowY =  p[22] | (p[23] << 8);
+            const uint8_t qual   =  p[25];
+            const int16_t flowX =  p[20] | (p[21] << 8);
+            const int16_t flowY =  p[22] | (p[23] << 8);
 
             /*LogManager::getInstance().serialPrint((int)flowX);
             LogManager::getInstance().serialPrint("\t");
@@ -210,6 +209,7 @@ bool MavlinkProtocole::decodeBuffer()
             m_flowRawY = flowY;
             m_quality = qual;
         }
+
         return true;
 
     // Lidar (14 bytes)
@@ -230,9 +230,10 @@ bool MavlinkProtocole::decodeBuffer()
 
             if (current != 0xFFFF) // If dist is valid
             {
-                m_height = 0.01f * current;  // Meter conversion
+                m_heightRaw = /*0.01f **/ current;  // Meter conversion
             }
         }
+
         return true;
 
     default:
@@ -267,10 +268,22 @@ void Mtf01::readSensor()
 	float xVelRaw = 0.0f;
 	float yVelRaw = 0.0f;
 
+	__disable_irq();
+
+	const int16_t flow_x = m_flowRawX;
+	const int16_t flow_y = m_flowRawY;
+	const uint16_t h_cm  = m_heightRaw;
+
+	__enable_irq();
+
+	m_flowX = static_cast<float>(flow_x);
+	m_flowY = static_cast<float>(flow_y);
+	m_height = static_cast<float>(h_cm) * 0.01f;
+
 	// Apply low pass filters
-	m_lidarDist = m_lpfLidar.apply(lidarRaw);
-	m_xVelocity = m_lpfVelX.apply(xVelRaw);
-	m_yVelocity = m_lpfVelY.apply(yVelRaw);
+	//m_lidarDist = m_lpfLidar.apply(lidarRaw);
+	//m_xVelocity = m_lpfVelX.apply(xVelRaw);
+	//m_yVelocity = m_lpfVelY.apply(yVelRaw);
 }
 
 

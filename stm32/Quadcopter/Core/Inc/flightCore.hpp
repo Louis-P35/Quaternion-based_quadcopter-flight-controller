@@ -1,11 +1,12 @@
 /*
- * scheduler.hpp
+ * flightCore.hpp
  *
- *  Created on: Jun 11, 2024
+ *  Created on: Jul 10, 2025
  *      Author: louis
  */
 
 #pragma once
+
 
 // Includes from driver
 #include "stm32h7xx_hal.h"
@@ -21,26 +22,37 @@
 #include "setPoints.hpp"
 #include "Sensors/mtf01.hpp"
 
+//Includes from STL
+#include <stdint.h>
 
-// DO not change this unless change the timer 2 settings accordingly
-// IMU_SAMPLE_FREQUENCY must be a round multiple of 1000
-#define IMU_SAMPLE_FREQUENCY 4000
-#define RATE_DIVIDER 2
-#define AHRS_DIVIDER 4
-#define ESC_DIVIDER 8
-#define POS_HOLD_DIVIDER 40
-#define RADIO_DIVIDER 80
 
+/*
+ * C wrapper functions.
+ */
+void mainLoop(const double dt);
+void readIMU_task(const float& dt);
+void AHRS_task(const float& dt);
+void ESCs_task(const float& dt);
+void pidPos_task(const float& dt);
+void pidAtt_task(const float& dt);
+void pidRate_task(const float& dt);
+void mainFSM_task(const float& dt);
+void subFSM_task(const float& dt);
+void readBattery_task(const float& dt);
+void readRadio_task(const float& dt);
+void readOpticalFlow_task(const float& dt);
+void debugPrint_task(const float& dt);
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
 
 
 /*
  * This class is the main class of this flight controller
+ * It is the scheduler of the tasks queue
  * The 'mainSetup' method is called once by the main function
  * The 'mainLoop' is called in an infinite loop by the main function
  */
-class Scheduler
+class FlightCore
 {
 public:
 	// Blackbox logger on SD card
@@ -73,31 +85,29 @@ public:
 
 	ControlStrategy m_ctrlStrat;
 
-	volatile float m_batteryVoltage = 12.6;
+	volatile float m_batteryVoltage = 12.6f;
 
 	bool m_isFlying = false;
 
-	static constexpr float m_ahrsDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER));
-	static constexpr float m_rateDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER));
-	static constexpr float m_angleDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER)); // Same as ahrs
-	static constexpr float m_posDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(POS_HOLD_DIVIDER));
-	static constexpr float m_radioDt = 1.0f / (static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RADIO_DIVIDER));
-
-	bool m_angleLoop = false;
-	bool m_posLoop = false;
+	bool m_rateLoopEnable = false;
+	bool m_angleLoopEnable = false;
+	bool m_posLoopEnable = false;
 
 public:
-	Scheduler(
+	FlightCore(
 			uint16_t spi_cs_pin,
 			GPIO_TypeDef* spi_cs_gpio_port
 			);
 	void mainSetup();
-	void mainLoop(const double dt);
 
-	void pidRateLoop();
-	void ahrsLoop();
+	void ahrsLoop(const float& dt);
 	void escLoop();
-	void radioLoop();
+	void radioLoop(const float& dt);
+	void pidRateLoop(const float& dt);
+	void pidAttLoop(const float& dt);
+	void pidPosLoop(const float& dt);
+	void batteryLoop();
+	void debugPrintLoop();
 
 	void setMotorPower(const Motor& motor, const float& power);
 	float readBatteryVoltage();

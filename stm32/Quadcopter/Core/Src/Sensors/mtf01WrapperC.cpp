@@ -15,6 +15,8 @@
 
 static void* g_mtf01Instance = NULL;
 
+#include "stm32h7xx_hal.h" // debug
+extern UART_HandleTypeDef huart6; // debug
 
 // Place the DMA receive buffer into AXI-SRAM (D2) so the DMA engine can write to it.
 // The default DTCM section is not accessible by DMA, causing the buffer to remain zeroed.
@@ -47,6 +49,19 @@ void mtf01CopyFrame(const size_t dmaPos)
 
 	if (dmaPos == oldPos)
 	{
+		// debug
+		auto  uart  = huart6.Instance;
+		DMA_Stream_TypeDef* dma = reinterpret_cast<DMA_Stream_TypeDef*>(huart6.hdmarx->Instance);
+		uint32_t cr   = dma->CR;    // OK
+		uint32_t ndtr = dma->NDTR;  // OK
+		unsigned long isr = (unsigned long)uart->ISR;
+		USART_TypeDef *usart = USART6;
+		if (usart->ISR & USART_ISR_ORE)
+		{
+		    cr = cr;
+		}
+		// end debug
+
 		return;
 	}
 
@@ -81,7 +96,9 @@ void mtf01CopyFrame(const size_t dmaPos)
 	{
 		for (size_t i = 0; i < dataLength; ++i)
 		{
-			((MavlinkProtocole*)g_mtf01Instance)->handleByte(mtf01BufCopy[i]);
+			// g_mtf01Instance is a void* (lost the inheritance informations), so we need to cast it to the
+			// last type of the hierarchy (Mtf01*) so the class inheritance hierarchy can be reconstructed.
+			static_cast<Mtf01*>(g_mtf01Instance)->handleByte(mtf01BufCopy[i]);
 		}
 	}
 }

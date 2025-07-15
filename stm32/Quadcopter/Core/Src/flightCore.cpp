@@ -1,72 +1,76 @@
 /*
- * scheduler.cpp
+ * flightCore.cpp
  *
- *  Created on: Jun 11, 2024
+ *  Created on: Jul 10, 2025
  *      Author: louis
  */
 
-// Includes from STL
-#include <orchestrator.h>
-#include <string.h>  // Include for memcpy
-#include <algorithm>
 
-// Includes from Project
-#include "scheduler.hpp"
+// Includes from project
+#include "flightCore.hpp"
+#include "Scheduler/scheduler.hpp"
 #include "logManager.hpp"
 #include "PID/controlStrategy.hpp"
 #include "PID/pid.hpp"
 #include "Radio/radio.hpp"
 #include "FSM/stateMachine.hpp"
 
-// screen /dev/tty.usbserial-14220 115200
+#ifndef DISABLE_UNIT_TESTING
+#include "UnitTests/schedulerUnitTests.hpp"
+#endif
+
+// Includes from STL
+#include <algorithm>
+
 
 #define DEGREE_TO_RAD (M_PI/180.0)
+#define RAD_TO_DEG (180.0/M_PI)
 
 
 /*
  * PIDs coeff
  */
 
-#define SATURATION 75.0f
-#define MAX_OUT 1000.0f
-#define MIN_OUT -1000.0f
+#define SATURATION (75.0f)
+#define MAX_OUT (1000.0f)
+#define MIN_OUT (-1000.0f)
 
-#define ROLL_PITCH_RATE_MAX_D_PERCENT 0.75f // < 1 for stability, [1, 2] for aggresivity
+#define ROLL_PITCH_RATE_MAX_D_PERCENT (0.75f) // < 1 for stability, [1, 2] for aggresivity
 
 // Attitude loop PIDs coefficients
-#define ROLLPITCH_ANGLE_KP 8.0f
-#define ROLLPITCH_ANGLE_KI 0.0f
-#define ROLLPITCH_ANGLE_KD 0.0f
+#define ROLLPITCH_ANGLE_KP (8.0f)
+#define ROLLPITCH_ANGLE_KI (0.0f)
+#define ROLLPITCH_ANGLE_KD (0.0f)
 
 #define YAW_ANGLE_KP (ROLLPITCH_ANGLE_KP / 2.0f)
-#define YAW_ANGLE_KI 0.0f
-#define YAW_ANGLE_KD 0.0f
+#define YAW_ANGLE_KI (0.0f)
+#define YAW_ANGLE_KD (0.0f)
 
 // Rate loop PIDs coefficients
-#define ROLLPITCH_RATE_KP 0.4f
-#define ROLLPITCH_RATE_KI 0.4f
-#define ROLLPITCH_RATE_KD 0.04f
+#define ROLLPITCH_RATE_KP (0.4f)
+#define ROLLPITCH_RATE_KI (0.4f)
+#define ROLLPITCH_RATE_KD (0.04f)
 
-#define YAW_RATE_KP 0.3f
-#define YAW_RATE_KI 0.01f
-#define YAW_RATE_KD 0.0f
+#define YAW_RATE_KP (0.3f)
+#define YAW_RATE_KI (0.01f)
+#define YAW_RATE_KD (0.0f)
 
 // Position loop PIDs coefficients
-#define ROLLPITCH_POS_KP 0.0f
-#define ROLLPITCH_POS_KI 0.0f
-#define ROLLPITCH_POS_KD 0.0f
+#define ROLLPITCH_POS_KP (0.0f)
+#define ROLLPITCH_POS_KI (0.0f)
+#define ROLLPITCH_POS_KD (0.0f)
 
-#define YAW_POS_KP 0.0f
-#define YAW_POS_KI 0.0f
-#define YAW_POS_KD 0.0f
+#define YAW_POS_KP (0.0f)
+#define YAW_POS_KI (0.0f)
+#define YAW_POS_KD (0.0f)
 
 // Radio control
-#define THROTTLE_HOVER_OFFSET 0.1f // Around hover point
-#define THROTTLE_EXPO 0.99f
-#define TARGET_ANGLE_MAX 45.0f
-#define TARGET_RATE_MAX 200.0f
-#define THRUST_IS_FLYING_THRESHOLD_UP 340.0f
-#define THRUST_IS_FLYING_THRESHOLD_DOWN 250.0f
+#define THROTTLE_HOVER_OFFSET (0.1f) // Around hover point
+#define THROTTLE_EXPO (0.99f)
+#define TARGET_ANGLE_MAX (45.0f)
+#define TARGET_RATE_MAX (200.0f)
+#define THRUST_IS_FLYING_THRESHOLD_UP (340.0f)
+#define THRUST_IS_FLYING_THRESHOLD_DOWN (250.0f)
 
 
 extern TIM_HandleTypeDef htim1;
@@ -74,29 +78,31 @@ extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart6;
 extern DMA_HandleTypeDef hdma_usart6_rx;
 extern ADC_HandleTypeDef hadc3;
+
+
 extern Scheduler g_scheduler;
+extern FlightCore* g_pFlightCore;
+
+
 volatile bool g_enableRadioLoop = false;
 volatile bool g_start = false;
 
-constexpr float Scheduler::m_rateDt;
-constexpr float Scheduler::m_ahrsDt;
-constexpr float Scheduler::m_angleDt;
-constexpr float Scheduler::m_posDt;
-constexpr float Scheduler::m_radioDt;
+volatile bool g_startRecord = false;
+volatile bool g_startPrint = false;
 
-//#define CALIBRATE_IMU 1
+//#define CALIBRATE_IMU (1)
 
 // 0.45 (x4) = take off thrust
 
-//#define COMPUTE_HOVER_OFFSET 1
+//#define COMPUTE_HOVER_OFFSET (1)
 
 // Uncomment this to disable motors
-#define DEBUG_DISABLE_MOTORS 1
-//#define PID_TESTING_MODE 1
+#define DEBUG_DISABLE_MOTORS (1)
+//#define PID_TESTING_MODE (1)
 
 
-volatile bool g_startRecord = false;
-volatile bool g_startPrint = false;
+
+
 
 // TODOs:
 // GYRO à 6khz => voir ce que ça donne de monter les fréquences de coupure des 2 LPF (moins de latences)
@@ -113,10 +119,8 @@ volatile bool g_startPrint = false;
 // Compute target quaternion only in STAB/HORIZON(& stick 0) mode
 
 
-Scheduler::Scheduler(
-		uint16_t spi_cs_pin,
-		GPIO_TypeDef* spi_cs_gpio_port
-		) :
+
+FlightCore::FlightCore(uint16_t spi_cs_pin, GPIO_TypeDef* spi_cs_gpio_port) :
 		m_radio(THROTTLE_HOVER_OFFSET, THROTTLE_EXPO, TARGET_ANGLE_MAX, TARGET_RATE_MAX)
 {
 
@@ -124,16 +128,17 @@ Scheduler::Scheduler(
 
 
 /*
- * Called once at the beginning of the software
+ * Called once at the beginning of the software.
  */
-void Scheduler::mainSetup()
+void FlightCore::mainSetup()
 {
 	constexpr float pidAngleOutputCutOffFreq = 15.0f;
+
 	// Setup the serial print
 	LogManager::getInstance().setup();
 
 	// Setup the IMU (ICM20948)
-	m_imu.init(IMU_SAMPLE_FREQUENCY);
+	m_imu.init(4000.0f); // TODO hardcoded...
 
 	// Init AHRS
 	m_madgwickFilter = MadgwickFilter<float>();
@@ -150,7 +155,7 @@ void Scheduler::mainSetup()
 	setupRadio();
 
 	// Setup optical flow sensor
-	mtf01WrapperSetInstance((void*)&m_opticalflow);
+	mtf01WrapperSetInstance(static_cast<void*>(&m_opticalflow));
 
 	// Set Startup state
 	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());
@@ -175,9 +180,9 @@ void Scheduler::mainSetup()
 	m_ctrlStrat.setPIDsatMinMaxPos(SATURATION, MIN_OUT, MAX_OUT);
 
 	// D term filters for PID rate loop
-	const float rateLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(RATE_DIVIDER);
-	const float angleLoopFreq = static_cast<float>(IMU_SAMPLE_FREQUENCY) / static_cast<float>(AHRS_DIVIDER);
-	float paramsPIDAngleCutOff[1] = {pidAngleOutputCutOffFreq};
+	constexpr float rateLoopFreq = 2000.0f; // TODO hardcoded...
+	constexpr float angleLoopFreq = 1000.0f; // TODO hardcoded...
+	constexpr float paramsPIDAngleCutOff[1] = {pidAngleOutputCutOffFreq};
 
 	for (size_t i = 0; i < 3; ++i)
 	{
@@ -191,114 +196,222 @@ void Scheduler::mainSetup()
 	// Set the control mode
 	m_ctrlStrat.m_flightMode = StabilizationMode::STAB;
 
+	// Enable PID angle loop
+	// Enable it only in certain flight mode
+	if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
+			m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+	{
+		m_angleLoopEnable = true; // TODO: Need to be done in the state machine
+	}
+
+	// Enable PID position hold loop (that will run in the state machine)
+	// Enable it only in certain flight mode
+	if (g_pFlightCore->m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+	{
+		g_pFlightCore->m_posLoopEnable = true; // TODO: Need to be done in the state machine
+	}
+
+
+	// Setup the tasks
+	// addAllTasks(g_scheduler); // Unit test
+
+	bool taskAddSuccess = true;
+
+	// 4 KHz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_IMU, 0, readIMU_task, FREQUENCY_SLOT::e_4KHZ);
+
+	// 2 KHz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_rate, 0, pidRate_task, FREQUENCY_SLOT::e_2KHZ);
+
+	// 1 KHz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eAHRS, 0, AHRS_task, FREQUENCY_SLOT::e_1KHZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_att, 1, pidAtt_task, FREQUENCY_SLOT::e_1KHZ);
+
+	// 500 Hz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eESCs, 0, ESCs_task, FREQUENCY_SLOT::e_500HZ);
+
+	// 100 Hz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
+
+	// 50 Hz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_radio, 0, readRadio_task, FREQUENCY_SLOT::e_50HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eMain_fsm, 1, mainFSM_task, FREQUENCY_SLOT::e_50HZ);
+
+	// 10 Hz tasks
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eDebugPrint, 1, debugPrint_task, FREQUENCY_SLOT::e_10HZ);
+
+	// Error
+	if (!taskAddSuccess)
+	{
+		// TODO: Handle task add error
+	}
+
 	// Start the loop
 	g_start = true;
 }
 
 
-uint32_t ahrsTicks = 0;
-uint32_t pidRateTicks = 0;
-uint32_t escTicks = 0;
-uint32_t radioTicks = 0;
-
-
 /*
- * Called at 4khz by timer 2 overflow interrupt
- * This is the main loop of this software
+ * Task read and filter IMU.
+ * C wrapper function.
  */
-// TODO: Need to remove the heavy code from this ISR and implement the proper scheduler system !
-void orchestrator_highestFrequencyLoop()
+void readIMU_task(const float& dt)
 {
-	static uint32_t ticks = 0;
-
-	if (g_start /*&& !g_startPrint*/)
-	{
-		ticks++;
-
-		// 4 khz loop
-		g_scheduler.m_imu.readAndFilterIMU_gdps();
-
-		// 1 khz loop
-		// AHRS
-		if ((ticks % AHRS_DIVIDER) == 0) // 1khz (4khz / 4)
-		{
-			g_scheduler.ahrsLoop();
-			//ahrsTicks++;
-		}
-
-		// 500 hz loop
-		// ESCs
-		if ((ticks % ESC_DIVIDER) == 0) // 500hz (6khz / 12)
-		{
-			g_scheduler.escLoop();
-			//escTicks++;
-		}
-
-		// 100 hz loop
-		// PID position hold
-		if ((ticks % POS_HOLD_DIVIDER) == 0) // 100hz (6khz / 60)
-		{
-			// Enable PID position hold loop (that will run in the state machine)
-			// Enable it only in certain flight mode
-			if (g_scheduler.m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
-			{
-				g_scheduler.m_posLoop = true;
-			}
-
-			// Compute voltage compensation
-			g_scheduler.m_motorMixer.computeVoltageCompensation(g_scheduler.m_batteryVoltage);
-		}
-
-		// 50 hz loop
-		// Radio
-		if ((ticks % RADIO_DIVIDER) == 0) // 50hz (6khz / 120)
-		{
-			g_scheduler.radioLoop();
-			//radioTicks++;
-		}
-
-		// 2 khz loop
-		// PID rate loop
-		// The last called because it run the state machine
-		if ((ticks % RATE_DIVIDER) == 0) // 2khz (4khz / 2)
-		{
-			g_scheduler.pidRateLoop();
-			//pidRateTicks++;
-		}
-	}
+	g_pFlightCore->m_imu.readAndFilterIMU_gdps();
 }
 
 
 /*
- * Handle drone behavior according to the current state (state machine)
- * Run all the PID loops
+ * Compute the AHRS (Madgwick filter).
+ * C wrapper function.
  */
-void Scheduler::pidRateLoop()
+void AHRS_task(const float& dt)
 {
-	// Run the state machine
-	MainStateMachine::getInstance().run(*this);
-
-	// Reset angle & position hold flag here because they are executed in the state machine
-	m_angleLoop = false;
-	m_posLoop = false;
-
-	/*if (g_startRecord && m_imu.m_gyroDebugIndex < 5000)
-	{
-		m_imu.m_gyroDebug[m_imu.m_gyroDebugIndex] = m_imu.m_gyroRaw;
-		m_imu.m_gyroDebugIndex++;
-	}
-	else if (m_imu.m_gyroDebugIndex == 5000)
-	{
-		g_startPrint = true;
-		m_imu.m_gyroDebugIndex++;
-	}*/
+	g_pFlightCore->ahrsLoop(dt);
 }
 
 
 /*
- * Run Madgwick filter
+ * Send command signals to ESCs.
+ * C wrapper function.
  */
-void Scheduler::ahrsLoop()
+void ESCs_task(const float& dt)
+{
+	g_pFlightCore->escLoop();
+}
+
+
+/*
+ * Run the PID position (xyz).
+ * C wrapper function.
+ */
+void pidPos_task(const float& dt)
+{
+	g_pFlightCore->pidPosLoop(dt);
+}
+
+
+/*
+ * Run the PID attitude (angle).
+ * C wrapper function.
+ */
+void pidAtt_task(const float& dt)
+{
+	g_pFlightCore->pidAttLoop(dt);
+}
+
+
+/*
+ * Run the PID rate.
+ * C wrapper function.
+ */
+void pidRate_task(const float& dt)
+{
+	g_pFlightCore->pidRateLoop(dt);
+}
+
+
+/*
+ * Run the main finite state machine.
+ * C wrapper function.
+ */
+void mainFSM_task(const float& dt)
+{
+	MainStateMachine::getInstance().run(dt);
+}
+
+
+/*
+ *
+ * C wrapper function.
+ */
+void subFSM_task(const float& dt)
+{
+
+}
+
+
+/*
+ * Read battery task.
+ * Read the battery voltage with ADC.
+ * C wrapper function.
+ */
+void readBattery_task(const float& dt)
+{
+	g_pFlightCore->batteryLoop();
+}
+
+
+/*
+ * Read radio receiver task.
+ * C wrapper function.
+ */
+void readRadio_task(const float& dt)
+{
+	g_pFlightCore->radioLoop(dt);
+}
+
+
+/*
+ * Read the optical flow and lidar sensor (MTF-01).
+ * C wrapper function.
+ */
+void readOpticalFlow_task(const float& dt)
+{
+	g_pFlightCore->m_opticalflow.readSensor();
+}
+
+
+/*
+ * Print over UART.
+ * C wrapper function.
+ */
+void debugPrint_task(const float& dt)
+{
+	g_pFlightCore->debugPrintLoop();
+}
+
+
+
+/*
+ * Read battery.
+ * Read the battery voltage with ADC.
+ */
+void FlightCore::batteryLoop()
+{
+	// Read battery voltage
+	// It is a blocking function !!
+	m_batteryVoltage = readBatteryVoltage();
+
+	// Compute voltage compensation
+	m_motorMixer.computeVoltageCompensation(m_batteryVoltage);
+}
+
+
+/*
+ * Print over UART.
+ */
+void FlightCore::debugPrintLoop()
+{
+	LogManager::getInstance().serialPrint(m_opticalflow.m_flowX);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_flowY);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_height);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_quality);
+	LogManager::getInstance().serialPrint("\t");
+	LogManager::getInstance().serialPrint(m_opticalflow.m_dataValid);
+	LogManager::getInstance().serialPrint("\r\n");
+}
+
+
+/*
+ * Run Madgwick filter.
+ */
+void FlightCore::ahrsLoop(const float& dt)
 {
 	// AHRS, Madgwick filter
 	m_madgwickFilter.compute(
@@ -308,7 +421,7 @@ void Scheduler::ahrsLoop()
 			m_imu.m_gyroFilterAhrs.m_x * DEGREE_TO_RAD,
 			m_imu.m_gyroFilterAhrs.m_y * DEGREE_TO_RAD,
 			m_imu.m_gyroFilterAhrs.m_z * DEGREE_TO_RAD,
-			m_ahrsDt
+			dt
 		);
 
 	// Debug print AHRS result
@@ -319,21 +432,99 @@ void Scheduler::ahrsLoop()
 	// Compute the hover offset (must be done once after each teardown/build of the drone)
 	calibrateHoverOffset();
 #endif
+}
 
-	// Enable PID angle loop (that will run in the state machine)
-	// Enable it only in certain flight mode
-	if(m_ctrlStrat.m_flightMode == StabilizationMode::STAB ||
-			m_ctrlStrat.m_flightMode == StabilizationMode::POSHOLD)
+
+/*
+ * Run the PID rate.
+ */
+void FlightCore::pidRateLoop(const float& dt)
+{
+	if (!m_rateLoopEnable)
 	{
-		m_angleLoop = true;
+		return;
 	}
+
+	// Run rate PID
+	m_ctrlStrat.rateControlLoop(
+			dt,
+			m_imu.m_gyroFilterRates,
+			m_setPoint
+			);
+
+	m_thrust = m_radio.m_targetThrust * 4.0f;
+	m_torqueX = m_ctrlStrat.m_rateLoop[0].m_output;
+	m_torqueY = m_ctrlStrat.m_rateLoop[1].m_output;
+	m_torqueZ = m_ctrlStrat.m_rateLoop[2].m_output;
+}
+
+
+/*
+ * Run the attitude (angle) PID.
+ */
+void FlightCore::pidAttLoop(const float& dt)
+{
+	if (!m_angleLoopEnable)
+	{
+		return;
+	}
+
+	// Correct the physical offset IMU -> drone
+	m_qAttitudeCorrected = m_qHoverOffset * m_madgwickFilter.m_qEst;
+	m_qAttitudeCorrected.normalize();
+
+	// A quaternion q and -q represent the same rotation.
+	// Here, canonical() make a sign choice (q.w >= 0).
+	Quaternion<float> qEst = Quaternion<float>::canonical(m_qAttitudeCorrected);
+	Quaternion<float> qTarget = Quaternion<float>::canonical(m_setPoint.m_targetQuaternion);
+
+	// Get attitude error
+	Quaternion<float> qError = PID::getError(qEst, qTarget);
+
+	// Test
+	//Quaternion qTest = qError * qEst;
+	//qTest.normalize();
+
+	// Get the angle and axis of rotation
+	Vector3<float> rotAxis;
+	float angleRad = 0.0f;
+	qError.toAxisAngle(rotAxis, angleRad);
+
+	// Projection of the rotation axis onto the 3 axis of the drone
+	// It is NOT Euler angles here, so no singularity
+	std::array<float, 3> error;
+	error[0] = rotAxis.m_x * angleRad * RAD_TO_DEG;
+	error[1] = rotAxis.m_y * angleRad * RAD_TO_DEG;
+	error[2] = rotAxis.m_z * angleRad * RAD_TO_DEG;
+
+	// Run angle PID
+	m_ctrlStrat.angleControlLoop(
+			dt,
+			m_imu.m_gyroFilterRates,
+			error,
+			m_isFlying
+			);
+}
+
+
+/*
+ * Run the position (xyz) PID.
+ */
+void FlightCore::pidPosLoop(const float& dt)
+{
+	if (!m_posLoopEnable)
+	{
+		return;
+	}
+
+	// TODO
 }
 
 
 /*
  * Motors update
  */
-void Scheduler::escLoop()
+void FlightCore::escLoop()
 {
 	m_motorMixer.mixThrustTorque(m_thrust, m_torqueX, m_torqueY, m_torqueZ);
 	m_motorMixer.applyVoltageCompensation();
@@ -352,9 +543,9 @@ void Scheduler::escLoop()
 /*
  * Read radio's PWM signals
  */
-void Scheduler::radioLoop()
+void FlightCore::radioLoop(const float& dt)
 {
-	const bool signalLost = m_radio.readRadioReceiver(true, m_radioDt);
+	const bool signalLost = m_radio.readRadioReceiver(true, dt);
 
 	// Handle is flying detection
 	if (!m_isFlying && m_radio.m_targetThrust > THRUST_IS_FLYING_THRESHOLD_UP)
@@ -369,21 +560,23 @@ void Scheduler::radioLoop()
 
 
 /*
- * Called indefinitely in a loop
- * For non-critical real time tasks
+ * Called indefinitely in a loop.
+ * Run the tasks scheduler.
  */
-void Scheduler::mainLoop(const double dt)
+void mainLoop(const double dt)
 {
-	// Read battery voltage
-	// It is a blocking function that is not critical for real time loop
-	m_batteryVoltage = readBatteryVoltage();
+	static float timeSinceBoot = 0.0f;
+	timeSinceBoot += static_cast<float>(dt);
+
+	// Run the scheduler
+	g_scheduler.runTasks(timeSinceBoot);
+
 
 #ifdef PID_TESTING_MODE
-	pidDebugStream();
+	g_flightCore.pidDebugStream();
 #endif
 
-	HAL_Delay(20);
-
+	//HAL_Delay(20);
 
 
 	/* DEBUG PRINT */
@@ -432,7 +625,7 @@ void Scheduler::mainLoop(const double dt)
  * Set PWM's high time to control ESCs.
  * power = [0.0, 1000.0]
  */
-void Scheduler::setMotorPower(const Motor& motor, const float& power)
+void FlightCore::setMotorPower(const Motor& motor, const float& power)
 {
 	constexpr float pwmRes = 500.0;
 	constexpr int pwmResMin = static_cast<int>(pwmRes);
@@ -479,7 +672,7 @@ void Scheduler::setMotorPower(const Motor& motor, const float& power)
  * Read the ADC and convert it to 3S battery voltage.
  * Return a value in Volt
  */
-float Scheduler::readBatteryVoltage()
+float FlightCore::readBatteryVoltage()
 {
 	constexpr float divider = 1.0f / 0.14826f; // Voltage divider bridge value
 	constexpr float vref = 3.3f;
@@ -505,7 +698,7 @@ float Scheduler::readBatteryVoltage()
  * Because the IMU is never solder and mounted perfectly flat on the drone.
  * Just print out the result over UART.
  */
-void Scheduler::calibrateHoverOffset()
+void FlightCore::calibrateHoverOffset()
 {
 	static constexpr int nbPassMinInitAhrs = 30000;
 	static constexpr int nbIterMax = 500;
@@ -564,7 +757,7 @@ void Scheduler::calibrateHoverOffset()
 /*
  * Must be called at 50 hz
  */
-void Scheduler::pidDebugStream()
+void FlightCore::pidDebugStream()
 {
 	static size_t callCount = 0;
 	constexpr bool rate = true;
