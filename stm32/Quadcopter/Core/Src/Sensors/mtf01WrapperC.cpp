@@ -49,19 +49,6 @@ void mtf01CopyFrame(const size_t dmaPos)
 
 	if (dmaPos == oldPos)
 	{
-		// debug
-		auto  uart  = huart6.Instance;
-		DMA_Stream_TypeDef* dma = reinterpret_cast<DMA_Stream_TypeDef*>(huart6.hdmarx->Instance);
-		uint32_t cr   = dma->CR;    // OK
-		uint32_t ndtr = dma->NDTR;  // OK
-		unsigned long isr = (unsigned long)uart->ISR;
-		USART_TypeDef *usart = USART6;
-		if (usart->ISR & USART_ISR_ORE)
-		{
-		    cr = cr;
-		}
-		// end debug
-
 		return;
 	}
 

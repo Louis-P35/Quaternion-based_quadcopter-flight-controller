@@ -263,10 +263,7 @@ bool Mtf01::init()
  */
 void Mtf01::readSensor()
 {
-	// Read data from sensor TODO next
-	float lidarRaw = 0.0f;
-	float xVelRaw = 0.0f;
-	float yVelRaw = 0.0f;
+	constexpr float dt = 1.0f / m_outputFrequency;
 
 	__disable_irq();
 
@@ -276,14 +273,18 @@ void Mtf01::readSensor()
 
 	__enable_irq();
 
-	m_flowX = static_cast<float>(flow_x);
-	m_flowY = static_cast<float>(flow_y);
-	m_height = static_cast<float>(h_cm) * 0.01f;
+	// TODO: Compute m_flowX & m_flowY based on altitude
 
 	// Apply low pass filters
-	//m_lidarDist = m_lpfLidar.apply(lidarRaw);
-	//m_xVelocity = m_lpfVelX.apply(xVelRaw);
-	//m_yVelocity = m_lpfVelY.apply(yVelRaw);
+	m_lidarDist = m_lpfLidar.apply(static_cast<float>(h_cm) * 0.01f);
+	m_flowX = m_lpfVelX.apply(static_cast<float>(flow_x));
+	m_flowY = m_lpfVelY.apply(static_cast<float>(flow_y));
+
+	// TODO: Compute m_xVelocity & m_yVelocity based on attitude
+
+	// TODO: This is position computation, do not do it here
+	m_xVelocity += m_flowX * dt;
+	m_yVelocity += m_flowY * dt;
 }
 
 

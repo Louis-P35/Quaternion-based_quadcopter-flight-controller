@@ -395,9 +395,9 @@ void FlightCore::batteryLoop()
  */
 void FlightCore::debugPrintLoop()
 {
-	LogManager::getInstance().serialPrint(m_opticalflow.m_flowX);
+	LogManager::getInstance().serialPrint(m_opticalflow.m_xVelocity);
 	LogManager::getInstance().serialPrint("\t");
-	LogManager::getInstance().serialPrint(m_opticalflow.m_flowY);
+	LogManager::getInstance().serialPrint(m_opticalflow.m_yVelocity);
 	LogManager::getInstance().serialPrint("\t");
 	LogManager::getInstance().serialPrint(m_opticalflow.m_height);
 	LogManager::getInstance().serialPrint("\t");

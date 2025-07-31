@@ -21,8 +21,8 @@ std::array<FrequencySlot, NUMBER_TASKS_FREQUENCY_SLOTS> Scheduler::m_pTasksPoolA
 
 
 /*
- * Called at 4khz by timer 2 overflow interrupt
- * This schedule the different frequencies loops
+ * Called at 4khz by timer 2 overflow interrupt.
+ * This schedule the different frequencies loops.
  */
 void systemTicksScheduler()
 {
