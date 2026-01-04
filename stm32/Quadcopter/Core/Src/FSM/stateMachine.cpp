@@ -38,7 +38,7 @@ void StartupSequenceState::handleState(const float& dt)
 {
 	m_time += dt;
 
-	LogManager::getInstance().serialPrint("StartupSequenceState\n\r");
+	//LogManager::getInstance().serialPrint("StartupSequenceState\n\r");
 	//LogManager::getInstance().serialPrint(m_time);
 
 	// Wait 2s
@@ -67,7 +67,7 @@ void IdleState::enterState()
 }
 void IdleState::handleState(const float& dt)
 {
-	LogManager::getInstance().serialPrint("IdleState\n\r");
+	//LogManager::getInstance().serialPrint("IdleState\n\r");
 	//LogManager::getInstance().serialPrint(g_flightCore.m_radio.m_targetThrust);
 
 	// Wait for throttle all the way down from the controller
@@ -96,7 +96,7 @@ void ReadyToTakeOffState::enterState()
 }
 void ReadyToTakeOffState::handleState(const float& dt)
 {
-	LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
+	//LogManager::getInstance().serialPrint("ReadyToTakeOffState\n\r");
 	//LogManager::getInstance().serialPrint(g_flightCore.m_radio.m_targetThrust);
 
 	g_pFlightCore->m_thrust = g_pFlightCore->m_radio.m_targetThrust;
