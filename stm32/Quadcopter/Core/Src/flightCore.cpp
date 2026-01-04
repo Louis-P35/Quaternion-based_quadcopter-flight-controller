@@ -97,7 +97,7 @@ volatile bool g_startPrint = false;
 //#define COMPUTE_HOVER_OFFSET (1)
 
 // Uncomment this to disable motors
-#define DEBUG_DISABLE_MOTORS (1)
+//#define DEBUG_DISABLE_MOTORS (1)
 //#define PID_TESTING_MODE (1)
 
 

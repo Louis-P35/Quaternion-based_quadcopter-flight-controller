@@ -8,6 +8,7 @@
 // Includes from project
 #include "Sensors/mtf01WrapperC.h"
 #include "Sensors/mtf01.hpp"
+#include "main.h"
 
 // Includes from STL
 #include <cstring>
@@ -18,9 +19,19 @@ static void* g_mtf01Instance = NULL;
 #include "stm32h7xx_hal.h" // debug
 extern UART_HandleTypeDef huart6; // debug
 
+/*
+ * DMA Buffer with Cache Coherency Support
+ *
+ * This buffer requires 32-byte alignment and cache invalidation before reading
+ * to prevent cache coherency issues with DMA on STM32H7.
+ *
+ * For detailed explanation of why this is necessary, see the comment block
+ * in Radio/sbusWrapperC.cpp (search for "DMA Buffer and Cache Coherency")
+ */
 // Place the DMA receive buffer into AXI-SRAM (D2) so the DMA engine can write to it.
 // The default DTCM section is not accessible by DMA, causing the buffer to remain zeroed.
-uint8_t mtf01Buf[MTF01_FRAME_SIZE] __attribute__((section(".axisram_bss")));
+// Buffer size is 256 (next multiple of 32 above MTF01_FRAME_SIZE=255) for proper cache alignment
+uint8_t mtf01Buf[256] __attribute__((aligned(32))) __attribute__((section(".axisram_bss")));
 uint8_t mtf01BufCopy[MTF01_FRAME_SIZE];
 size_t mtf01BufLen = 0;
 bool g_mtf01NewFrameReady = false;
@@ -51,6 +62,11 @@ void mtf01CopyFrame(const size_t dmaPos)
 	{
 		return;
 	}
+
+	// CRITICAL: Invalidate D-Cache before reading the DMA buffer
+	// This forces the CPU to read fresh data from RAM instead of stale cached data
+	// (See detailed explanation in Radio/sbusWrapperC.cpp)
+	SCB_InvalidateDCache_by_Addr((uint32_t*)mtf01Buf, sizeof(mtf01Buf));
 
 	size_t dataLength = 0;
 
