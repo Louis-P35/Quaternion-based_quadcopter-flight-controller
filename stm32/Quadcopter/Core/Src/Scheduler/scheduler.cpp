@@ -275,8 +275,6 @@ Task* Scheduler::removeAndFreeTask(Task* const pTask)
 		return nullptr;
 	}
 
-	// TODO: Do not iterate... Just use pTask => pTask = pTask->m_pNext; (need ppTask in parameter)
-
 	// Loop through all the slots of fixed frequency tasks linked list
 	for (size_t i = 0; i < NUMBER_TASKS_FREQUENCY_SLOTS; ++i)
 	{

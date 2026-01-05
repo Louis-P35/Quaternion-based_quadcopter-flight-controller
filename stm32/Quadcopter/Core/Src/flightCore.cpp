@@ -7,6 +7,7 @@
 
 
 // Includes from project
+#include "config.h"
 #include "flightCore.hpp"
 #include "Scheduler/scheduler.hpp"
 #include "logManager.hpp"
@@ -14,6 +15,7 @@
 #include "PID/pid.hpp"
 #include "Radio/radio.hpp"
 #include "FSM/stateMachine.hpp"
+#include "Sensors/mtf01WrapperC.h"
 
 #ifndef DISABLE_UNIT_TESTING
 #include "UnitTests/schedulerUnitTests.hpp"
@@ -154,8 +156,10 @@ void FlightCore::mainSetup()
 	// Setup PWM reading for radio receiver
 	setupRadio();
 
+#if SENSOR_MTF01_ENABLED
 	// Setup optical flow sensor
 	mtf01WrapperSetInstance(static_cast<void*>(&m_opticalflow));
+#endif
 
 	// Set Startup state
 	MainStateMachine::getInstance().setState(MainStateMachine::getInstance().getStartupSequenceState());
@@ -231,7 +235,9 @@ void FlightCore::mainSetup()
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eESCs, 0, ESCs_task, FREQUENCY_SLOT::e_500HZ);
 
 	// 100 Hz tasks
+#if SENSOR_MTF01_ENABLED
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
+#endif
 	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
 
 	// 50 Hz tasks
@@ -395,6 +401,7 @@ void FlightCore::batteryLoop()
  */
 void FlightCore::debugPrintLoop()
 {
+#if SENSOR_MTF01_ENABLED
 	LogManager::getInstance().serialPrint(m_opticalflow.m_xVelocity);
 	LogManager::getInstance().serialPrint("\t");
 	LogManager::getInstance().serialPrint(m_opticalflow.m_yVelocity);
@@ -405,6 +412,7 @@ void FlightCore::debugPrintLoop()
 	LogManager::getInstance().serialPrint("\t");
 	LogManager::getInstance().serialPrint(m_opticalflow.m_dataValid);
 	LogManager::getInstance().serialPrint("\r\n");
+#endif
 }
 
 
