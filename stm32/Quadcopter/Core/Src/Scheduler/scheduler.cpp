@@ -28,6 +28,28 @@ void systemTicksScheduler()
 {
 	g_scheduler.m_ticksCounter++;
 
+	// NOTE: 32kHz, 16kHz, and 8kHz slots are DISABLED because their dividers are 0
+	// (SYSTICKS_SAMPLE_FREQUENCY=4000 / 32000 = 0). To enable them, increase
+	// SYSTICKS_SAMPLE_FREQUENCY to at least 32kHz or remove these slots entirely.
+
+	// DISABLED - Division by zero (4000/32000 = 0)
+	// if ((g_scheduler.m_ticksCounter % DIVIDER_32KHZ) == 0)
+	// {
+	// 	g_scheduler.m_loops_frequencies_bit_fields |= LOOP_MASK_32KHZ;
+	// }
+
+	// DISABLED - Division by zero (4000/16000 = 0)
+	// if ((g_scheduler.m_ticksCounter % DIVIDER_16KHZ) == 0)
+	// {
+	// 	g_scheduler.m_loops_frequencies_bit_fields |= LOOP_MASK_16KHZ;
+	// }
+
+	// DISABLED - Division by zero (4000/8000 = 0)
+	// if ((g_scheduler.m_ticksCounter % DIVIDER_8KHZ) == 0)
+	// {
+	// 	g_scheduler.m_loops_frequencies_bit_fields |= LOOP_MASK_8KHZ;
+	// }
+
 	if ((g_scheduler.m_ticksCounter % DIVIDER_4KHZ) == 0)
 	{
 		g_scheduler.m_loops_frequencies_bit_fields |= LOOP_MASK_4KHZ;
@@ -130,6 +152,9 @@ void systemTicksScheduler()
 
 Scheduler::Scheduler()
 {
+	// NOTE: First 3 slots (32kHz, 16kHz, 8kHz) are disabled due to division by zero
+	// We still initialize them for potential future use if SYSTICKS_SAMPLE_FREQUENCY is increased
+
 	uint32_t freq = 32000;
 
 	// Initialize the dt of each slot
