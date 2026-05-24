@@ -429,6 +429,17 @@ void FlightCore::debugPrintLoop()
 		g.m_x, g.m_y, g.m_z,
 		a.m_x, a.m_y, a.m_z
 	);
+
+	uint8_t motorPct[4];
+	for (int i = 0; i < 4; ++i)
+		motorPct[i] = static_cast<uint8_t>(m_motorMixer.m_powerMotor[i] / 10.0f);
+
+	m_espInterface.sendStatus(
+		MainStateMachine::getInstance().getStateName(),
+		m_batteryVoltage,
+		0.0f, 0,
+		motorPct, 4
+	);
 }
 
 

@@ -16,6 +16,7 @@ static constexpr uint16_t FRAME_SIZE    = 256;
 static constexpr uint16_t MAGIC_FC_ESP  = 0xBEEF;
 
 static constexpr uint8_t  FRAME_TYPE_ATTITUDE = 0x01;
+static constexpr uint8_t  FRAME_TYPE_STATUS   = 0x02;
 static constexpr uint8_t  FRAME_TYPE_LOG      = 0x05;
 static constexpr uint8_t  LOG_TEXT_LEN        = 128;
 
@@ -38,6 +39,13 @@ public:
     bool sendAttitude(float qw, float qx, float qy, float qz,
                       float gx, float gy, float gz,
                       float ax, float ay, float az);
+
+    bool sendStatus(const char* fsmState,
+                    float batteryVoltage = 0.0f,
+                    float batteryCurrent = 0.0f,
+                    uint8_t batteryPercent = 0,
+                    const uint8_t* motorPercent = nullptr,
+                    uint8_t motorCount = 0);
 
     bool sendLog(EspSpi::LogLevel level, const char* text);
     bool sendLogf(EspSpi::LogLevel level, const char* fmt, ...);

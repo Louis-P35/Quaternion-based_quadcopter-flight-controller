@@ -28,6 +28,18 @@ struct __attribute__((packed)) PayloadAttitude
 
 static constexpr uint8_t ATTITUDE_PAYLOAD_SIZE = sizeof(PayloadAttitude);  // 40
 
+struct __attribute__((packed)) PayloadStatus
+{
+    float   battery_voltage;
+    float   battery_current;
+    uint8_t battery_percent;
+    char    state[32];
+    uint8_t motor_percent[8]; // unused by STM32, zeroed
+    uint8_t wifi_rssi;        // unused by STM32, ESP32 overwrites with WiFi.RSSI()
+};
+
+static constexpr uint8_t STATUS_PAYLOAD_SIZE = sizeof(PayloadStatus);  // 50
+
 struct __attribute__((packed)) PayloadLog
 {
     uint8_t level;
@@ -56,6 +68,32 @@ bool EspInterface::sendAttitude(float qw, float qx, float qy, float qz,
     p->ax = ax; p->ay = ay; p->az = az;
 
     return transmitFrame(EspSpi::FRAME_TYPE_ATTITUDE, ATTITUDE_PAYLOAD_SIZE);
+}
+
+
+bool EspInterface::sendStatus(const char* fsmState,
+                              float batteryVoltage,
+                              float batteryCurrent,
+                              uint8_t batteryPercent,
+                              const uint8_t* motorPercent,
+                              uint8_t motorCount)
+{
+    memset(m_txBuf, 0, EspSpi::FRAME_SIZE);
+
+    auto* p = reinterpret_cast<PayloadStatus*>(m_txBuf + sizeof(FrameHeader));
+    p->battery_voltage = batteryVoltage;
+    p->battery_current = batteryCurrent;
+    p->battery_percent = batteryPercent;
+    strncpy(p->state, fsmState, sizeof(p->state) - 1);
+
+    if (motorPercent && motorCount > 0)
+    {
+        const uint8_t n = motorCount < sizeof(p->motor_percent) ? motorCount : sizeof(p->motor_percent);
+        for (uint8_t i = 0; i < n; ++i)
+            p->motor_percent[i] = motorPercent[i];
+    }
+
+    return transmitFrame(EspSpi::FRAME_TYPE_STATUS, STATUS_PAYLOAD_SIZE);
 }
 
 

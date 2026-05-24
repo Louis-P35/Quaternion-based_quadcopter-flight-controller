@@ -18,6 +18,7 @@ public:
 	virtual void handleState(const float& dt) = 0;
 	virtual void enterState() = 0;
 	virtual void exitState() = 0;
+	virtual const char* getName() const = 0;
 };
 
 
@@ -52,6 +53,11 @@ public:
 			m_pState->handleState(dt);
 		}
 	};
+
+	const char* getStateName() const
+	{
+		return m_pState ? m_pState->getName() : "NONE";
+	};
 };
 
 
@@ -63,6 +69,7 @@ public:
 	virtual void handleState(const float& dt) override;
 	virtual void enterState() override {};
 	virtual void exitState() override {};
+	virtual const char* getName() const override { return "FULL_RADIO"; };
 };
 
 
@@ -89,6 +96,7 @@ public:
 	virtual void handleState(const float& dt) override;
 	virtual void enterState() override;
 	virtual void exitState() override;
+	virtual const char* getName() const override { return "STARTUP"; };
 };
 
 
@@ -104,6 +112,7 @@ public:
 	virtual void handleState(const float& dt) override;
 	virtual void enterState() override;
 	virtual void exitState() override;
+	virtual const char* getName() const override { return "IDLE"; };
 };
 
 
@@ -121,6 +130,7 @@ public:
 	virtual void handleState(const float& dt) override;
 	virtual void enterState() override;
 	virtual void exitState() override;
+	virtual const char* getName() const override { return "READY"; };
 };
 
 
@@ -138,6 +148,7 @@ public:
 	virtual void handleState(const float& dt) override;
 	virtual void enterState() override;
 	virtual void exitState() override;
+	virtual const char* getName() const override { return "FLYING"; };
 };
 
 
