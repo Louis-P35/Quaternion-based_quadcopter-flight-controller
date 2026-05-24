@@ -65,6 +65,8 @@ void Error_Handler(void);
 #define MTF_01_RX_GPIO_Port GPIOA
 #define SPI_CS_Pin GPIO_PIN_4
 #define SPI_CS_GPIO_Port GPIOA
+#define SPI_CS_ESP_Pin GPIO_PIN_4
+#define SPI_CS_ESP_GPIO_Port GPIOC
 #define SBUS_TX_Pin GPIO_PIN_6
 #define SBUS_TX_GPIO_Port GPIOC
 #define SBUS_RX_Pin GPIO_PIN_7

@@ -9,6 +9,7 @@
 #define INC_RADIO_SBUSWRAPPERC_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define SBUS_FRAME_SIZE 25
 

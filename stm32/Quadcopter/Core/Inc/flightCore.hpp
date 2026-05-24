@@ -21,6 +21,7 @@
 #include "BlackboxSD/blackbox.hpp"
 #include "setPoints.hpp"
 #include "Sensors/mtf01.hpp"
+#include "ESPInterface/espInterface.hpp"
 
 //Includes from STL
 #include <stdint.h>
@@ -67,6 +68,9 @@ public:
 	// Optical flow sensor
 	Mtf01 m_opticalflow;
 
+	// ESP32 interface (WiFi/GCS bridge)
+	EspInterface m_espInterface;
+
 	// Target state (input of the PIDs controller)
 	// Driven by the radio or autonomous control
 	SetPoint<float> m_setPoint;
@@ -96,7 +100,9 @@ public:
 public:
 	FlightCore(
 			uint16_t spi_cs_pin,
-			GPIO_TypeDef* spi_cs_gpio_port
+			GPIO_TypeDef* spi_cs_gpio_port,
+			uint16_t esp_cs_pin = 0,
+			GPIO_TypeDef* esp_cs_gpio_port = nullptr
 			);
 	void mainSetup();
 

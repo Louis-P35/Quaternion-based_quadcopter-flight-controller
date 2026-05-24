@@ -122,8 +122,10 @@ volatile bool g_startPrint = false;
 
 
 
-FlightCore::FlightCore(uint16_t spi_cs_pin, GPIO_TypeDef* spi_cs_gpio_port) :
-		m_radio(THROTTLE_HOVER_OFFSET, THROTTLE_EXPO, TARGET_ANGLE_MAX, TARGET_RATE_MAX)
+FlightCore::FlightCore(uint16_t spi_cs_pin, GPIO_TypeDef* spi_cs_gpio_port,
+		uint16_t esp_cs_pin, GPIO_TypeDef* esp_cs_gpio_port) :
+		m_radio(THROTTLE_HOVER_OFFSET, THROTTLE_EXPO, TARGET_ANGLE_MAX, TARGET_RATE_MAX),
+		m_espInterface(hspi1, esp_cs_gpio_port, esp_cs_pin)
 {
 
 }
@@ -140,7 +142,8 @@ void FlightCore::mainSetup()
 	LogManager::getInstance().setup();
 
 	// Setup the IMU (ICM20948)
-	m_imu.init(4000.0f); // TODO hardcoded...
+	m_imu.init(4000.0f); // TODO hardcoded... // CODE PLANTE ICI sans etre branché ??
+	//escLoop();
 
 	// Init AHRS
 	m_madgwickFilter = MadgwickFilter<float>();
@@ -154,7 +157,7 @@ void FlightCore::mainSetup()
 #endif
 
 	// Setup PWM reading for radio receiver
-	setupRadio();
+	//setupRadio();
 
 #if SENSOR_MTF01_ENABLED
 	// Setup optical flow sensor
@@ -401,7 +404,7 @@ void FlightCore::batteryLoop()
  */
 void FlightCore::debugPrintLoop()
 {
-#if SENSOR_MTF01_ENABLED
+/*#if SENSOR_MTF01_ENABLED
 	LogManager::getInstance().serialPrint(m_opticalflow.m_xVelocity);
 	LogManager::getInstance().serialPrint("\t");
 	LogManager::getInstance().serialPrint(m_opticalflow.m_yVelocity);
@@ -412,7 +415,20 @@ void FlightCore::debugPrintLoop()
 	LogManager::getInstance().serialPrint("\t");
 	LogManager::getInstance().serialPrint(m_opticalflow.m_dataValid);
 	LogManager::getInstance().serialPrint("\r\n");
-#endif
+#endif*/
+
+	//volatile bool espSpiOk = m_espInterface.sendLog(EspSpi::LogLevel::LOG_INFO, "Hello, world! From STM32H7");
+	//(void)espSpiOk;
+
+	const Quaternion<float>& q = m_madgwickFilter.m_qEst;
+	const Vector3<float>&   g = m_imu.m_gyroFilterAhrs;
+	const Vector3<float>&   a = m_imu.m_accelFilterAhrs;
+
+	m_espInterface.sendAttitude(
+		q.m_w, q.m_x, q.m_y, q.m_z,
+		g.m_x, g.m_y, g.m_z,
+		a.m_x, a.m_y, a.m_z
+	);
 }
 
 

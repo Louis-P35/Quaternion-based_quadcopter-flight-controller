@@ -43,7 +43,7 @@ extern "C" void interfaceMain()
 	timerCounterInit();
 	timerCounterReset();
 
-	FlightCore flightCoreInstance(SPI_CS_Pin, SPI_CS_GPIO_Port);
+	FlightCore flightCoreInstance(SPI_CS_Pin, SPI_CS_GPIO_Port, SPI_CS_ESP_Pin, SPI_CS_ESP_GPIO_Port);
 	g_pFlightCore = &flightCoreInstance;
 
 	g_pFlightCore->mainSetup();
