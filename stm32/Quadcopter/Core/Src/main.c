@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "config.h"
 #include "Radio/sbusWrapperC.h"
 #include "Sensors/mtf01WrapperC.h"
 /* USER CODE END Includes */
@@ -132,12 +133,14 @@ int main(void)
   MX_UART4_Init();
   /* USER CODE BEGIN 2 */
 
+#if !RADIO_SOURCE_SPI
 	// Clear any pending IDLE flag
 	__HAL_UART_CLEAR_IDLEFLAG(&huart6);
 	// Kick off the circular DMA transfer into the 25-byte buffer
 	HAL_UART_Receive_DMA(&huart6, sbusBuf, SBUS_FRAME_SIZE);
 	// Enable the UART IDLE interrupt so we know when a full frame has arrived
 	__HAL_UART_ENABLE_IT(&huart6, UART_IT_IDLE);
+#endif
 
 
 	// Clear any pending IDLE flag

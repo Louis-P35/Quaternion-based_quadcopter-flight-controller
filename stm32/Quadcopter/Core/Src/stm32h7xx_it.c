@@ -22,6 +22,7 @@
 #include "stm32h7xx_it.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "config.h"
 #include "Radio/pwmWrapperC.h"
 #include "Radio/sbusWrapperC.h"
 #include "Sensors/mtf01WrapperC.h"
@@ -368,6 +369,7 @@ void UART4_IRQHandler(void)
 void USART6_IRQHandler(void)
 {
   /* USER CODE BEGIN USART6_IRQn 0 */
+#if !RADIO_SOURCE_SPI
 	// Check IDLE
 	if (__HAL_UART_GET_FLAG(&huart6, UART_FLAG_IDLE))
 	{
@@ -376,6 +378,7 @@ void USART6_IRQHandler(void)
 		copyFrame();
 
 	}
+#endif
   /* USER CODE END USART6_IRQn 0 */
   HAL_UART_IRQHandler(&huart6);
   /* USER CODE BEGIN USART6_IRQn 1 */

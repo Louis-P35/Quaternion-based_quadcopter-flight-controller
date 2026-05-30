@@ -35,10 +35,15 @@ private:
 	uint8_t m_pSbusBuf[SBUS_FRAME_SIZE];
 	bool m_frameLost = true;
 	bool m_failsafe = false;
+	bool m_newSpiFrame = false;
 
 public:
 	SbusParser() = default;
 	bool parseSbusFrame() noexcept;
+	// SPI radio source — feed raw channels from the ESP32 MISO frame
+	void feedSpiData(const uint16_t* rawChannels, bool frameLost, bool failsafe, bool validFrame) noexcept;
+	bool parseSpiFrame() noexcept;
+	uint16_t getChannelUs(int ch) const noexcept;
 	virtual void init() noexcept override;
 	virtual uint16_t getChannel(const int& x) const noexcept override;
 	virtual uint16_t getThrustRadioStick() const noexcept override;

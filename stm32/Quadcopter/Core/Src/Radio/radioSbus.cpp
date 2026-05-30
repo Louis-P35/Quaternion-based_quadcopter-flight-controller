@@ -6,6 +6,7 @@
  */
 
 // Includes from project
+#include "config.h"
 #include "Radio/radioSbus.hpp"
 #include "logManager.hpp"
 
@@ -15,9 +16,10 @@
 // Includes from STL
 #include <string>
 
+#if !RADIO_SOURCE_SPI
 extern uint8_t sbusBufCopy[];
 extern bool g_newFrameReady;
-extern UART_HandleTypeDef huart6;
+#endif
 
 
 constexpr int SbusParser::m_nbChannel;
@@ -45,6 +47,7 @@ void SbusParser::init()
  */
 bool SbusParser::parseSbusFrame()
 {
+#if !RADIO_SOURCE_SPI
 	if (!g_newFrameReady)
 	{
 		return false;
@@ -85,6 +88,37 @@ bool SbusParser::parseSbusFrame()
 	g_newFrameReady = false;
 
 	return true;
+#else
+	return false; // UART SBUS disabled — use parseSpiFrame() instead
+#endif
+}
+
+
+void SbusParser::feedSpiData(const uint16_t* rawChannels, bool frameLost, bool failsafe, bool validFrame) noexcept
+{
+	if (validFrame)
+	{
+		for (int i = 0; i < m_nbChannel; ++i)
+			m_channel[i] = rawChannels[i];
+		m_frameLost = frameLost;
+		m_failsafe  = failsafe;
+	}
+	m_newSpiFrame = validFrame;
+}
+
+
+bool SbusParser::parseSpiFrame() noexcept
+{
+	if (!m_newSpiFrame) return false;
+	m_newSpiFrame = false;
+	return true;
+}
+
+
+uint16_t SbusParser::getChannelUs(int ch) const noexcept
+{
+	if (ch < 0 || ch >= m_nbChannel) return 1000;
+	return scaleToMs(m_channel[ch], 306, 1693);
 }
 
 

@@ -7,6 +7,7 @@
 
 
 // Includes from projects
+#include "config.h"
 #include "Radio/radio.hpp"
 #include "logManager.hpp"
 
@@ -29,7 +30,11 @@ Radio::Radio(
 bool Radio::readRadioReceiver(const bool& isFlying, const float& dt)
 {
 	/* Read the radio receiver */
+#if !RADIO_SOURCE_SPI
 	if (!m_radioProtocole.parseSbusFrame())
+#else
+	if (!m_radioProtocole.parseSpiFrame())
+#endif
 	{
 		m_lostFrameCnter++;
 	}

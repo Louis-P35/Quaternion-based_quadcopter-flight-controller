@@ -404,42 +404,43 @@ void FlightCore::batteryLoop()
  */
 void FlightCore::debugPrintLoop()
 {
-/*#if SENSOR_MTF01_ENABLED
-	LogManager::getInstance().serialPrint(m_opticalflow.m_xVelocity);
-	LogManager::getInstance().serialPrint("\t");
-	LogManager::getInstance().serialPrint(m_opticalflow.m_yVelocity);
-	LogManager::getInstance().serialPrint("\t");
-	LogManager::getInstance().serialPrint(m_opticalflow.m_height);
-	LogManager::getInstance().serialPrint("\t");
-	LogManager::getInstance().serialPrint(m_opticalflow.m_quality);
-	LogManager::getInstance().serialPrint("\t");
-	LogManager::getInstance().serialPrint(m_opticalflow.m_dataValid);
-	LogManager::getInstance().serialPrint("\r\n");
-#endif*/
-
-	//volatile bool espSpiOk = m_espInterface.sendLog(EspSpi::LogLevel::LOG_INFO, "Hello, world! From STM32H7");
-	//(void)espSpiOk;
+	static uint8_t phase = 0;
 
 	const Quaternion<float>& q = m_madgwickFilter.m_qEst;
 	const Vector3<float>&   g = m_imu.m_gyroFilterAhrs;
 	const Vector3<float>&   a = m_imu.m_accelFilterAhrs;
 
-	m_espInterface.sendAttitude(
-		q.m_w, q.m_x, q.m_y, q.m_z,
-		g.m_x, g.m_y, g.m_z,
-		a.m_x, a.m_y, a.m_z
-	);
+	switch (phase)
+	{
+		case 0:
+			m_espInterface.sendAttitude(
+				q.m_w, q.m_x, q.m_y, q.m_z,
+				g.m_x, g.m_y, g.m_z,
+				a.m_x, a.m_y, a.m_z);
+			break;
 
-	uint8_t motorPct[4];
-	for (int i = 0; i < 4; ++i)
-		motorPct[i] = static_cast<uint8_t>(m_motorMixer.m_powerMotor[i] / 10.0f);
+		case 1:
+		{
+			uint8_t motorPct[4];
+			for (int i = 0; i < 4; ++i)
+				motorPct[i] = static_cast<uint8_t>(m_motorMixer.m_powerMotor[i] / 10.0f);
+			m_espInterface.sendStatus(
+				MainStateMachine::getInstance().getStateName(),
+				m_batteryVoltage, 0.0f, 0, motorPct, 4);
+			break;
+		}
 
-	m_espInterface.sendStatus(
-		MainStateMachine::getInstance().getStateName(),
-		m_batteryVoltage,
-		0.0f, 0,
-		motorPct, 4
-	);
+		case 2:
+		{
+			uint16_t rcChannels[16] = {};
+			for (int i = 0; i < 16; ++i)
+				rcChannels[i] = m_radio.m_radioProtocole.getChannelUs(i);
+			m_espInterface.sendRc(rcChannels, 16);
+			break;
+		}
+	}
+
+	phase = (phase + 1) % 3;
 }
 
 
@@ -580,6 +581,13 @@ void FlightCore::escLoop()
  */
 void FlightCore::radioLoop(const float& dt)
 {
+#if RADIO_SOURCE_SPI
+	{
+		const EspSpi::SbusFromMiso& sbus = m_espInterface.getSbusData();
+		m_radio.m_radioProtocole.feedSpiData(
+			sbus.channels, sbus.frame_lost, sbus.failsafe, sbus.valid);
+	}
+#endif
 	const bool signalLost = m_radio.readRadioReceiver(true, dt);
 
 	// Handle is flying detection
