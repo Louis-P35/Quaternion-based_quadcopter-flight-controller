@@ -49,7 +49,7 @@ void icm20948_init()
 	icm20948_gyro_sample_rate_divider(0);
 	icm20948_accel_sample_rate_divider(0);
 
-	icm20948_gyro_calibration();
+	//icm20948_gyro_calibration();
 	// LP: Remove accel calibration because it assume the IMU is perfectly level...
 	//icm20948_accel_calibration();
 
@@ -67,6 +67,13 @@ void ak09916_init()
 
 	ak09916_soft_reset();
 	ak09916_operation_mode_setting(continuous_measurement_100hz);
+
+	// Configure I2C slave 0 to continuously fetch 9 bytes from AK09916 starting at ST1.
+	// Must start at ST1 (0x10) and include ST2 (0x18) to latch data and allow refresh.
+	// Layout in EXT_SLV_SENS_DATA_00..08: ST1, HXL, HXH, HYL, HYH, HZL, HZH, reserved, ST2
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_ADDR, READ | MAG_SLAVE_ADDR);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_REG,  MAG_ST1);
+	write_single_icm20948_reg(ub_3, B3_I2C_SLV0_CTRL, 0x80 | 9); // enable, 9 bytes
 }
 
 void icm20948_gyro_read(axises* data)
@@ -137,7 +144,17 @@ bool ak09916_mag_read_uT(axises* data)
 	data->z = (float)(temp.z * 0.15);
 
 	return true;
-}	
+}
+
+void ak09916_mag_read_uT_fast(axises* data)
+{
+	// Reads 9 bytes pre-fetched by the ICM20948 I2C master into EXT_SLV_SENS_DATA.
+	// Layout: [0]=ST1, [1]=HXL, [2]=HXH, [3]=HYL, [4]=HYH, [5]=HZL, [6]=HZH, [7]=reserved, [8]=ST2
+	uint8_t* raw = read_multiple_icm20948_reg(ub_0, B0_EXT_SLV_SENS_DATA_00, 9);
+	data->x = (float)(int16_t)(raw[2] << 8 | raw[1]) * 0.15f;
+	data->y = (float)(int16_t)(raw[4] << 8 | raw[3]) * 0.15f;
+	data->z = (float)(int16_t)(raw[6] << 8 | raw[5]) * 0.15f;
+}
 
 
 /* Sub Functions */
@@ -470,7 +487,7 @@ static void write_single_icm20948_reg(userbank ub, uint8_t reg, uint8_t val)
 static uint8_t* read_multiple_icm20948_reg(userbank ub, uint8_t reg, uint8_t len)
 {
 	uint8_t read_reg = READ | reg;
-	static uint8_t reg_val[6];
+	static uint8_t reg_val[9]; // 9 bytes: covers gyro/accel (6) and mag read (9: ST1..ST2)
 	select_user_bank(ub);
 
 	cs_low();

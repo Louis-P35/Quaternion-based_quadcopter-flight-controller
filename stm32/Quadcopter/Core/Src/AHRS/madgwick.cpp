@@ -125,6 +125,101 @@ void MadgwickFilter<T>::getEulerAngle(T& roll, T& pitch, T& yaw)
 }
 
 
+/*
+ * Madgwick MARG filter — accel + gyro + magnetometer.
+ *
+ * Implements equations 29 (F_b), 33 (J_b), and 34 (combined gradient) from
+ * "An efficient orientation filter for inertial and inertial/magnetic sensor
+ * arrays", S.O.H. Madgwick, 2010.
+ *
+ * Frame: gravity reference [0,0,1] → Z axis points UP (ENU-compatible).
+ * The magnetic reference is not hardcoded: it is derived from the current
+ * estimate by rotating the measured field into Earth frame and discarding its
+ * East component (by=0). This means yaw tracks magnetic North automatically
+ * without any prior knowledge of declination.
+ *
+ * Typical usage:
+ *   - compute()     called at IMU rate (e.g. 1 kHz) every cycle
+ *   - computeMARG() called at mag rate (e.g. 100 Hz) when new data is ready;
+ *     it replaces one compute() call for that cycle
+ */
+template<class T>
+void MadgwickFilter<T>::computeMARG(
+    const T& ax, const T& ay, const T& az,
+    const T& gx, const T& gy, const T& gz,
+    const T& mx, const T& my, const T& mz,
+    const T& dt)
+{
+    // ── Validate magnetometer ─────────────────────────────────────────────────
+    Quaternion<T> q_m(0, mx, my, mz);
+    if (q_m.norm() < static_cast<T>(1e-6))
+    {
+        compute(ax, ay, az, gx, gy, gz, dt);
+        return;
+    }
+    q_m.normalize();
+
+    // ── Normalise accelerometer ───────────────────────────────────────────────
+    Quaternion<T> q_a(0, ax, ay, az);
+    q_a.normalize();
+
+    const Quaternion<T> q_prev = m_qEst;
+    const T qw = q_prev.m_w, qx = q_prev.m_x;
+    const T qy = q_prev.m_y, qz = q_prev.m_z;
+
+    // ── Reference magnetic field in Earth frame ───────────────────────────────
+    // Rotate the normalised mag measurement into Earth frame: h = q ⊗ m̂ ⊗ q*
+    const Quaternion<T> h = q_prev * q_m * q_prev.conjugate();
+    // Keep only bx (horizontal magnitude) and bz (vertical component),
+    // setting by = 0 to make yaw observable from the horizontal mag vector.
+    const T bx = std::sqrt(h.m_x * h.m_x + h.m_y * h.m_y);
+    const T bz = h.m_z;
+
+    // ── Gravity objective function F_g (eq. 25) ───────────────────────────────
+    // F_g = q* ⊗ [0,0,0,1] ⊗ q − â  (gravity reference [0,0,1] → Z up)
+    const T Fg0 = 2*(qx*qz - qw*qy)                       - q_a.m_x;
+    const T Fg1 = 2*(qw*qx + qy*qz)                       - q_a.m_y;
+    const T Fg2 = 2*(static_cast<T>(0.5) - qx*qx - qy*qy) - q_a.m_z;
+
+    // ── Magnetic objective function F_b (eq. 29) ──────────────────────────────
+    // F_b = q* ⊗ [0,bx,0,bz] ⊗ q − m̂
+    const T Fb0 = 2*bx*(static_cast<T>(0.5)-qy*qy-qz*qz) + 2*bz*(qx*qz - qw*qy) - q_m.m_x;
+    const T Fb1 = 2*bx*(qx*qy - qw*qz)                   + 2*bz*(qw*qx + qy*qz) - q_m.m_y;
+    const T Fb2 = 2*bx*(qw*qy + qx*qz)                   + 2*bz*(static_cast<T>(0.5)-qx*qx-qy*qy) - q_m.m_z;
+
+    // ── Combined gradient: J_g^T·F_g + J_b^T·F_b (eq. 20 / 34) ─────────────
+    Quaternion<T> gradient;
+    gradient.m_w =
+        (-2*qy)*Fg0 + (2*qx)*Fg1
+        + (-2*bz*qy)*Fb0                   + (-2*bx*qz + 2*bz*qx)*Fb1 + ( 2*bx*qy)*Fb2;
+
+    gradient.m_x =
+        (2*qz)*Fg0 + (2*qw)*Fg1 + (-4*qx)*Fg2
+        + ( 2*bz*qz)*Fb0                   + ( 2*bx*qy + 2*bz*qw)*Fb1 + ( 2*bx*qz - 4*bz*qx)*Fb2;
+
+    gradient.m_y =
+        (-2*qw)*Fg0 + (2*qz)*Fg1 + (-4*qy)*Fg2
+        + (-4*bx*qy - 2*bz*qw)*Fb0        + ( 2*bx*qx + 2*bz*qz)*Fb1 + ( 2*bx*qw - 4*bz*qy)*Fb2;
+
+    gradient.m_z =
+        (2*qx)*Fg0 + (2*qy)*Fg1
+        + (-4*bx*qz + 2*bz*qx)*Fb0        + (-2*bx*qw + 2*bz*qy)*Fb1 + ( 2*bx*qx)*Fb2;
+
+    // ── Sensor fusion (eq. 42–44) ─────────────────────────────────────────────
+    gradient.normalize();
+    gradient *= BETA;
+
+    Quaternion<T> q_w(0, gx, gy, gz);
+    q_w *= static_cast<T>(0.5);
+    q_w = q_prev * q_w;
+
+    Quaternion<T> q_dot = q_w - gradient;
+    q_dot *= dt;
+    m_qEst = q_prev + q_dot;
+    m_qEst.normalize();
+}
+
+
 // Explicite instanciation for float
 template class MadgwickFilter<float>;
 

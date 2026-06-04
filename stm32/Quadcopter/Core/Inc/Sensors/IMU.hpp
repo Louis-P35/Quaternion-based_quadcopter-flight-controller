@@ -66,6 +66,7 @@ public:
 	Vector3<float> m_gyroFilterRates = {0.0f};
 	Vector3<float> m_gyroFilterAhrs = {0.0f};
 	Vector3<float> m_gyroRaw = {0.0f};
+	Vector3<float> m_mag = {0.0f};
 
 	//Vector3<float> m_gyroDebug[5000];
 	int m_gyroDebugIndex = 0;
@@ -87,5 +88,4 @@ public:
 	void readAndFilterIMU_gdps();
 	void gyroAccelCalibration();
 	void magnetometerCalibration();
-	void calibrateHoverOffset();
 };

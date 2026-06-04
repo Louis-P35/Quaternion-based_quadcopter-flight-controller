@@ -31,7 +31,7 @@ void IMU::init(
 
 	// Setup the IMU (ICM20948)
 	icm20948_init(); // Accelerometer & gyroscope
-	//ak09916_init();  // Magnetometer
+	ak09916_init();  // Magnetometer
 
 	// Init filters
 	float paramsAccelAhrs[1] = {lpfAccelAhrsCutoffFrequency};
@@ -88,11 +88,11 @@ void IMU::readAndFilterIMU_gdps()
 {
 	axises rawGyro;
 	axises rawAccel;
-	//axises rawMag;
+	axises rawMag;
 
 	icm20948_gyro_read_dps(&rawGyro);
 	icm20948_accel_read_g(&rawAccel);
-	//bool readMag = ak09916_mag_read_uT(&rawMag);
+	ak09916_mag_read_uT_fast(&rawMag);
 
 	//m_gyroRaw.m_x = rawGyro.y;
 
@@ -137,6 +137,11 @@ void IMU::readAndFilterIMU_gdps()
 
 	// Remove accel's offset
 	m_accelFilterAhrs -= m_accelOffset;
+
+	// Mag: apply hard-iron bias correction
+	m_mag.m_x = rawMag.x - m_magBias.m_x;
+	m_mag.m_y = rawMag.y - m_magBias.m_y;
+	m_mag.m_z = rawMag.z - m_magBias.m_z;
 }
 
 
@@ -166,19 +171,13 @@ void IMU::gyroAccelCalibration()
 	}
 
 	m_gyroOffset = sumGyro / static_cast<float>(nbIteration);
-	averageAccel /= static_cast<float>(nbIteration);
+	m_accelOffset = averageAccel / static_cast<float>(nbIteration);
+	m_accelOffset.m_z = 0.0f; // Don't calibrate Z to not zeroed g
 
-	// Find the g vector and normalize it
-	float norm = averageAccel.norm();
-	Vector3<float> g = averageAccel / norm;
-
-	// Remove the gravity vector from the offset
-	m_accelOffset = averageAccel - g;
-
-	LogManager::getInstance().serialPrint("GyroOffset: \n\r");
-	LogManager::getInstance().serialPrint(m_accelOffset.m_x, m_accelOffset.m_y, m_accelOffset.m_z, 0.0f);
-	LogManager::getInstance().serialPrint("AccelOffset: \n\r");
-	LogManager::getInstance().serialPrint(m_gyroOffset.m_x, m_gyroOffset.m_y, m_gyroOffset.m_z, 0.0f);
+	//LogManager::getInstance().serialPrint("GyroOffset: \n\r");
+	//LogManager::getInstance().serialPrint(m_accelOffset.m_x, m_accelOffset.m_y, m_accelOffset.m_z, 0.0f);
+	//LogManager::getInstance().serialPrint("AccelOffset: \n\r");
+	//LogManager::getInstance().serialPrint(m_gyroOffset.m_x, m_gyroOffset.m_y, m_gyroOffset.m_z, 0.0f);
 }
 
 

@@ -78,17 +78,18 @@ typedef enum
 // sensor init function.
 // if sensor id is wrong, it is stuck in while.
 void icm20948_init();
-void ak09916_init();
+void ak09916_init();  // init + configure I2C slave 0 auto-read into EXT_SLV_SENS_DATA
 
 // 16 bits ADC value. raw data.
-void icm20948_gyro_read(axises* data);	
+void icm20948_gyro_read(axises* data);
 void icm20948_accel_read(axises* data);
-bool ak09916_mag_read(axises* data); 
+bool ak09916_mag_read(axises* data);     // blocking (HAL_Delay inside) — calibration only
 
 // Convert 16 bits ADC value to their unit.
-void icm20948_gyro_read_dps(axises* data); 
+void icm20948_gyro_read_dps(axises* data);
 void icm20948_accel_read_g(axises* data);
-bool ak09916_mag_read_uT(axises* data);
+bool ak09916_mag_read_uT(axises* data);  // blocking (HAL_Delay inside) — calibration only
+void ak09916_mag_read_uT_fast(axises* data); // non-blocking, reads from EXT_SLV_SENS_DATA
 
 
 /* Sub Functions */

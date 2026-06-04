@@ -77,8 +77,7 @@ public:
 
 	// ARHR (Madgwick)
 	MadgwickFilter<float> m_madgwickFilter;
-	Quaternion<float> m_qAttitudeCorrected = Quaternion<float>::identity();
-	Quaternion<float> m_qHoverOffset = Quaternion<float>(0.9999743f, 0.0035298f, -0.0062408f, 0.0000220f);
+
 
 	// Motors power
 	float m_thrust = 0.0f;
@@ -121,7 +120,6 @@ public:
 private:
 	void readIMU();
 	void gyroAccelCalibration();
-	void calibrateHoverOffset();
 
 	// Debug logging
 	void pidDebugStream();

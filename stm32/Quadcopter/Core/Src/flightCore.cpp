@@ -96,8 +96,6 @@ volatile bool g_startPrint = false;
 
 // 0.45 (x4) = take off thrust
 
-//#define COMPUTE_HOVER_OFFSET (1)
-
 // Uncomment this to disable motors
 //#define DEBUG_DISABLE_MOTORS (1)
 //#define PID_TESTING_MODE (1)
@@ -242,6 +240,7 @@ void FlightCore::mainSetup()
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
 #endif
 	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eDebugPrint, 1, debugPrint_task, FREQUENCY_SLOT::e_100HZ);
 
 	// 50 Hz tasks
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_radio, 0, readRadio_task, FREQUENCY_SLOT::e_50HZ);
@@ -249,7 +248,6 @@ void FlightCore::mainSetup()
 
 	// 10 Hz tasks
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
-	taskAddSuccess &= g_scheduler.addTask(TaskType::eDebugPrint, 1, debugPrint_task, FREQUENCY_SLOT::e_10HZ);
 
 	// Error
 	if (!taskAddSuccess)
@@ -374,7 +372,7 @@ void readOpticalFlow_task(const float& dt)
 
 
 /*
- * Print over UART.
+ * Print over SPI to the ESP32 then UDP to the GCS.
  * C wrapper function.
  */
 void debugPrint_task(const float& dt)
@@ -400,7 +398,7 @@ void FlightCore::batteryLoop()
 
 
 /*
- * Print over UART.
+ * Print over SPI to the ESP32 then UDP to the GCS.
  */
 void FlightCore::debugPrintLoop()
 {
@@ -438,36 +436,86 @@ void FlightCore::debugPrintLoop()
 			m_espInterface.sendRc(rcChannels, 16);
 			break;
 		}
+
+		case 3:
+			m_espInterface.sendLogf(EspSpi::LogLevel::LOG_DEBUG,
+				"from imu mag: %.2f %.2f %.2f uT",
+				m_imu.m_mag.m_x, m_imu.m_mag.m_y, m_imu.m_mag.m_z);
+			break;
 	}
 
-	phase = (phase + 1) % 3;
+	phase = (phase + 1) % 4;
 }
 
 
 /*
  * Run Madgwick filter.
+ * At 1 kHz with accel+gyro; every 10th call (100 Hz) also fuses the magnetometer
+ * if the mag data passes two validity gates:
+ *   1. Norm within expected Earth-field range [20, 80] µT
+ *   2. Values not bit-for-bit frozen across several consecutive 100 Hz samples
  */
 void FlightCore::ahrsLoop(const float& dt)
 {
-	// AHRS, Madgwick filter
-	m_madgwickFilter.compute(
-			m_imu.m_accelFilterAhrs.m_x, // Acceleration vector will be normalized
+	// ── Magnetometer validity check, evaluated at 100 Hz ─────────────────────
+	static uint8_t magDivider  = 0;
+	static uint8_t magStuckCnt = 0;
+	static float   magPrevX = 0.f, magPrevY = 0.f, magPrevZ = 0.f;
+
+	bool useMARG = false;
+	if (++magDivider >= 10u)
+	{
+		magDivider = 0;
+
+		const float mx = m_imu.m_mag.m_x;
+		const float my = m_imu.m_mag.m_y;
+		const float mz = m_imu.m_mag.m_z;
+
+		// Gate 1: norm must lie within the plausible Earth-field window
+		const float normSq = mx*mx + my*my + mz*mz;
+		constexpr float MAG_MIN_UT = 20.0f;   // µT — conservative lower bound
+		constexpr float MAG_MAX_UT = 80.0f;   // µT — conservative upper bound
+		const bool normOk = (normSq >= MAG_MIN_UT * MAG_MIN_UT)
+		                 && (normSq <= MAG_MAX_UT * MAG_MAX_UT);
+
+		// Gate 2: stuck detection — increment counter if every component is
+		// bit-for-bit identical to the previous 100 Hz sample
+		const bool unchanged = (mx == magPrevX) && (my == magPrevY) && (mz == magPrevZ);
+		magStuckCnt = unchanged ? (magStuckCnt < 255u ? magStuckCnt + 1u : 255u) : 0u;
+		magPrevX = mx;  magPrevY = my;  magPrevZ = mz;
+
+		constexpr uint8_t MAG_STUCK_MAX = 10u;  // 10 × 10 ms = 100 ms frozen → reject
+		useMARG = normOk && (magStuckCnt < MAG_STUCK_MAX);
+	}
+
+	// ── Filter update ─────────────────────────────────────────────────────────
+	if (useMARG)
+	{
+		m_madgwickFilter.computeMARG(
+			m_imu.m_accelFilterAhrs.m_x,
 			m_imu.m_accelFilterAhrs.m_y,
 			m_imu.m_accelFilterAhrs.m_z,
 			m_imu.m_gyroFilterAhrs.m_x * DEGREE_TO_RAD,
 			m_imu.m_gyroFilterAhrs.m_y * DEGREE_TO_RAD,
 			m_imu.m_gyroFilterAhrs.m_z * DEGREE_TO_RAD,
-			dt
-		);
+			m_imu.m_mag.m_x,
+			m_imu.m_mag.m_y,
+			m_imu.m_mag.m_z,
+			dt);
+	}
+	else
+	{
+		m_madgwickFilter.compute(
+			m_imu.m_accelFilterAhrs.m_x,
+			m_imu.m_accelFilterAhrs.m_y,
+			m_imu.m_accelFilterAhrs.m_z,
+			m_imu.m_gyroFilterAhrs.m_x * DEGREE_TO_RAD,
+			m_imu.m_gyroFilterAhrs.m_y * DEGREE_TO_RAD,
+			m_imu.m_gyroFilterAhrs.m_z * DEGREE_TO_RAD,
+			dt);
+	}
 
-	// Debug print AHRS result
 	//LogManager::getInstance().serialPrint(m_madgwickFilter.m_qEst, m_madgwickFilter.m_qEst);
-
-
-#ifdef COMPUTE_HOVER_OFFSET
-	// Compute the hover offset (must be done once after each teardown/build of the drone)
-	calibrateHoverOffset();
-#endif
 }
 
 
@@ -505,13 +553,9 @@ void FlightCore::pidAttLoop(const float& dt)
 		return;
 	}
 
-	// Correct the physical offset IMU -> drone
-	m_qAttitudeCorrected = m_qHoverOffset * m_madgwickFilter.m_qEst;
-	m_qAttitudeCorrected.normalize();
-
 	// A quaternion q and -q represent the same rotation.
 	// Here, canonical() make a sign choice (q.w >= 0).
-	Quaternion<float> qEst = Quaternion<float>::canonical(m_qAttitudeCorrected);
+	Quaternion<float> qEst = Quaternion<float>::canonical(m_madgwickFilter.m_qEst);
 	Quaternion<float> qTarget = Quaternion<float>::canonical(m_setPoint.m_targetQuaternion);
 
 	// Get attitude error
@@ -735,67 +779,6 @@ float FlightCore::readBatteryVoltage()
 
 	return 12.6; // No effect (assume full battery) if an error occur
 }
-
-/*
- * Calibrate the IMU orientation.
- * Because the IMU is never solder and mounted perfectly flat on the drone.
- * Just print out the result over UART.
- */
-void FlightCore::calibrateHoverOffset()
-{
-	static constexpr int nbPassMinInitAhrs = 30000;
-	static constexpr int nbIterMax = 500;
-	static bool computeDone = false;
-	static bool print = true;
-	static float sumRoll = 0.0f;
-	static float sumPitch = 0.0f;
-	static int nbIter = 0;
-	static int nbPass = 0;
-	float roll = 0.0f;
-	float pitch = 0.0f;
-	float yaw = 0.0f;
-
-	// Let some time for the AHRS to stabilize
-	nbPass++;
-	if (nbPass < nbPassMinInitAhrs)
-	{
-		return;
-	}
-
-	if (nbIter < nbIterMax)
-	{
-		m_madgwickFilter.m_qEst.toEuler(roll, pitch, yaw);
-		sumRoll += roll;
-		sumPitch += pitch;
-		nbIter++;
-	}
-	else if (!computeDone)
-	{
-		float avgRoll = sumRoll / static_cast<float>(nbIter);
-		float avgPicth = sumPitch / static_cast<float>(nbIter);
-		LogManager::getInstance().serialPrint("Roll, Pitch (degree):\n\r");
-		LogManager::getInstance().serialPrint(avgRoll, avgPicth, 0.0f, 0.0f);
-		Quaternion<float> qAverage;
-		qAverage = Quaternion<float>::fromEuler(
-				avgRoll * DEGREE_TO_RAD,
-				avgPicth * DEGREE_TO_RAD,
-				0.0f
-				);
-
-		// Compute the offset to add to m_madgwickFilter.m_qEst
-		m_qHoverOffset = qAverage.inverse();
-		m_qHoverOffset.normalize();
-
-		computeDone = true;
-	}
-	else if (print)
-	{
-		LogManager::getInstance().serialPrint("m_qHoverOffset:\n\r");
-		LogManager::getInstance().serialPrint(m_qHoverOffset);
-		print = false;
-	}
-}
-
 
 /*
  * Must be called at 50 hz

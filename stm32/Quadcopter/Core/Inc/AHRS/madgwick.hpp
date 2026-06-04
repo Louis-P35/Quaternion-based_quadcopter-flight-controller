@@ -30,6 +30,7 @@ public:
 		m_qEst = Quaternion<T>::identity();
 	}
 
+	// Accel + gyro only (existing, call at IMU rate)
 	void compute(
 		const T& ax,
 		const T& ay,
@@ -37,6 +38,17 @@ public:
 		const T& gx,
 		const T& gy,
 		const T& gz,
+		const T& dt
+		);
+
+	// Accel + gyro + magnetometer — Madgwick MARG algorithm (Madgwick 2010, eq. 29/34)
+	// Gravity reference : [0, 0, 1] (Z up, ENU-compatible)
+	// Magnetic reference: derived from current estimate; yaw tracks magnetic North
+	// Call at the magnetometer update rate (typ. 100 Hz); falls back to compute() if mag is invalid
+	void computeMARG(
+		const T& ax, const T& ay, const T& az,  // accelerometer, any unit (normalised internally)
+		const T& gx, const T& gy, const T& gz,  // gyroscope, rad/s
+		const T& mx, const T& my, const T& mz,  // magnetometer, any unit (normalised internally)
 		const T& dt
 		);
 
