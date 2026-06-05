@@ -18,5 +18,5 @@
 #define SENSOR_MTF01_ENABLED    0   // 1 = enabled, 0 = disabled
 
 // Radio source: 1 = read SBUS from ESP32 via SPI, 0 = STM32 UART6 SBUS
-#define RADIO_SOURCE_SPI        0
+#define RADIO_SOURCE_SPI        1
 

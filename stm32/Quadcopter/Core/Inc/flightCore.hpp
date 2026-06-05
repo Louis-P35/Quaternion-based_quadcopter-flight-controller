@@ -22,6 +22,7 @@
 #include "setPoints.hpp"
 #include "Sensors/mtf01.hpp"
 #include "ESPInterface/espInterface.hpp"
+#include "Filters/lpfBiquadButterworth.hpp"
 
 //Includes from STL
 #include <stdint.h>
@@ -77,6 +78,12 @@ public:
 
 	// ARHR (Madgwick)
 	MadgwickFilter<float> m_madgwickFilter;
+
+	// Magnetometer low-pass filters (Butterworth 2nd order, applied at 100 Hz in ahrsLoop)
+	BiquadLPF<float> m_lpfMagX, m_lpfMagY, m_lpfMagZ;
+
+	// Last filtered IMU magnetometer values (updated at 100 Hz when useMARG is true)
+	float m_magFiltX = 0.f, m_magFiltY = 0.f, m_magFiltZ = 0.f;
 
 
 	// Motors power

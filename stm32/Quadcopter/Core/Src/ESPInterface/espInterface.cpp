@@ -39,6 +39,47 @@ struct __attribute__((packed)) MisoSbusExt
 static constexpr uint16_t MISO_SBUS_OFFSET    = 33;
 static constexpr uint16_t SPI_MAGIC_ESP_TO_FC = 0xCAFE;
 
+// MISO GPS section starts at byte 66: has_gps(1B) + SpiPayloadGps(30B)
+// SpiPayloadGps: latitude(8B) longitude(8B) altitude_m(4B) speed_ms(4B) heading_deg(4B) satellites(1B) fix_type(1B)
+static constexpr uint16_t MISO_GPS_OFFSET   = 66;
+
+// MISO MTF-01 section starts at byte 97: has_mtf01(1B) + SpiPayloadMtf01(9B)
+// SpiPayloadMtf01: distance_m(4B) flow_x(2B) flow_y(2B) quality(1B)
+static constexpr uint16_t MISO_MTF01_OFFSET = 97;
+
+// FC → ESP32 (MOSI) GPS payload — mirrors SpiPayloadGps on the ESP32 side
+struct __attribute__((packed)) PayloadGps
+{
+    double  latitude;
+    double  longitude;
+    float   altitude_m;
+    float   speed_ms;
+    float   heading_deg;
+    uint8_t satellites;
+    uint8_t fix_type;
+};
+static constexpr uint8_t GPS_PAYLOAD_SIZE = sizeof(PayloadGps);  // 30
+
+// FC → ESP32 (MOSI) MTF-01 payload — mirrors SpiPayloadMtf01 on the ESP32 side
+struct __attribute__((packed)) PayloadMtf01
+{
+    float   distance_m;
+    int16_t flow_x;
+    int16_t flow_y;
+    uint8_t quality;
+};
+static constexpr uint8_t MTF01_PAYLOAD_SIZE = sizeof(PayloadMtf01);  // 9
+
+// FC → ESP32 (MOSI) magnetometer payload — mirrors SpiPayloadMag on the ESP32 side
+// Values are bias-corrected raw counts from the IMU's AK09916, after BiquadLPF at 100 Hz
+struct __attribute__((packed)) PayloadMag
+{
+    int16_t x;
+    int16_t y;
+    int16_t z;
+};
+static constexpr uint8_t MAG_PAYLOAD_SIZE = sizeof(PayloadMag);  // 6
+
 struct __attribute__((packed)) PayloadStatus
 {
     float   battery_voltage;
@@ -159,27 +200,56 @@ bool EspInterface::transmitFrame(uint8_t frameType, uint8_t payloadLen)
     HAL_StatusTypeDef status = HAL_SPI_TransmitReceive(&m_hspi, m_txBuf, m_rxBuf, EspSpi::FRAME_SIZE, 10);
     if (m_csPort) HAL_GPIO_WritePin(m_csPort, m_csPin, GPIO_PIN_SET);
 
-    parseMisoSbus();
+    parseMisoFrame();
 
     return status == HAL_OK;
 }
 
 
-void EspInterface::parseMisoSbus()
+void EspInterface::parseMisoFrame()
 {
     uint16_t magic;
     memcpy(&magic, m_rxBuf, sizeof(magic));
     if (magic != SPI_MAGIC_ESP_TO_FC)
     {
-        m_sbusData = {};
+        m_sbusData  = {};
+        m_gpsData   = {};
+        m_mtf01Data = {};
         return;
     }
-    const auto* ext = reinterpret_cast<const MisoSbusExt*>(m_rxBuf + MISO_SBUS_OFFSET);
+
+    // Parse SBUS (offset 33)
+    const auto* ext    = reinterpret_cast<const MisoSbusExt*>(m_rxBuf + MISO_SBUS_OFFSET);
     m_sbusData.valid      = ext->has_sbus != 0;
     m_sbusData.frame_lost = !m_sbusData.valid;
     m_sbusData.failsafe   = !m_sbusData.valid;
     if (m_sbusData.valid)
         memcpy(m_sbusData.channels, ext->channels, sizeof(m_sbusData.channels));
+
+    // Parse GPS (offset 66) — use memcpy to avoid unaligned double access on Cortex-M7
+    const uint8_t* gpsPtr = m_rxBuf + MISO_GPS_OFFSET;
+    m_gpsData.valid = (gpsPtr[0] != 0);
+    if (m_gpsData.valid)
+    {
+        memcpy(&m_gpsData.latitude,    gpsPtr + 1,  sizeof(double));
+        memcpy(&m_gpsData.longitude,   gpsPtr + 9,  sizeof(double));
+        memcpy(&m_gpsData.altitude_m,  gpsPtr + 17, sizeof(float));
+        memcpy(&m_gpsData.speed_ms,    gpsPtr + 21, sizeof(float));
+        memcpy(&m_gpsData.heading_deg, gpsPtr + 25, sizeof(float));
+        m_gpsData.satellites = gpsPtr[29];
+        m_gpsData.fix_type   = gpsPtr[30];
+    }
+
+    // Parse MTF-01 (offset 97) — use memcpy to avoid unaligned float access
+    const uint8_t* mtfPtr = m_rxBuf + MISO_MTF01_OFFSET;
+    m_mtf01Data.valid = (mtfPtr[0] != 0);
+    if (m_mtf01Data.valid)
+    {
+        memcpy(&m_mtf01Data.distance_m, mtfPtr + 1, sizeof(float));
+        memcpy(&m_mtf01Data.flow_x,     mtfPtr + 5, sizeof(int16_t));
+        memcpy(&m_mtf01Data.flow_y,     mtfPtr + 7, sizeof(int16_t));
+        m_mtf01Data.quality = mtfPtr[9];
+    }
 }
 
 
@@ -193,6 +263,51 @@ bool EspInterface::sendRc(const uint16_t* channels_us, uint8_t count)
         p->channels[i] = channels_us[i];
 
     return transmitFrame(EspSpi::FRAME_TYPE_RC, RC_PAYLOAD_SIZE);
+}
+
+
+bool EspInterface::sendGps()
+{
+    memset(m_txBuf, 0, EspSpi::FRAME_SIZE);
+
+    // Write through a packed pointer — GCC generates safe unaligned writes for packed structs
+    auto* p = reinterpret_cast<PayloadGps*>(m_txBuf + sizeof(FrameHeader));
+    p->latitude    = m_gpsData.latitude;
+    p->longitude   = m_gpsData.longitude;
+    p->altitude_m  = m_gpsData.altitude_m;
+    p->speed_ms    = m_gpsData.speed_ms;
+    p->heading_deg = m_gpsData.heading_deg;
+    p->satellites  = m_gpsData.satellites;
+    p->fix_type    = m_gpsData.fix_type;
+
+    return transmitFrame(EspSpi::FRAME_TYPE_GPS, GPS_PAYLOAD_SIZE);
+}
+
+
+bool EspInterface::sendMtf01()
+{
+    memset(m_txBuf, 0, EspSpi::FRAME_SIZE);
+
+    auto* p = reinterpret_cast<PayloadMtf01*>(m_txBuf + sizeof(FrameHeader));
+    p->distance_m = m_mtf01Data.distance_m;
+    p->flow_x     = m_mtf01Data.flow_x;
+    p->flow_y     = m_mtf01Data.flow_y;
+    p->quality    = m_mtf01Data.quality;
+
+    return transmitFrame(EspSpi::FRAME_TYPE_MTF01, MTF01_PAYLOAD_SIZE);
+}
+
+
+bool EspInterface::sendMag(int16_t x, int16_t y, int16_t z)
+{
+    memset(m_txBuf, 0, EspSpi::FRAME_SIZE);
+
+    auto* p = reinterpret_cast<PayloadMag*>(m_txBuf + sizeof(FrameHeader));
+    p->x = x;
+    p->y = y;
+    p->z = z;
+
+    return transmitFrame(EspSpi::FRAME_TYPE_MAG, MAG_PAYLOAD_SIZE);
 }
 
 

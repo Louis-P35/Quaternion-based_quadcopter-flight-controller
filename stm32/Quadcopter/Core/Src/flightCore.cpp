@@ -146,6 +146,13 @@ void FlightCore::mainSetup()
 	// Init AHRS
 	m_madgwickFilter = MadgwickFilter<float>();
 
+	// Init filtres passe-bas magnétomètre : Butterworth 2ème ordre, fc = 2 Hz, fs = 100 Hz
+	// Le yaw change au max à ~1 Hz en vol calme — fc = 2 Hz élimine l'essentiel du bruit électronique
+	static const float paramsMag[1] = {2.f};
+	m_lpfMagX.init(100.f, paramsMag);
+	m_lpfMagY.init(100.f, paramsMag);
+	m_lpfMagZ.init(100.f, paramsMag);
+
 	// Calibrate IMU
 #ifdef CALIBRATE_IMU
 	m_imu.gyroAccelCalibration();
@@ -455,9 +462,24 @@ void FlightCore::debugPrintLoop()
 			break;
 		}
 
+		case 3:
+			m_espInterface.sendGps();
+			break;
+
+		case 4:
+			m_espInterface.sendMtf01();
+			break;
+
+		case 5:
+			m_espInterface.sendMag(
+				static_cast<int16_t>(m_magFiltX),
+				static_cast<int16_t>(m_magFiltY),
+				static_cast<int16_t>(m_magFiltZ));
+			break;
+
 	}
 
-	phase = (phase + 1) % 3;
+	phase = (phase + 1) % 6;
 }
 
 
@@ -474,15 +496,14 @@ void FlightCore::ahrsLoop(const float& dt)
 	static uint8_t magDivider  = 0;
 	static uint8_t magStuckCnt = 0;
 	static float   magPrevX = 0.f, magPrevY = 0.f, magPrevZ = 0.f;
-
+	const float mx = m_imu.m_mag.m_x;
+	const float my = m_imu.m_mag.m_y;
+	const float mz = m_imu.m_mag.m_z;
 	bool useMARG = false;
+
 	if (++magDivider >= 10u)
 	{
 		magDivider = 0;
-
-		const float mx = m_imu.m_mag.m_x;
-		const float my = m_imu.m_mag.m_y;
-		const float mz = m_imu.m_mag.m_z;
 
 		// Gate 1: norm must lie within the plausible Earth-field window
 		const float normSq = mx*mx + my*my + mz*mz;
@@ -504,6 +525,9 @@ void FlightCore::ahrsLoop(const float& dt)
 	// ── Filter update ─────────────────────────────────────────────────────────
 	if (useMARG)
 	{
+		m_magFiltX = m_lpfMagX.apply(mx);
+		m_magFiltY = m_lpfMagY.apply(my);
+		m_magFiltZ = m_lpfMagZ.apply(mz);
 		m_madgwickFilter.computeMARG(
 			m_imu.m_accelFilterAhrs.m_x,
 			m_imu.m_accelFilterAhrs.m_y,
@@ -511,9 +535,9 @@ void FlightCore::ahrsLoop(const float& dt)
 			m_imu.m_gyroFilterAhrs.m_x * DEGREE_TO_RAD,
 			m_imu.m_gyroFilterAhrs.m_y * DEGREE_TO_RAD,
 			m_imu.m_gyroFilterAhrs.m_z * DEGREE_TO_RAD,
-			m_imu.m_mag.m_x,
-			m_imu.m_mag.m_y,
-			m_imu.m_mag.m_z,
+			m_magFiltX,
+			m_magFiltY,
+			m_magFiltZ,
 			dt);
 	}
 	else

@@ -208,8 +208,12 @@ void MadgwickFilter<T>::computeMARG(
 
     const T nG = gradG.norm();
     const T nB = gradB.norm();
-    if (nG > static_cast<T>(1e-6)) gradG *= static_cast<T>(BETA)     / nG;
-    if (nB > static_cast<T>(1e-6)) gradB *= static_cast<T>(BETA_MAG) / nB;
+    if (nG > static_cast<T>(1e-6)) gradG *= static_cast<T>(BETA) / nG;
+    // Proportional correction when |gradB| < 1 (steady-state regime):
+    // avoids applying a fixed-magnitude BETA_MAG×dt correction in a random direction
+    // when F_b is tiny (residual noise after convergence).
+    // When |gradB| >= 1 (large initial error): normalised — fast convergence unchanged.
+    if (nB > static_cast<T>(1e-6)) gradB *= static_cast<T>(BETA_MAG) / std::max(nB, static_cast<T>(1.0));
 
     const Quaternion<T> gradient = gradG + gradB;
 
