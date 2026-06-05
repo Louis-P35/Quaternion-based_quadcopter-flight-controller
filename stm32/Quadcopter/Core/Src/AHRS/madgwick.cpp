@@ -10,7 +10,8 @@
 
 
 #define GYRO_MEAN_ERROR M_PI * (5.0 / 180.0) // 5 deg/s gyroscope measurement error (in rad/s)  *from paper*
-#define BETA std::sqrt(3.0/4.0) * GYRO_MEAN_ERROR    //*from paper*
+#define BETA std::sqrt(3.0/4.0) * GYRO_MEAN_ERROR
+#define BETA_MAG 0.75   // Magnetic yaw correction gain — tuned independently of BETA
 
 
 // Gyroscope Angular Velocity components are in Radians per Second
@@ -132,10 +133,11 @@ void MadgwickFilter<T>::getEulerAngle(T& roll, T& pitch, T& yaw)
  * "An efficient orientation filter for inertial and inertial/magnetic sensor
  * arrays", S.O.H. Madgwick, 2010.
  *
- * Frame: gravity reference [0,0,1] → Z axis points UP (ENU-compatible).
+ * Frame: NWU (North-West-Up) — gravity reference [0,0,1] → Z up.
+ * Earth X = magnetic North, Earth Y = West (right-hand rule: North×West=Up).
  * The magnetic reference is not hardcoded: it is derived from the current
  * estimate by rotating the measured field into Earth frame and discarding its
- * East component (by=0). This means yaw tracks magnetic North automatically
+ * West component (by=0). This means yaw tracks magnetic North automatically
  * without any prior knowledge of declination.
  *
  * Typical usage:
@@ -188,26 +190,30 @@ void MadgwickFilter<T>::computeMARG(
     const T Fb2 = 2*bx*(qw*qy + qx*qz)                   + 2*bz*(static_cast<T>(0.5)-qx*qx-qy*qy) - q_m.m_z;
 
     // ── Combined gradient: J_g^T·F_g + J_b^T·F_b (eq. 20 / 34) ─────────────
-    Quaternion<T> gradient;
-    gradient.m_w =
-        (-2*qy)*Fg0 + (2*qx)*Fg1
-        + (-2*bz*qy)*Fb0                   + (-2*bx*qz + 2*bz*qx)*Fb1 + ( 2*bx*qy)*Fb2;
+    // Sub-gradients are normalised and scaled independently: BETA governs
+    // roll/pitch convergence, BETA_MAG governs yaw convergence.
+    // Normalising together would let a large gravity error dilute the magnetic
+    // correction in flight and prevent BETA_MAG from being tuned independently.
+    Quaternion<T> gradG;
+    gradG.m_w = (-2*qy)*Fg0 + ( 2*qx)*Fg1;
+    gradG.m_x = ( 2*qz)*Fg0 + ( 2*qw)*Fg1 + (-4*qx)*Fg2;
+    gradG.m_y = (-2*qw)*Fg0 + ( 2*qz)*Fg1 + (-4*qy)*Fg2;
+    gradG.m_z = ( 2*qx)*Fg0 + ( 2*qy)*Fg1;
 
-    gradient.m_x =
-        (2*qz)*Fg0 + (2*qw)*Fg1 + (-4*qx)*Fg2
-        + ( 2*bz*qz)*Fb0                   + ( 2*bx*qy + 2*bz*qw)*Fb1 + ( 2*bx*qz - 4*bz*qx)*Fb2;
+    Quaternion<T> gradB;
+    gradB.m_w = (-2*bz*qy)*Fb0                  + (-2*bx*qz + 2*bz*qx)*Fb1 + ( 2*bx*qy)*Fb2;
+    gradB.m_x = ( 2*bz*qz)*Fb0                  + ( 2*bx*qy + 2*bz*qw)*Fb1 + ( 2*bx*qz - 4*bz*qx)*Fb2;
+    gradB.m_y = (-4*bx*qy - 2*bz*qw)*Fb0       + ( 2*bx*qx + 2*bz*qz)*Fb1 + ( 2*bx*qw - 4*bz*qy)*Fb2;
+    gradB.m_z = (-4*bx*qz + 2*bz*qx)*Fb0       + (-2*bx*qw + 2*bz*qy)*Fb1 + ( 2*bx*qx)*Fb2;
 
-    gradient.m_y =
-        (-2*qw)*Fg0 + (2*qz)*Fg1 + (-4*qy)*Fg2
-        + (-4*bx*qy - 2*bz*qw)*Fb0        + ( 2*bx*qx + 2*bz*qz)*Fb1 + ( 2*bx*qw - 4*bz*qy)*Fb2;
+    const T nG = gradG.norm();
+    const T nB = gradB.norm();
+    if (nG > static_cast<T>(1e-6)) gradG *= static_cast<T>(BETA)     / nG;
+    if (nB > static_cast<T>(1e-6)) gradB *= static_cast<T>(BETA_MAG) / nB;
 
-    gradient.m_z =
-        (2*qx)*Fg0 + (2*qy)*Fg1
-        + (-4*bx*qz + 2*bz*qx)*Fb0        + (-2*bx*qw + 2*bz*qy)*Fb1 + ( 2*bx*qx)*Fb2;
+    const Quaternion<T> gradient = gradG + gradB;
 
     // ── Sensor fusion (eq. 42–44) ─────────────────────────────────────────────
-    gradient.normalize();
-    gradient *= BETA;
 
     Quaternion<T> q_w(0, gx, gy, gz);
     q_w *= static_cast<T>(0.5);

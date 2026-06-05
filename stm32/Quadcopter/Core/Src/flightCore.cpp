@@ -255,6 +255,24 @@ void FlightCore::mainSetup()
 		// TODO: Handle task add error
 	}
 
+	// Yaw initialisation from first magnetometer reading.
+	// Madgwick always starts at identity (yaw=0); without this, convergence to the
+	// correct heading takes ~90 s (BETA × dt × 100 Hz too slow for a 90° error).
+	// Formula: for a flat sensor (roll=pitch=0), ψ = atan2(-my, mx) gives the heading
+	// of the body X axis relative to horizontal magnetic North, which is Earth X in
+	// Madgwick's frame (bx derived from the current estimate, by=0 by construction).
+	{
+		m_imu.readAndFilterIMU_gdps();
+		const float mx0 = m_imu.m_mag.m_x;
+		const float my0 = m_imu.m_mag.m_y;
+		if (mx0*mx0 + my0*my0 > 25.0f)  // at least 5 µT horizontal component
+		{
+			const float psi = atan2f(-my0, mx0);
+			m_madgwickFilter.m_qEst = Quaternion<float>(
+				cosf(psi * 0.5f), 0.0f, 0.0f, sinf(psi * 0.5f));
+		}
+	}
+
 	// Start the loop
 	g_start = true;
 }
@@ -437,14 +455,9 @@ void FlightCore::debugPrintLoop()
 			break;
 		}
 
-		case 3:
-			m_espInterface.sendLogf(EspSpi::LogLevel::LOG_DEBUG,
-				"from imu mag: %.2f %.2f %.2f uT",
-				m_imu.m_mag.m_x, m_imu.m_mag.m_y, m_imu.m_mag.m_z);
-			break;
 	}
 
-	phase = (phase + 1) % 4;
+	phase = (phase + 1) % 3;
 }
 
 

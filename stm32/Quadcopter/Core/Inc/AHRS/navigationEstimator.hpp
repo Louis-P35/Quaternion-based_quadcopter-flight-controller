@@ -33,9 +33,9 @@
 // Gating et seuils :
 //   innov_gate   : rejet chi² si innovation² > gate × S (S = variance prédite).
 //                  9.0 = 3σ², compromis standard robustesse / réactivité.
-//   lidar_terrain_gate : seuil en m/s. Si |Δlidar/Δt + velDown| > seuil, la
+//   lidar_terrain_gate : seuil en m/s. Si |Δlidar/Δt − velUp| > seuil, la
 //                        variation du lidar est interprétée comme un saut de
-//                        terrain, et la correction de posDown est inhibée.
+//                        terrain, et la correction de posUp est inhibée.
 // ============================================================================
 struct NavParams
 {
@@ -69,9 +69,9 @@ struct NavParams
     float   lidar_terrain_gate = 2.0f;  // m/s — seuil détection saut de terrain
 
     // ── Aide altitude par lidar (désactivée par défaut) ─────────────────────
-    // Par défaut, le lidar ne corrige PAS posDown : groundDist (hauteur-sol) et
-    // posDown (altitude absolue) sont deux états distincts. Un sol plat mais
-    // surélevé par rapport à l'origine tirerait posDown vers une valeur fausse
+    // Par défaut, le lidar ne corrige PAS posUp : groundDist (hauteur-sol) et
+    // posUp (altitude absolue) sont deux états distincts. Un sol plat mais
+    // surélevé par rapport à l'origine tirerait posUp vers une valeur fausse
     // avec r_lidar très petit (confiance énorme), sans que le gating terrain
     // puisse le détecter (offset constant ≠ saut).
     // Activer uniquement si le décollage se fait toujours depuis le sol de
@@ -101,7 +101,7 @@ struct NavMeasurement
     float dt;  // secondes depuis le dernier appel (> 0, typiquement 0.25–2 ms)
 
     // ── Attitude + IMU (obligatoire à chaque appel) ──────────────────────────
-    float qw, qx, qy, qz;          // quaternion unité : rotation body → NED
+    float qw, qx, qy, qz;          // quaternion unité : rotation body → NWU
     float ax_b, ay_b, az_b;        // accéléromètre en g (repère body) — converti en m/s² dans update()
     float gx_b, gy_b, gz_b;        // gyroscope body frame, rad/s (dérotation flux)
 
@@ -139,7 +139,12 @@ struct NavMeasurement
 };
 
 // ============================================================================
-// NavigationEstimator — fusion Kalman 1D par axe (North, East, Down).
+// NavigationEstimator — fusion Kalman 1D par axe (North, West, Up).
+//
+// Repère Earth : NWU (North-West-Up) — cohérent avec le filtre Madgwick.
+//   m_N : axe Nord  (positif = vers le Nord)
+//   m_W : axe Ouest (positif = vers l'Ouest)
+//   m_U : axe Haut  (positif = vers le haut)
 //
 // Pourquoi Kalman et pas filtre complémentaire ?
 //   Le complémentaire utilise des gains fixes (α, β) optimaux pour un ratio
@@ -154,7 +159,7 @@ struct NavMeasurement
 //   est automatique : GPS HDOP=3 contribue 9× moins qu'HDOP=1 sans retoucher
 //   les gains. Impossible à obtenir proprement avec un complémentaire.
 //
-// Architecture : 3 filtres 1D indépendants [pos, vel] sur North, East, Down.
+// Architecture : 3 filtres 1D indépendants [pos, vel] sur North, West, Up.
 //   Axes découplés : approximation valide tant que les accélérations couplées
 //   entre axes sont petites (vrai pour un vol stabilisé). Réduit la complexité
 //   de 6×6 (EKF full) à 3×2×2, sans dégradation notable en pratique quadricopter.
@@ -169,20 +174,20 @@ public:
     // corrections Kalman uniquement pour les capteurs avec _new = true.
     void update(const NavMeasurement& meas);
 
-    // ── Getters position NED (mètres depuis l'origine GPS) ──────────────────
+    // ── Getters position NWU (mètres depuis l'origine GPS) ──────────────────
     float posNorth()   const { return m_N.pos; }
-    float posEast()    const { return m_E.pos; }
-    float posDown()    const { return m_D.pos; }
+    float posWest()    const { return m_W.pos; }
+    float posUp()      const { return m_U.pos; }
 
-    // ── Getters vitesse NED (m/s) ────────────────────────────────────────────
+    // ── Getters vitesse NWU (m/s) ────────────────────────────────────────────
     float velNorth()   const { return m_N.vel; }
-    float velEast()    const { return m_E.vel; }
-    float velDown()    const { return m_D.vel; }
+    float velWest()    const { return m_W.vel; }
+    float velUp()      const { return m_U.vel; }
 
     // ── Hauteur-sol (m) ───────────────────────────────────────────────────────
-    // [Correction C] État distinct de posDown : lidar donne la distance au sol
-    // physique, qui peut différer de -posDown si le terrain n'est pas plat.
-    // Fallback vers -posDown quand lidar est hors portée (terrain plat supposé).
+    // [Correction C] État distinct de posUp : lidar donne la distance au sol
+    // physique, qui peut différer de posUp si le terrain n'est pas plat.
+    // Fallback vers posUp quand lidar est hors portée (terrain plat supposé).
     float groundDist() const { return m_groundDist; }
 
     // ── Statut ────────────────────────────────────────────────────────────────
@@ -193,7 +198,7 @@ public:
     // correction GPS est récente (< gps_horiz_timeout_s).
     //
     // Sémantique pour le consommateur (contrôleur de position, hold mode) :
-    //   false → posNorth()/posEast() dérivent : ne pas les utiliser comme
+    //   false → posNorth()/posWest() dérivent : ne pas les utiliser comme
     //           référence absolue. En mode flux-seul indoor, seule la VITESSE
     //           est fiable ; la position dérive par intégration sans ancrage.
     //   true  → ancrage GPS actif et récent : position exploitable en boucle fermée.
@@ -208,7 +213,7 @@ public:
                || m_timeSinceGpsS <= m_params.gps_horiz_timeout_s;
     }
 
-    // Vérifie la convention quaternion body→NED. À appeler au démarrage.
+    // Vérifie la convention quaternion body→NWU. À appeler au démarrage.
     // Retourne false si la rotation sandwich donne un résultat inattendu.
     static bool selfTest();
 
@@ -224,7 +229,7 @@ private:
         float p01 =  0.f;  // covariance croisée init (indépendants au départ)
     };
 
-    Axis1D m_N, m_E, m_D;   // axes North, East, Down
+    Axis1D m_N, m_W, m_U;   // axes North, West, Up
     float  m_groundDist = 0.f;
     NavParams m_params;
 
@@ -262,9 +267,9 @@ private:
     // Gating chi² : true = mesure acceptée, false = outlier rejeté
     bool gated(float innov, float S) const;
 
-    // Rotation body → NED par produit en sandwich : v_ned = q ⊗ [0,v] ⊗ q*
+    // Rotation body → NWU par produit en sandwich : v_nwu = q ⊗ [0,v] ⊗ q*
     // Utilise Quaternion<float> de Utils/quaternion.hpp (opérateur* disponible).
-    static Vector3<float> bodyToNed(float qw, float qx, float qy, float qz,
+    static Vector3<float> bodyToNwu(float qw, float qx, float qy, float qz,
                                     float vx, float vy, float vz);
 
     // Conversion flat-earth (lat, lon) → (north_m, east_m) depuis l'origine.

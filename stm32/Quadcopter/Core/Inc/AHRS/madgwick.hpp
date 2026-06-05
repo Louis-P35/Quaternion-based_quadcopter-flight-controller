@@ -42,7 +42,7 @@ public:
 		);
 
 	// Accel + gyro + magnetometer — Madgwick MARG algorithm (Madgwick 2010, eq. 29/34)
-	// Gravity reference : [0, 0, 1] (Z up, ENU-compatible)
+	// Gravity reference : [0, 0, 1] (Z up, NWU — North-West-Up; Earth X = magnetic North, Earth Y = West)
 	// Magnetic reference: derived from current estimate; yaw tracks magnetic North
 	// Call at the magnetometer update rate (typ. 100 Hz); falls back to compute() if mag is invalid
 	void computeMARG(

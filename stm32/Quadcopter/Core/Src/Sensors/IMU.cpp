@@ -138,10 +138,12 @@ void IMU::readAndFilterIMU_gdps()
 	// Remove accel's offset
 	m_accelFilterAhrs -= m_accelOffset;
 
-	// Mag: apply hard-iron bias correction
-	m_mag.m_x = rawMag.x - m_magBias.m_x;
-	m_mag.m_y = rawMag.y - m_magBias.m_y;
-	m_mag.m_z = rawMag.z - m_magBias.m_z;
+	// Mag: axis remap (ICM-20948 datasheet) + hard-iron bias correction
+	// AK09916 axes differ from accel/gyro: mag_X=accel_Y, mag_Y=accel_X, mag_Z=-accel_Z
+	// Bias was calibrated in the raw mag frame → cross-index accordingly
+	m_mag.m_x = rawMag.y - m_magBias.m_y;
+	m_mag.m_y = rawMag.x - m_magBias.m_x;
+	m_mag.m_z = -(rawMag.z - m_magBias.m_z);
 }
 
 

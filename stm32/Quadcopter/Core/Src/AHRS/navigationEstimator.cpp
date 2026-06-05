@@ -19,7 +19,7 @@ static constexpr float MAX_DT  = 0.05f;   // 50 ms  — au-delà, pas trop grand
 void NavigationEstimator::init(const NavParams& params)
 {
     m_params     = params;
-    m_N = m_E = m_D = Axis1D{};
+    m_N = m_W = m_U = Axis1D{};
     m_groundDist = 0.f;
     m_originSet  = false;
     m_lat0 = m_lon0 = 0.0;
@@ -42,27 +42,28 @@ void NavigationEstimator::update(const NavMeasurement& meas)
                    : (meas.dt > MAX_DT) ? MAX_DT
                    : meas.dt;
 
-    // ── 1. PRÉDICTION : accéléromètre body → NED, soustraction gravité ──────
+    // ── 1. PRÉDICTION : accéléromètre body → NWU, soustraction gravité ──────
     //
     // L'accéléromètre est fourni en g → conversion en m/s² (SI) avant tout traitement.
+    // Repère body NWU : corps Z pointe vers le haut.
     // Vérification hovering (quaternion identité) :
-    //   az_b ≈ −1.0 g × 9.81 = −9.81 m/s² → bodyToNed → −9.81 sur Down → +G → 0 ✓
+    //   az_b ≈ +1.0 g × 9.81 = +9.81 m/s² → bodyToNwu → +9.81 sur Up → −G → 0 ✓
     static constexpr float G_TO_MS2 = 9.81f;
     const float ax_ms2 = meas.ax_b * G_TO_MS2;
     const float ay_ms2 = meas.ay_b * G_TO_MS2;
     const float az_ms2 = meas.az_b * G_TO_MS2;
 
-    const Vector3<float> acc_ned = bodyToNed(meas.qw, meas.qx, meas.qy, meas.qz,
+    const Vector3<float> acc_nwu = bodyToNwu(meas.qw, meas.qx, meas.qy, meas.qz,
                                               ax_ms2, ay_ms2, az_ms2);
-    const float a_n = acc_ned.m_x;
-    const float a_e = acc_ned.m_y;
-    const float a_d = acc_ned.m_z + G;  // G=9.81 m/s², cohérent : tout est en SI
+    const float a_n = acc_nwu.m_x;
+    const float a_w = acc_nwu.m_y;
+    const float a_u = acc_nwu.m_z - G;  // G=9.81 m/s², cohérent : tout est en SI
 
     const float qh_sq = m_params.q_acc_h * m_params.q_acc_h;
     const float qv_sq = m_params.q_acc_v * m_params.q_acc_v;
     predictAxis(m_N, a_n, dt, qh_sq, m_params.q_pos_drift_h);
-    predictAxis(m_E, a_e, dt, qh_sq, m_params.q_pos_drift_h);
-    predictAxis(m_D, a_d, dt, qv_sq, m_params.q_pos_drift_v);
+    predictAxis(m_W, a_w, dt, qh_sq, m_params.q_pos_drift_h);
+    predictAxis(m_U, a_u, dt, qv_sq, m_params.q_pos_drift_v);
 
     // Accumulation des compteurs temporels inter-capteurs
     m_lidarDtAcc    += dt;
@@ -98,9 +99,9 @@ void NavigationEstimator::update(const NavMeasurement& meas)
             m_gpsAlt0   = meas.gps_alt_m;
             m_originSet = true;
 
-            // On est à l'origine NED (0, 0). Correction avec z=0 ancre la position.
+            // On est à l'origine NWU (0, 0). Correction avec z=0 ancre la position.
             correctPos(m_N, 0.f, m_params.r_gps_pos);
-            correctPos(m_E, 0.f, m_params.r_gps_pos);
+            correctPos(m_W, 0.f, m_params.r_gps_pos);
         }
         else
         {
@@ -109,13 +110,15 @@ void NavigationEstimator::update(const NavMeasurement& meas)
 
             const float r_gps = m_params.r_gps_pos
                                 * meas.gps_hdop * meas.gps_hdop;
-            correctPos(m_N, north_m, r_gps);
-            correctPos(m_E, east_m,  r_gps);
+            correctPos(m_N, north_m,  r_gps);
+            // east_m positif = Est géographique = −Ouest (NWU Y) → signe inversé
+            correctPos(m_W, -east_m,  r_gps);
         }
 
         // GPS altitude : très bruité, R élevé → contribution faible.
-        const float gps_down = -(meas.gps_alt_m - m_gpsAlt0);
-        correctPos(m_D, gps_down, m_params.r_gps_alt);
+        // baro_alt positif = en hauteur → Up NWU = positif (même signe)
+        const float gps_up = meas.gps_alt_m - m_gpsAlt0;
+        correctPos(m_U, gps_up, m_params.r_gps_alt);
 
         // Correction GPS appliquée → ancrage récent, timer reset
         m_timeSinceGpsS = 0.f;
@@ -123,12 +126,12 @@ void NavigationEstimator::update(const NavMeasurement& meas)
 
     // ── 3. CORRECTION BAROMÈTRE (source principale axe vertical) ─────────────
     //
-    // Stratégie : le baro corrige la POSITION Down exclusivement.
+    // Stratégie : le baro corrige la POSITION Up exclusivement.
     // On ne dérive pas le baro pour obtenir vz — son bruit haute fréquence
     // contaminerait la vitesse. La vitesse verticale est estimée par intégration
     // de l'accéléromètre + corrections lidar/GPS.
     //
-    // [Correction C] Le baro corrige posDown, il ne touche pas groundDist.
+    // [Correction C] Le baro corrige posUp, il ne touche pas groundDist.
     if (meas.baro_new)
     {
         if (!m_baroRefSet)
@@ -140,44 +143,44 @@ void NavigationEstimator::update(const NavMeasurement& meas)
         }
         else
         {
-            // baro_alt positif = en hauteur → Down NED = négatif
-            const float baro_down = -(meas.baro_alt_m - m_baroRef);
-            correctPos(m_D, baro_down, m_params.r_baro);
+            // baro_alt positif = en hauteur → Up NWU = positif (même signe)
+            const float baro_up = meas.baro_alt_m - m_baroRef;
+            correctPos(m_U, baro_up, m_params.r_baro);
         }
     }
 
     // ── 4. LIDAR MTF-01 ───────────────────────────────────────────────────────
     //
     // Le lidar mesure la distance physique au sol → groundDist (état dédié).
-    // groundDist et posDown sont deux états DISTINCTS et indépendants :
+    // groundDist et posUp sont deux états DISTINCTS et indépendants :
     //   - groundDist = hauteur au-dessus du sol physique sous le drone.
-    //   - posDown    = altitude absolue dans le repère NED (ancré par baro/GPS).
-    // Si le terrain n'est pas à l'altitude de l'origine, lidar ≠ −posDown.
+    //   - posUp      = altitude absolue dans le repère NWU (ancré par baro/GPS).
+    // Si le terrain n'est pas à l'altitude de l'origine, lidar ≠ posUp.
     //
-    // Correction posDown via lidar : désactivée par défaut (lidar_aids_altitude=false).
+    // Correction posUp via lidar : désactivée par défaut (lidar_aids_altitude=false).
     // Raison : un offset constant de terrain (sol surélevé/abaissé par rapport à
-    // l'origine) tirerait posDown vers une valeur fausse avec r_lidar très petit
+    // l'origine) tirerait posUp vers une valeur fausse avec r_lidar très petit
     // (K ≈ 1), sans que le gating terrain puisse le détecter (pas de saut → gate ok).
     // Le gating ne protège que contre les discontinuités, pas les offsets permanents.
     //
     // Si activée (lidar_aids_altitude=true) : correction uniquement si terrain_ok
     // ET à basse altitude (lidar_altitude_max_m), avec R nettement plus élevé
-    // que r_lidar (r_lidar_altitude). Réserver au cas where sol == origine garanti.
+    // que r_lidar (r_lidar_altitude). Réserver au cas où sol == origine garanti.
     const bool lidar_in_range = meas.lidar_new
                                 && meas.lidar_dist_m > 0.05f
                                 && meas.lidar_dist_m < m_params.lidar_max_dist_m;
 
     if (lidar_in_range)
     {
-        // groundDist mis à jour systématiquement — indépendant de posDown
+        // groundDist mis à jour systématiquement — indépendant de posUp
         m_groundDist = meas.lidar_dist_m;
 
-        // Gating terrain : cohérence Δlidar avec velDown sur la fenêtre inter-lidar.
-        // Sur terrain plat : Δlidar ≈ −velDown × Δt (descendre = Down+ = lidar ↓).
+        // Gating terrain : cohérence Δlidar avec velUp sur la fenêtre inter-lidar.
+        // Sur terrain plat : Δlidar ≈ velUp × Δt (monter = Up+ = lidar ↑).
         bool terrain_ok = true;
         if (m_lidarPrev > 0.f && m_lidarDtAcc > 0.f)
         {
-            const float expected_delta = -m_D.vel * m_lidarDtAcc;
+            const float expected_delta = m_U.vel * m_lidarDtAcc;
             const float actual_delta   = meas.lidar_dist_m - m_lidarPrev;
             if (fabsf(actual_delta - expected_delta)
                     > m_params.lidar_terrain_gate * m_lidarDtAcc)
@@ -189,20 +192,21 @@ void NavigationEstimator::update(const NavMeasurement& meas)
         m_lidarPrev  = meas.lidar_dist_m;
         m_lidarDtAcc = 0.f;
 
-        // Correction posDown optionnelle — désactivée par défaut
+        // Correction posUp optionnelle — désactivée par défaut
         if (m_params.lidar_aids_altitude
             && terrain_ok
             && meas.lidar_dist_m < m_params.lidar_altitude_max_m)
         {
-            const float lidar_down = -meas.lidar_dist_m;
-            correctPos(m_D, lidar_down, m_params.r_lidar_altitude);
+            // lidar_dist_m positif = hauteur au-dessus du sol = posUp (même signe)
+            const float lidar_up = meas.lidar_dist_m;
+            correctPos(m_U, lidar_up, m_params.r_lidar_altitude);
         }
     }
     else if (meas.lidar_new)
     {
-        // Hors portée ou invalide : groundDist estimée depuis posDown
+        // Hors portée ou invalide : groundDist estimée depuis posUp
         // (suppose terrain plat au niveau de l'origine — approximation takeoff)
-        m_groundDist = -m_D.pos;
+        m_groundDist = m_U.pos;
         m_lidarPrev  = -1.f;
         m_lidarDtAcc = 0.f;
     }
@@ -222,10 +226,10 @@ void NavigationEstimator::update(const NavMeasurement& meas)
     //   mouvement AVANT (v_body_x) ↔ +flow_vel_y × h / 100
     //   mouvement DROITE (v_body_y) ↔ −flow_vel_x × h / 100
     // TODO : valider — glisser vers l'avant à ~1 m/s sur surface texturée,
-    //   vérifier que velNorth augmente (drone face au Nord). Idem droite → velEast.
+    //   vérifier que velNorth augmente (drone face au Nord). Idem droite → velWest diminue.
     //
-    // Hauteur : UNIQUEMENT groundDist (lidar valide). Pas de fallback sur −posDown
-    // (un posDown dérivé polluerait le scaling et la correction de vitesse).
+    // Hauteur : UNIQUEMENT groundDist (lidar valide). Pas de fallback sur posUp
+    // (un posUp dérivé polluerait le scaling et la correction de vitesse).
     {
         const float gyro_mag_xy = sqrtf(meas.gx_b * meas.gx_b
                                         + meas.gy_b * meas.gy_b);
@@ -241,8 +245,8 @@ void NavigationEstimator::update(const NavMeasurement& meas)
             const float v_body_x = ( meas.flow_vel_y) * height / 100.f;
             const float v_body_y = (-meas.flow_vel_x) * height / 100.f;
 
-            // Rotation body → NED (couplage attitude obligatoire)
-            const Vector3<float> v_ned = bodyToNed(meas.qw, meas.qx, meas.qy, meas.qz,
+            // Rotation body → NWU (couplage attitude obligatoire)
+            const Vector3<float> v_nwu = bodyToNwu(meas.qw, meas.qx, meas.qy, meas.qz,
                                                     v_body_x, v_body_y, 0.f);
 
             // R de base dépendant de la hauteur, puis dégradé par la rotation
@@ -250,8 +254,8 @@ void NavigationEstimator::update(const NavMeasurement& meas)
             const float r_base   = sigma_v * sigma_v;
             const float r_flow   = r_base * (1.f + m_params.flow_gyro_r_scale * gyro_mag_xy);
 
-            correctVel(m_N, v_ned.m_x, r_flow);
-            correctVel(m_E, v_ned.m_y, r_flow);
+            correctVel(m_N, v_nwu.m_x, r_flow);
+            correctVel(m_W, v_nwu.m_y, r_flow);
         }
     }
 }
@@ -364,15 +368,15 @@ bool NavigationEstimator::gated(float innov, float S) const
 }
 
 // ============================================================================
-// bodyToNed — rotation via produit en sandwich quaternion
+// bodyToNwu — rotation via produit en sandwich quaternion
 // ============================================================================
 
-Vector3<float> NavigationEstimator::bodyToNed(
+Vector3<float> NavigationEstimator::bodyToNwu(
     float qw, float qx, float qy, float qz,
     float vx, float vy, float vz)
 {
-    // v_NED = q ⊗ [0, v_body] ⊗ q*
-    // Convention : q est le quaternion body → NED (sortie Madgwick).
+    // v_NWU = q ⊗ [0, v_body] ⊗ q*
+    // Convention : q est le quaternion body → NWU (sortie Madgwick).
     // La classe Quaternion<float> (Utils/quaternion.hpp) fournit operator*
     // et conjugate() — on s'appuie dessus directement.
     const Quaternion<float> q(qw, qx, qy, qz);
@@ -405,27 +409,27 @@ void NavigationEstimator::latLonToLocal(double lat, double lon,
 }
 
 // ============================================================================
-// selfTest — valide la convention quaternion body→NED au démarrage
+// selfTest — valide la convention quaternion body→NWU au démarrage
 // ============================================================================
 
 bool NavigationEstimator::selfTest()
 {
     // Test 1 : quaternion identité — le vecteur doit être inchangé.
-    const auto v1 = bodyToNed(1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 3.f);
+    const auto v1 = bodyToNwu(1.f, 0.f, 0.f, 0.f, 1.f, 2.f, 3.f);
     if (fabsf(v1.m_x - 1.f) > 1e-5f ||
         fabsf(v1.m_y - 2.f) > 1e-5f ||
         fabsf(v1.m_z - 3.f) > 1e-5f)
         return false;
 
-    // Test 2 : rotation de +90° en lacet (yaw) autour de l'axe NED Z (Down).
+    // Test 2 : rotation de +90° en lacet (yaw) autour de l'axe NWU Z (Up, CCW).
     // q = [cos(45°), 0, 0, sin(45°)] ≈ [√2/2, 0, 0, √2/2].
-    // La pointe du drone (body X = avant) pointe à l'Est après 90° de lacet.
-    // Attendu : bodyToNed([1,0,0]) → NED [0,1,0]  (North≈0, East≈1, Down≈0).
+    // La pointe du drone (body X = avant) pointe à l'Ouest après +90° de lacet CCW.
+    // Attendu : bodyToNwu([1,0,0]) → NWU [0,1,0]  (North≈0, West≈1, Up≈0).
     static constexpr float SQ2_2 = 0.7071068f;
-    const auto v2 = bodyToNed(SQ2_2, 0.f, 0.f, SQ2_2, 1.f, 0.f, 0.f);
+    const auto v2 = bodyToNwu(SQ2_2, 0.f, 0.f, SQ2_2, 1.f, 0.f, 0.f);
     if (fabsf(v2.m_x)       > 1e-5f ||   // North ≈ 0
-        fabsf(v2.m_y - 1.f) > 1e-5f ||   // East  ≈ 1
-        fabsf(v2.m_z)       > 1e-5f)      // Down  ≈ 0
+        fabsf(v2.m_y - 1.f) > 1e-5f ||   // West  ≈ 1
+        fabsf(v2.m_z)       > 1e-5f)      // Up    ≈ 0
         return false;
 
     return true;
