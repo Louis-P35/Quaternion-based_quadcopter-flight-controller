@@ -28,7 +28,7 @@ enum class TaskType {
 	eMain_fsm,
 	eRead_radio,
 	eRead_battery,
-	eDebugPrint
+	eRead_espSpi,
 };
 
 

@@ -47,6 +47,14 @@ static constexpr uint16_t MISO_GPS_OFFSET   = 66;
 // SpiPayloadMtf01: distance_m(4B) flow_x(2B) flow_y(2B) quality(1B)
 static constexpr uint16_t MISO_MTF01_OFFSET = 97;
 
+// MISO GPS-module compass section starts at byte 107: has_mag(1B) + SpiPayloadMag(6B)
+// SpiPayloadMag: x(2B) y(2B) z(2B) — raw counts, HMC5883L/QMC5883L on BN-880, updated at 5 Hz
+static constexpr uint16_t MISO_GPS_MAG_OFFSET = 107;
+
+// MISO baro section starts at byte 114: has_baro(1B) + SpiPayloadBaro(12B)
+// SpiPayloadBaro: pressure_pa(4B) temperature_c(4B) altitude_m(4B)
+static constexpr uint16_t MISO_BARO_OFFSET  = 114;
+
 // FC → ESP32 (MOSI) GPS payload — mirrors SpiPayloadGps on the ESP32 side
 struct __attribute__((packed)) PayloadGps
 {
@@ -69,6 +77,15 @@ struct __attribute__((packed)) PayloadMtf01
     uint8_t quality;
 };
 static constexpr uint8_t MTF01_PAYLOAD_SIZE = sizeof(PayloadMtf01);  // 9
+
+// FC → ESP32 (MOSI) barometer payload — mirrors SpiPayloadBaro on the ESP32 side
+struct __attribute__((packed)) PayloadBaro
+{
+    float pressure_pa;
+    float temperature_c;
+    float altitude_m;
+};
+static constexpr uint8_t BARO_PAYLOAD_SIZE = sizeof(PayloadBaro);  // 12
 
 // FC → ESP32 (MOSI) magnetometer payload — mirrors SpiPayloadMag on the ESP32 side
 // Values are bias-corrected raw counts from the IMU's AK09916, after BiquadLPF at 100 Hz
@@ -212,9 +229,11 @@ void EspInterface::parseMisoFrame()
     memcpy(&magic, m_rxBuf, sizeof(magic));
     if (magic != SPI_MAGIC_ESP_TO_FC)
     {
-        m_sbusData  = {};
-        m_gpsData   = {};
-        m_mtf01Data = {};
+        m_sbusData   = {};
+        m_gpsData    = {};
+        m_gpsMagData = {};
+        m_mtf01Data  = {};
+        m_baroData   = {};
         return;
     }
 
@@ -249,6 +268,26 @@ void EspInterface::parseMisoFrame()
         memcpy(&m_mtf01Data.flow_x,     mtfPtr + 5, sizeof(int16_t));
         memcpy(&m_mtf01Data.flow_y,     mtfPtr + 7, sizeof(int16_t));
         m_mtf01Data.quality = mtfPtr[9];
+    }
+
+    // Parse GPS-module compass (offset 107) — int16_t, aligned, direct cast safe
+    const uint8_t* gpsMagPtr = m_rxBuf + MISO_GPS_MAG_OFFSET;
+    m_gpsMagData.valid = (gpsMagPtr[0] != 0);
+    if (m_gpsMagData.valid)
+    {
+        memcpy(&m_gpsMagData.x, gpsMagPtr + 1, sizeof(int16_t));
+        memcpy(&m_gpsMagData.y, gpsMagPtr + 3, sizeof(int16_t));
+        memcpy(&m_gpsMagData.z, gpsMagPtr + 5, sizeof(int16_t));
+    }
+
+    // Parse baro (offset 114) — use memcpy to avoid unaligned float access
+    const uint8_t* baroPtr = m_rxBuf + MISO_BARO_OFFSET;
+    m_baroData.valid = (baroPtr[0] != 0);
+    if (m_baroData.valid)
+    {
+        memcpy(&m_baroData.pressure_pa,   baroPtr + 1, sizeof(float));
+        memcpy(&m_baroData.temperature_c, baroPtr + 5, sizeof(float));
+        memcpy(&m_baroData.altitude_m,    baroPtr + 9, sizeof(float));
     }
 }
 
@@ -295,6 +334,19 @@ bool EspInterface::sendMtf01()
     p->quality    = m_mtf01Data.quality;
 
     return transmitFrame(EspSpi::FRAME_TYPE_MTF01, MTF01_PAYLOAD_SIZE);
+}
+
+
+bool EspInterface::sendBaro()
+{
+    memset(m_txBuf, 0, EspSpi::FRAME_SIZE);
+
+    auto* p = reinterpret_cast<PayloadBaro*>(m_txBuf + sizeof(FrameHeader));
+    p->pressure_pa   = m_baroData.pressure_pa;
+    p->temperature_c = m_baroData.temperature_c;
+    p->altitude_m    = m_baroData.altitude_m;
+
+    return transmitFrame(EspSpi::FRAME_TYPE_BARO, BARO_PAYLOAD_SIZE);
 }
 
 

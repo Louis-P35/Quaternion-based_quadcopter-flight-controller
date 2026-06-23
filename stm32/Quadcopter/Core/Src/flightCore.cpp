@@ -240,18 +240,18 @@ void FlightCore::mainSetup()
 	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_att, 1, pidAtt_task, FREQUENCY_SLOT::e_1KHZ);
 
 	// 500 Hz tasks
-	taskAddSuccess &= g_scheduler.addTask(TaskType::eESCs, 0, ESCs_task, FREQUENCY_SLOT::e_500HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eESCs,        0, ESCs_task,           FREQUENCY_SLOT::e_500HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_espSpi, 1, readSpiFromESP_task, FREQUENCY_SLOT::e_500HZ);
 
 	// 100 Hz tasks
 #if SENSOR_MTF01_ENABLED
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_opticalFlow, 0, readOpticalFlow_task, FREQUENCY_SLOT::e_100HZ);
 #endif
 	taskAddSuccess &= g_scheduler.addTask(TaskType::ePID_pos, 1, pidPos_task, FREQUENCY_SLOT::e_100HZ);
-	taskAddSuccess &= g_scheduler.addTask(TaskType::eDebugPrint, 1, debugPrint_task, FREQUENCY_SLOT::e_100HZ);
 
 	// 50 Hz tasks
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_radio, 0, readRadio_task, FREQUENCY_SLOT::e_50HZ);
-	taskAddSuccess &= g_scheduler.addTask(TaskType::eMain_fsm, 1, mainFSM_task, FREQUENCY_SLOT::e_50HZ);
+	taskAddSuccess &= g_scheduler.addTask(TaskType::eMain_fsm,   1, mainFSM_task,   FREQUENCY_SLOT::e_50HZ);
 
 	// 10 Hz tasks
 	taskAddSuccess &= g_scheduler.addTask(TaskType::eRead_battery, 0, readBattery_task, FREQUENCY_SLOT::e_10HZ);
@@ -397,12 +397,12 @@ void readOpticalFlow_task(const float& dt)
 
 
 /*
- * Print over SPI to the ESP32 then UDP to the GCS.
+ * Single-SPI arbitration task at 500 Hz.
  * C wrapper function.
  */
-void debugPrint_task(const float& dt)
+void readSpiFromESP_task(const float& dt)
 {
-	g_pFlightCore->debugPrintLoop();
+	g_pFlightCore->readSpiFromESP();
 }
 
 
@@ -419,6 +419,92 @@ void FlightCore::batteryLoop()
 
 	// Compute voltage compensation
 	m_motorMixer.computeVoltageCompensation(m_batteryVoltage);
+}
+
+
+/*
+ * Read MTF-01 optical flow / lidar data from the ESP32 MISO (100 Hz).
+ * Sends the previous MTF-01 reading back to the GCS as MOSI while receiving fresh data.
+ */
+void FlightCore::readEspMtf01()
+{
+	m_espInterface.sendMtf01();
+}
+
+/*
+ * Read barometer data from the ESP32 MISO (10 Hz).
+ * BMP180 updates at 5 Hz on the ESP32 — reading at 10 Hz ensures data is never stale.
+ */
+void FlightCore::readEspBaro()
+{
+	m_espInterface.sendBaro();
+}
+
+/*
+ * Read GPS and GPS-module compass from the ESP32 MISO (10 Hz).
+ * GPS updates at 1 Hz, GPS compass at 5 Hz — both are in the same MISO frame.
+ */
+void FlightCore::readEspGps()
+{
+	m_espInterface.sendGps();
+}
+
+
+/*
+ * 500 Hz SPI arbitration: schedules all ESP32 SPI transactions so that
+ * only ONE is executed per call, even when multiple sensors are due simultaneously.
+ *
+ * Rates achieved at 500 Hz master:
+ *   debugPrint  100 Hz  (tick % 5  == 0, highest priority)
+ *   MTF-01      100 Hz  (tick % 5  == 0, runs one tick after debug when both due)
+ *   GPS          10 Hz  (tick % 50 == 0)
+ *   Baro         10 Hz  (tick % 50 == 0, deferred one tick behind GPS)
+ *   Radio SBUS   50 Hz  (tick % 10 == 0, no SPI — processes cached MISO)
+ */
+void FlightCore::readSpiFromESP()
+{
+	static uint16_t tick = 0;  // 0..499, wraps every 1 s at 500 Hz
+
+	// Set pending flags when a sensor's period expires.
+	// Multiple flags can become set in the same call; only one SPI fires.
+	static bool pendingDebug = false;
+	static bool pendingMtf01 = false;
+	static bool pendingGps   = false;
+	static bool pendingBaro  = false;
+
+	if (tick % 5  == 0) pendingDebug = true;  // 100 Hz
+	if (tick % 5  == 0) pendingMtf01 = true;  // 100 Hz
+	if (tick % 50 == 0) pendingGps   = true;  // 10 Hz
+	if (tick % 50 == 0) pendingBaro  = true;  // 10 Hz
+
+	// Execute exactly one SPI transaction per call.
+	// A deferred sensor keeps its flag set and fires on the next free tick.
+	if (pendingDebug) {
+		debugPrintLoop();
+		pendingDebug = false;
+	} else if (pendingMtf01) {
+		readEspMtf01();
+		pendingMtf01 = false;
+	} else if (pendingGps) {
+		readEspGps();
+		pendingGps = false;
+	} else if (pendingBaro) {
+		readEspBaro();
+		pendingBaro = false;
+	}
+
+	// Radio SBUS at 50 Hz — no SPI needed.
+	// parseMisoFrame() refreshes m_sbusData on every SPI transaction above,
+	// so this always sees data that is at most one debug cycle old (10 ms).
+	if (tick % 10 == 0) {
+#if RADIO_SOURCE_SPI
+		const EspSpi::SbusFromMiso& sbus = m_espInterface.getSbusData();
+		m_radio.m_radioProtocole.feedSpiData(
+			sbus.channels, sbus.frame_lost, sbus.failsafe, sbus.valid);
+#endif
+	}
+
+	tick = (tick + 1) % 500;
 }
 
 
@@ -454,32 +540,26 @@ void FlightCore::debugPrintLoop()
 		}
 
 		case 2:
-		{
-			uint16_t rcChannels[16] = {};
-			for (int i = 0; i < 16; ++i)
-				rcChannels[i] = m_radio.m_radioProtocole.getChannelUs(i);
-			m_espInterface.sendRc(rcChannels, 16);
-			break;
-		}
-
-		case 3:
-			m_espInterface.sendGps();
-			break;
-
-		case 4:
-			m_espInterface.sendMtf01();
-			break;
-
-		case 5:
 			m_espInterface.sendMag(
 				static_cast<int16_t>(m_magFiltX),
 				static_cast<int16_t>(m_magFiltY),
 				static_cast<int16_t>(m_magFiltZ));
 			break;
 
+		case 3:
+		{
+			// Forward the 16 RC channel values (µs) to the GCS.
+			// These are read from m_sbusData which is refreshed on every SPI transaction
+			// in this same task — so the values are always at most one phase old (10 ms).
+			uint16_t rcChannels[16] = {};
+			for (int i = 0; i < 16; ++i)
+				rcChannels[i] = m_radio.m_radioProtocole.getChannelUs(i);
+			m_espInterface.sendRc(rcChannels, 16);
+			break;
+		}
 	}
 
-	phase = (phase + 1) % 6;
+	phase = (phase + 1) % 4;
 }
 
 
@@ -662,13 +742,8 @@ void FlightCore::escLoop()
  */
 void FlightCore::radioLoop(const float& dt)
 {
-#if RADIO_SOURCE_SPI
-	{
-		const EspSpi::SbusFromMiso& sbus = m_espInterface.getSbusData();
-		m_radio.m_radioProtocole.feedSpiData(
-			sbus.channels, sbus.frame_lost, sbus.failsafe, sbus.valid);
-	}
-#endif
+	// feedSpiData() is called from readSpiFromESP at 50 Hz (tick % 10 == 0),
+	// which always runs before this task in the same scheduler iteration.
 	const bool signalLost = m_radio.readRadioReceiver(true, dt);
 
 	// Handle is flying detection

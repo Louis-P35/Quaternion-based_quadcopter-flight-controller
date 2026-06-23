@@ -43,7 +43,7 @@ void subFSM_task(const float& dt);
 void readBattery_task(const float& dt);
 void readRadio_task(const float& dt);
 void readOpticalFlow_task(const float& dt);
-void debugPrint_task(const float& dt);
+void readSpiFromESP_task(const float& dt);
 
 enum class Motor {eMotor1, eMotor2, eMotor3, eMotor4};
 
@@ -119,7 +119,11 @@ public:
 	void pidAttLoop(const float& dt);
 	void pidPosLoop(const float& dt);
 	void batteryLoop();
+	void readSpiFromESP();
 	void debugPrintLoop();
+	void readEspMtf01();
+	void readEspBaro();
+	void readEspGps();
 
 	void setMotorPower(const Motor& motor, const float& power);
 	float readBatteryVoltage();
